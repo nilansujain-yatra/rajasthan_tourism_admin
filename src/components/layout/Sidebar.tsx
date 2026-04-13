@@ -27,9 +27,10 @@ const navSections = [
   {
     label: 'Reports',
     items: [
-      { href: '/analytics',        icon: '📈', label: 'Analytics Report' },
-      { href: '/reports/bookings', icon: '📑', label: 'Total Bookings' },
-      { href: '/reports/audit',    icon: '🔍', label: 'Audit' },
+      { href: '/analytics',          icon: '📈', label: 'Analytics Report' },
+      { href: '/reports/inventory',  icon: '📦', label: 'Inventory Reports' },
+      { href: '/reports/bookings',   icon: '📑', label: 'Total Bookings' },
+      { href: '/reports/audit',      icon: '🔍', label: 'Audit' },
     ],
   },
   {
