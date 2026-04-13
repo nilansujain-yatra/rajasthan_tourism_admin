@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --maroon:        #8B1A1A;
+  --maroon-dark:   #6B1212;
+  --maroon-light:  #A83030;
+  --gold:          #C8922A;
+  --gold-light:    #E8B84B;
+  --gold-pale:     #FDF3E3;
+  --cream:         #FBF6EF;
+  --cream-dark:    #F0E8DA;
+  --sand:          #E8D5B0;
+  --sand-dark:     #C9B48A;
+  --teal:          #1A7A6E;
+  --teal-light:    #2A9A8C;
+  --text-dark:     #1C1008;
+  --text-mid:      #5A3A1A;
+  --text-muted:    #9A7A5A;
+  --sidebar-w:     230px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  background: var(--cream);
+  color: var(--text-dark);
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--cream-dark); }
+::-webkit-scrollbar-thumb { background: var(--sand-dark); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--maroon-light); }
+
+/* Sidebar pattern overlay */
+.sidebar-pattern {
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(200,146,42,0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.04) 0%, transparent 50%);
+}
+
+/* Ornamental divider */
+.ornament-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--gold);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.ornament-divider::before,
+.ornament-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--sand);
+}
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(139,26,26,0.12);
+}
+
+/* Stat card inner circle decoration */
+.stat-deco::after {
+  content: '';
+  position: absolute;
+  top: -24px;
+  right: -24px;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  pointer-events: none;
+}
+
+/* Rajasthan pattern texture for headers */
+.raj-texture {
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 8px,
+      rgba(200,146,42,0.04) 8px,
+      rgba(200,146,42,0.04) 9px
+    );
+}
+
+/* Animate bar fills on mount */
+@keyframes barGrow {
+  from { width: 0%; }
+}
+.bar-animated {
+  animation: barGrow 0.8s ease-out forwards;
+}
+
+/* Page transition */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: pageIn 0.35s ease-out;
+}
+
+/* Live pulse */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+.live-pulse {
+  animation: livePulse 1.6s ease-in-out infinite;
+}
+
+/* Sidebar active glow */
+.sb-active-glow {
+  box-shadow: inset 3px 0 0 var(--gold-light);
+}
