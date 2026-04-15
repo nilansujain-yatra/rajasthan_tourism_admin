@@ -6,6 +6,10 @@ import SectionHeader from '@/components/ui/SectionHeader'
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
+import HeadDetailedReportView from './HeadDetailedReportView'
+import HeadWiseReportView from './HeadWiseReportView'
+import HeadSummaryReportView from './HeadSummaryReportView'
+import MISReportView from './MISReportView'
 
 type ReportType = 'mis' | 'country' | 'daywise' | 'headwise' | 'headdetail' | 'headsummary' | 'addon' | 'vehicleavail' | 'vehicletrip' | 'vehicleguide' | 'boarding' | 'failed' | 'choiceaddon' | 'diff' | 'entryexit' | 'guidetrip' | 'msgwise' | 'blockunblock' | 'blockuser' | 'checkstatus' | 'ticketgst' | 'choicegst' | 'vehicletrip2' | 'guidetrip2' | 'transaction' | 'cancelled'
 
@@ -37,77 +41,6 @@ const REPORTS: Array<{ id: ReportType; label: string; description: string }> = [
   { id: 'transaction', label: 'Transaction Reports', description: 'All payment transactions log' },
   { id: 'cancelled', label: 'Cancelled Transaction Report', description: 'Refunded and cancelled bookings' },
 ]
-
-const MISReportView = () => (
-  <div className="space-y-5">
-    <div className="flex justify-between items-start">
-      <div>
-        <h1 className="text-2xl font-bold font-serif" style={{ color: 'var(--ink)' }}>MIS Report</h1>
-        <p className="text-xs" style={{ color: 'var(--text-muted)', marginTop: 3 }}>Management Information Summary · Apr 2026</p>
-      </div>
-      <div className="flex gap-2">
-        <button className="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs hover:bg-gray-50" style={{ borderColor: 'var(--sand)', color: 'var(--text-muted)' }}>
-          <svg viewBox="0 0 14 14" className="w-3.5 h-3.5" stroke="currentColor" fill="none" strokeWidth="1.3" strokeLinecap="round">
-            <path d="M2 3.5h10M4 7h6M6 10.5h2" />
-          </svg>
-          Filter
-        </button>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs text-white" style={{ background: 'var(--maroon)' }}>
-          <svg viewBox="0 0 14 14" className="w-3.5 h-3.5" stroke="currentColor" fill="none" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 2v7M4 6l3 3 3-3M2 10v1.5a.5.5 0 00.5.5h9a.5.5 0 00.5-.5V10" />
-          </svg>
-          Export
-        </button>
-      </div>
-    </div>
-
-    <div className="grid grid-cols-3 gap-3">
-      <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--sand)', background: '#fff', borderTop: '3px solid var(--maroon)' }}>
-        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Bookings (Gypsy)</div>
-        <div className="text-2xl font-bold mt-1" style={{ color: 'var(--ink)' }}>1,272</div>
-      </div>
-      <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--sand)', background: '#fff', borderTop: '3px solid var(--gold)' }}>
-        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Revenue</div>
-        <div className="text-2xl font-bold mt-1" style={{ color: 'var(--ink)' }}>₹47.4L</div>
-      </div>
-      <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--sand)', background: '#fff', borderTop: '3px solid var(--teal)' }}>
-        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Indian Citizen Visitors</div>
-        <div className="text-2xl font-bold mt-1" style={{ color: 'var(--ink)' }}>3,234</div>
-      </div>
-    </div>
-
-    <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
-      <table className="w-full">
-        <thead>
-          <tr style={{ background: 'var(--cream)' }}>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Sr.</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Site Name</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Bookings</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Visitors</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Revenue</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            { sr: 1, site: 'Amber Fort', bookings: 380, visitors: '2,500', revenue: '₹8,20,000' },
-            { sr: 2, site: 'Mehrangarh Fort', bookings: 350, visitors: '2,500', revenue: '₹7,50,000' },
-            { sr: 3, site: 'Chittorgarh Fort', bookings: 310, visitors: '2,200', revenue: '₹6,90,000' },
-            { sr: 4, site: 'Albert Hall Museum', bookings: 280, visitors: '2,500', revenue: '₹5,60,000' },
-            { sr: 5, site: 'Gagron Fort', bookings: 260, visitors: '2,500', revenue: '₹5,20,000' },
-          ].map((row) => (
-            <tr key={row.sr} style={{ borderBottom: '1px solid var(--sand)' }} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{row.sr}</td>
-              <td className="px-4 py-3 text-sm">{row.site}</td>
-              <td className="px-4 py-3 text-sm">{row.bookings}</td>
-              <td className="px-4 py-3 text-sm">{row.visitors}</td>
-              <td className="px-4 py-3 text-sm font-semibold">{row.revenue}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)
 
 const CountryWiseView = () => (
   <div className="space-y-5">
@@ -285,6 +218,15 @@ export default function InventoryReportsPage() {
         return <FailedReportView />
       case 'vehicleavail':
         return <VehicleAvailView />
+      case 'headdetail':
+           return <HeadDetailedReportView />   
+      case 'headsummary': 
+          return <HeadSummaryReportView />
+     
+           
+      case 'headwise':
+        return <HeadWiseReportView /> 
+
       default:
         return <DefaultReportView reportId={activeReport} reportLabel={currentReport?.label || ''} reportDescription={currentReport?.description || ''} />
     }
