@@ -10,6 +10,7 @@ import HeadDetailedReportView from './HeadDetailedReportView'
 import HeadWiseReportView from './HeadWiseReportView'
 import HeadSummaryReportView from './HeadSummaryReportView'
 import MISReportView from './MISReportView'
+import AddonReportView from './AddonReportView'
 
 type ReportType = 'mis' | 'country' | 'daywise' | 'headwise' | 'headdetail' | 'headsummary' | 'addon' | 'vehicleavail' | 'vehicletrip' | 'vehicleguide' | 'boarding' | 'failed' | 'choiceaddon' | 'diff' | 'entryexit' | 'guidetrip' | 'msgwise' | 'blockunblock' | 'blockuser' | 'checkstatus' | 'ticketgst' | 'choicegst' | 'vehicletrip2' | 'guidetrip2' | 'transaction' | 'cancelled'
 
@@ -219,13 +220,14 @@ export default function InventoryReportsPage() {
       case 'vehicleavail':
         return <VehicleAvailView />
       case 'headdetail':
-           return <HeadDetailedReportView />   
-      case 'headsummary': 
+           return <HeadDetailedReportView />
+      case 'headsummary':
           return <HeadSummaryReportView />
-     
-           
+      case 'addon':
+        return <AddonReportView />
+
       case 'headwise':
-        return <HeadWiseReportView /> 
+        return <HeadWiseReportView />
 
       default:
         return <DefaultReportView reportId={activeReport} reportLabel={currentReport?.label || ''} reportDescription={currentReport?.description || ''} />
