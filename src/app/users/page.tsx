@@ -4,15 +4,50 @@ import { useState } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
 import SectionHeader from '@/components/ui/SectionHeader'
-import { Search, UserPlus, ChevronDown, X } from 'lucide-react'
+import { Search, UserPlus, ChevronDown, X, Edit2, Trash2 } from 'lucide-react'
 
-const USERS = [
-  { id: 1, name: 'BHARATTAILOR1408',  email: 'bharat@raj.gov.in',   role: 'Operator',       status: 'Active' },
-  { id: 2, name: 'Gurjarpankaj394',   email: 'pankaj@raj.gov.in',   role: 'Dept. Admin',    status: 'Active' },
-  { id: 3, name: 'SANJAYJADONSIR',    email: 'sanjay@raj.gov.in',   role: 'Super Admin',    status: 'Active' },
-  { id: 4, name: 'ramesh.operator',   email: 'ramesh@raj.gov.in',   role: 'Operator',       status: 'Active' },
-  { id: 5, name: 'priya.counter',     email: 'priya@raj.gov.in',    role: 'Counter Staff',  status: 'Inactive' },
-  { id: 6, name: 'mohit.kiosk',       email: 'mohit@raj.gov.in',    role: 'Kiosk Staff',    status: 'Active' },
+type UserRole = 'Super Admin' | 'Dept. Admin' | 'Operator' | 'Counter Staff' | 'Kiosk Staff' | 'Tourist'
+
+interface User {
+  id: number
+  name: string
+  email: string
+  role: UserRole
+  status: 'Active' | 'Inactive'
+  userType: 'admin' | 'tourist' | 'both'
+  // Admin fields
+  department?: string
+  division?: string
+  district?: string
+  addedBy?: string
+  addedDate?: string
+  assignedPlaces?: string[]
+  // Tourist fields
+  mobileNumber?: string
+  ssoId?: string
+  totalBookings?: number
+  totalRevenue?: number
+  totalGrievances?: number
+}
+
+const USERS: User[] = [
+  { id: 1, name: 'BHARATTAILOR1408',  email: 'bharat@raj.gov.in',   role: 'Operator', status: 'Active', userType: 'both',
+    department: 'Tourism', division: 'Jaipur', district: 'Jaipur', addedBy: 'Admin', addedDate: '15 Jan 2026',
+    assignedPlaces: ['Amber Fort', 'City Palace'], mobileNumber: '9876543210', ssoId: 'BT1408', totalBookings: 12, totalRevenue: 8500, totalGrievances: 2 },
+  { id: 2, name: 'Gurjarpankaj394',   email: 'pankaj@raj.gov.in',   role: 'Dept. Admin', status: 'Active', userType: 'admin',
+    department: 'Tourism', division: 'Udaipur', district: 'Udaipur', addedBy: 'Super Admin', addedDate: '10 Dec 2025',
+    assignedPlaces: ['City Palace Udaipur', 'Jagmandir'] },
+  { id: 3, name: 'SANJAYJADONSIR',    email: 'sanjay@raj.gov.in',   role: 'Super Admin', status: 'Active', userType: 'admin',
+    department: 'Administration', division: 'State', district: 'State', addedBy: 'System', addedDate: '01 Jan 2025',
+    assignedPlaces: ['All Places'] },
+  { id: 4, name: 'ramesh.operator',   email: 'ramesh@raj.gov.in',   role: 'Operator', status: 'Active', userType: 'tourist',
+    mobileNumber: '8765432109', ssoId: 'RO4001', totalBookings: 5, totalRevenue: 3200, totalGrievances: 0 },
+  { id: 5, name: 'priya.counter',     email: 'priya@raj.gov.in',    role: 'Counter Staff', status: 'Inactive', userType: 'admin',
+    department: 'Counter Services', division: 'Jaipur', district: 'Jaipur', addedBy: 'Admin', addedDate: '20 Feb 2026',
+    assignedPlaces: ['Jantar Mantar'] },
+  { id: 6, name: 'mohit.kiosk',       email: 'mohit@raj.gov.in',    role: 'Kiosk Staff', status: 'Active', userType: 'both',
+    department: 'Kiosk Operations', division: 'Jaisalmer', district: 'Jaisalmer', addedBy: 'Regional Admin', addedDate: '05 Mar 2026',
+    assignedPlaces: ['Jaisalmer Fort'], mobileNumber: '9123456780', ssoId: 'MK6001', totalBookings: 3, totalRevenue: 1500, totalGrievances: 1 },
 ]
 
 const BOOKINGS = [
@@ -26,12 +61,205 @@ const GRIEVANCES = [
   { id: 2, userId: 2, title: 'User Access Problem', description: 'Unable to login', status: 'Resolved' },
 ]
 
-const roleColor: Record<string, { bg: string; color: string }> = {
+const roleColor: Record<UserRole, { bg: string; color: string }> = {
   'Super Admin':    { bg: 'rgba(139,26,26,0.1)',   color: '#8B1A1A' },
   'Dept. Admin':    { bg: 'rgba(200,146,42,0.12)', color: '#C8922A' },
   'Operator':       { bg: 'rgba(26,122,110,0.1)',  color: '#1A7A6E' },
   'Counter Staff':  { bg: 'rgba(90,58,26,0.08)',   color: '#5A3A1A' },
   'Kiosk Staff':    { bg: 'rgba(90,58,26,0.08)',   color: '#5A3A1A' },
+  'Tourist':        { bg: 'rgba(26,122,110,0.1)',  color: '#1A7A6E' },
+}
+
+function ViewDetailsDialog({ user, onClose, onEditRole, onUnassign }: { user: User; onClose: () => void; onEditRole: (userId: number, newRole: UserRole) => void; onUnassign: (userId: number) => void }) {
+  const [editingRole, setEditingRole] = useState(false)
+  const [selectedRole, setSelectedRole] = useState(user.role)
+
+  const roleColor: Record<UserRole, { bg: string; color: string }> = {
+    'Super Admin':    { bg: 'rgba(139,26,26,0.1)',   color: '#8B1A1A' },
+    'Dept. Admin':    { bg: 'rgba(200,146,42,0.12)', color: '#C8922A' },
+    'Operator':       { bg: 'rgba(26,122,110,0.1)',  color: '#1A7A6E' },
+    'Counter Staff':  { bg: 'rgba(90,58,26,0.08)',   color: '#5A3A1A' },
+    'Kiosk Staff':    { bg: 'rgba(90,58,26,0.08)',   color: '#5A3A1A' },
+    'Tourist':        { bg: 'rgba(26,122,110,0.1)',  color: '#1A7A6E' },
+  }
+
+  const handleEditRoleClick = () => {
+    setEditingRole(true)
+  }
+
+  const handleSaveRole = () => {
+    onEditRole(user.id, selectedRole)
+    setEditingRole(false)
+  }
+
+  const handleUnassign = () => {
+    if (window.confirm(`Are you sure you want to unassign ${user.name} from all places?`)) {
+      onUnassign(user.id)
+      onClose()
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl max-w-3xl w-full mx-4" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold">User Details</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Admin Section */}
+          {(user.userType === 'admin' || user.userType === 'both') && (
+            <div className="border border-gray-200 rounded-lg p-5" style={{ background: '#fafaf9' }}>
+              <h3 className="font-semibold text-sm mb-4" style={{ color: 'var(--maroon)' }}>Admin Information</h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Role</div>
+                  <span className="rounded-full px-2.5 py-0.5 font-medium text-xs" style={{ ...roleColor[user.role as UserRole] }}>
+                    {user.role}
+                  </span>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Department</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{user.department || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Division</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{user.division || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>District</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{user.district || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Added By</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{user.addedBy || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Added Date</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{user.addedDate || 'N/A'}</div>
+                </div>
+              </div>
+
+              {/* Assigned Places */}
+              {user.assignedPlaces && user.assignedPlaces.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-gray-200">
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 3, fontWeight: 500 }}>Assigned Places</div>
+                  <div className="flex flex-wrap gap-2">
+                    {user.assignedPlaces.map((place, idx) => (
+                      <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: '#fff', border: '1px solid var(--sand)' }}>
+                        <span style={{ fontSize: 12 }}>{place}</span>
+                        <button className="text-gray-400 hover:text-gray-600">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Actions */}
+              <div className="mt-4 flex gap-2 pt-4 border-t border-gray-200">
+                {!editingRole ? (
+                  <>
+                    <button
+                      onClick={handleEditRoleClick}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-white text-xs font-medium"
+                      style={{ background: 'var(--maroon)' }}
+                    >
+                      <Edit2 size={13} />
+                      Edit Role
+                    </button>
+                    <button
+                      onClick={handleUnassign}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-50"
+                      style={{ color: '#c41c1c', border: '1px solid #ffe0e0' }}
+                    >
+                      <Trash2 size={13} />
+                      Unassign
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1">
+                      <select
+                        value={selectedRole}
+                        onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                        className="w-full px-3 py-2 rounded-lg text-xs font-medium"
+                        style={{ border: '1px solid var(--sand)', background: '#fff' }}
+                      >
+                        <option value="Super Admin">Super Admin</option>
+                        <option value="Dept. Admin">Dept. Admin</option>
+                        <option value="Operator">Operator</option>
+                        <option value="Counter Staff">Counter Staff</option>
+                        <option value="Kiosk Staff">Kiosk Staff</option>
+                      </select>
+                    </div>
+                    <button
+                      onClick={handleSaveRole}
+                      className="px-3 py-2 rounded-lg text-white text-xs font-medium"
+                      style={{ background: 'var(--maroon)' }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingRole(false)
+                        setSelectedRole(user.role)
+                      }}
+                      className="px-3 py-2 rounded-lg text-xs font-medium"
+                      style={{ background: 'var(--cream-dark)', color: 'var(--text-mid)' }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Tourist Section */}
+          {(user.userType === 'tourist' || user.userType === 'both') && (
+            <div className="border border-gray-200 rounded-lg p-5" style={{ background: '#fafaf9' }}>
+              <h3 className="font-semibold text-sm mb-4" style={{ color: '#1A7A6E' }}>Tourist Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Name</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{user.name}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>SSO ID</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, fontFamily: 'monospace' }}>{user.ssoId || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Mobile Number</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{user.mobileNumber || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Email</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{user.email}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Total Bookings</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--maroon)' }}>{user.totalBookings || 0}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Total Revenue</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#1A7A6E' }}>₹{user.totalRevenue || 0}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Total Grievances</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#C8922A' }}>{user.totalGrievances || 0}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function BookingDialog({ userId, onClose }: { userId: number; onClose: () => void }) {
@@ -128,12 +356,13 @@ function GrievanceDialog({ userId, onClose }: { userId: number; onClose: () => v
   )
 }
 
-function ActionMenu({ userId, userStatus, onStatusChange, onBookings, onGrievance }: {
+function ActionMenu({ userId, userStatus, onStatusChange, onBookings, onGrievance, onViewDetails }: {
   userId: number
   userStatus: string
   onStatusChange: (status: string) => void
   onBookings: () => void
   onGrievance: () => void
+  onViewDetails: () => void
 }) {
   const [open, setOpen] = useState(false)
 
@@ -160,7 +389,7 @@ function ActionMenu({ userId, userStatus, onStatusChange, onBookings, onGrievanc
           </button>
           <button
             onClick={() => {
-              // View details action
+              onViewDetails()
               setOpen(false)
             }}
             className="w-full text-left px-4 py-2 hover:bg-gray-50 border-b border-gray-200 text-xs font-medium"
@@ -204,6 +433,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState(USERS)
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [grievanceDialogOpen, setGrievanceDialogOpen] = useState(false)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
 
   const handleStatusChange = (userId: number, newStatus: string) => {
@@ -218,6 +448,23 @@ export default function UsersPage() {
   const openGrievanceDialog = (userId: number) => {
     setSelectedUserId(userId)
     setGrievanceDialogOpen(true)
+  }
+
+  const openDetailsDialog = (userId: number) => {
+    setSelectedUserId(userId)
+    setDetailsDialogOpen(true)
+  }
+
+  const getSelectedUser = () => {
+    return users.find(u => u.id === selectedUserId)
+  }
+
+  const handleEditRole = (userId: number, newRole: UserRole) => {
+    setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u))
+  }
+
+  const handleUnassignPlaces = (userId: number) => {
+    setUsers(users.map(u => u.id === userId ? { ...u, assignedPlaces: [] } : u))
   }
 
   return (
@@ -266,7 +513,7 @@ export default function UsersPage() {
                 </thead>
                 <tbody>
                   {users.map((u, i) => {
-                    const rc = roleColor[u.role] ?? { bg:'transparent', color:'inherit' }
+                    const rc = roleColor[u.role as UserRole]
                     return (
                       <tr
                         key={u.id}
@@ -302,6 +549,7 @@ export default function UsersPage() {
                             onStatusChange={(status) => handleStatusChange(u.id, status)}
                             onBookings={() => openBookingDialog(u.id)}
                             onGrievance={() => openGrievanceDialog(u.id)}
+                            onViewDetails={() => openDetailsDialog(u.id)}
                           />
                         </td>
                       </tr>
@@ -315,6 +563,14 @@ export default function UsersPage() {
         </main>
       </div>
 
+      {detailsDialogOpen && selectedUserId && getSelectedUser() && (
+        <ViewDetailsDialog
+          user={getSelectedUser()!}
+          onClose={() => setDetailsDialogOpen(false)}
+          onEditRole={handleEditRole}
+          onUnassign={handleUnassignPlaces}
+        />
+      )}
       {bookingDialogOpen && selectedUserId && (
         <BookingDialog userId={selectedUserId} onClose={() => setBookingDialogOpen(false)} />
       )}
