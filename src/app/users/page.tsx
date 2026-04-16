@@ -358,8 +358,8 @@ function GrievanceDialog({ userId, onClose }: { userId: number; onClose: () => v
 
 function ActionMenu({ userId, userStatus, onStatusChange, onBookings, onGrievance, onViewDetails }: {
   userId: number
-  userStatus: string
-  onStatusChange: (status: string) => void
+  userStatus: 'Active' | 'Inactive'
+  onStatusChange: (status: 'Active' | 'Inactive') => void
   onBookings: () => void
   onGrievance: () => void
   onViewDetails: () => void
@@ -414,15 +414,7 @@ function ActionMenu({ userId, userStatus, onStatusChange, onBookings, onGrievanc
           >
             Booking
           </button>
-          <button
-            onClick={() => {
-              // My details action
-              setOpen(false)
-            }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-50 text-xs font-medium"
-          >
-            My Details
-          </button>
+        
         </div>
       )}
     </div>
@@ -436,7 +428,7 @@ export default function UsersPage() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
 
-  const handleStatusChange = (userId: number, newStatus: string) => {
+  const handleStatusChange = (userId: number, newStatus: 'Active' | 'Inactive') => {
     setUsers(users.map(u => u.id === userId ? { ...u, status: newStatus } : u))
   }
 

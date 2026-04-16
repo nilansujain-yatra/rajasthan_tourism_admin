@@ -5,6 +5,7 @@ import { Bell, Printer, SlidersHorizontal } from 'lucide-react'
 
 const pageTitles: Record<string, string> = {
   '/dashboard':              'Dashboard Overview',
+  '/dashboardMonthWise':     'Dashboard Month Wise',
   '/places':                 'Place Management',
   '/bookings':               'Bookings',
   '/bookings/kiosk':         'Kiosk Management',

@@ -11,6 +11,7 @@ const navSections = [
     label: 'Main',
     items: [
       { href: '/dashboard',        icon: '📊', label: 'Dashboard' },
+      { href: '/dashboardMonthWise',        icon: '📊', label: 'Dashboard Month Wise' },
       { href: '/places',           icon: '🏯', label: 'Place Management' },
       { href: '/bookings',         icon: '📅', label: 'Bookings' },
       { href: '/bookings/kiosk',   icon: '🖥️', label: 'Kiosk Management' },
