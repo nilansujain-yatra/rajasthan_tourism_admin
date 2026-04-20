@@ -72,11 +72,40 @@ cd rajasthan-tourism-admin
 # 2. Install dependencies
 npm install
 
-# 3. Start development server
+# 3. Create local environment config
+cp .env.example .env.local
+
+# 4. Start development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) — you'll be redirected to `/dashboard`.
+
+### API Environments
+
+API configuration is centralized in `src/lib/config/env.ts` and consumed through the typed API layer in `src/lib/api`.
+
+| Target | Example file | Local file | Command |
+|--------|--------------|------------|---------|
+| Local development | `.env.example` | `.env.local` | `npm run dev` |
+| Stage | `.env.stage.example` | `.env.stage` | `npm run dev:stage` / `npm run build:stage` |
+| Production | `.env.production.example` | `.env.production` | `npm run build:prod` |
+
+Required variables:
+
+```bash
+NEXT_PUBLIC_APP_ENV=development
+NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/api
+NEXT_PUBLIC_API_TIMEOUT_MS=30000
+```
+
+Use the exported services for API calls:
+
+```ts
+import { bookingsApi } from '@/lib/api'
+
+const bookings = await bookingsApi.list({ page: 1, pageSize: 10 })
+```
 
 ### Build for Production
 

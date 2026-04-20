@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
+import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
+import type { AuthUser } from '@/lib/auth/jwt'
 
 const navSections = [
   {
@@ -30,7 +32,6 @@ const navSections = [
     items: [
       { href: '/analytics',          icon: '📈', label: 'Analytics Report' },
       { href: '/reports/inventory',  icon: '📦', label: 'Inventory Reports' },
-      { href: '/reports/bookings',   icon: '📑', label: 'Total Bookings' },
       { href: '/reports/audit',      icon: '🔍', label: 'Audit' },
     ],
   },
@@ -49,6 +50,7 @@ const navSections = [
       { href: '/operations/feedback', icon: '💬', label: 'Feedback' },
       { href: '/operations/helpdesk', icon: '🛟', label: 'Help Desk' },
       { href: '/operations/content',  icon: '📝', label: 'Content Management' },
+      { href: '/operations/menu',  icon: '📝', label: 'Menu Management' },
       { href: '/operations/terms',    icon: '📜', label: 'Terms & Conditions' },
     ],
   },
@@ -63,13 +65,84 @@ const navSections = [
   },
 ]
 
+function getUserText(user: AuthUser | null, fields: string[]) {
+  for (const field of fields) {
+    const value = user?.[field]
+
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return null
+}
+
+function getDisplayName(user: AuthUser | null) {
+  return getUserText(user, ['name', 'displayName', 'fullName', 'userName', 'username', 'ssoid', 'email']) ?? 'Admin User'
+}
+
+function getRoleLabel(user: AuthUser | null) {
+  return getUserText(user, ['designation', 'userType', 'userRole', 'role']) ?? 'Signed in'
+}
+
+function getInitials(user: AuthUser | null) {
+  return getDisplayName(user)
+    .split(/[\s._@-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join('') || 'AU'
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
+  const initials = useMemo(() => getInitials(user), [user])
 
   const toggleSection = (label: string) => {
     setCollapsed(prev => ({ ...prev, [label]: !prev[label] }))
   }
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadSession() {
+      try {
+        const response = await fetch('/api/auth/session', {
+          headers: { Accept: 'application/json' },
+        })
+
+        if (!response.ok) {
+          if (isMounted) {
+            setUser(null)
+          }
+          clearCachedAuthUser()
+          return
+        }
+
+        const payload = await response.json() as { user?: AuthUser }
+
+        if (isMounted) {
+          const sessionUser = payload.user ?? null
+
+          setUser(sessionUser)
+          writeCachedAuthUser(sessionUser)
+        }
+      } catch {
+        if (isMounted) {
+          setUser(null)
+          clearCachedAuthUser()
+        }
+      }
+    }
+
+    loadSession()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   return (
     <aside
@@ -186,11 +259,11 @@ export default function Sidebar() {
             className="flex items-center justify-center text-white rounded-full font-semibold flex-shrink-0"
             style={{ width: 30, height: 30, background: 'rgba(255,255,255,0.12)', fontSize: 11 }}
           >
-            BT
+            {initials}
           </div>
           <div>
-            <div className="text-white/80 font-medium" style={{ fontSize: 11 }}>BHARATTAILOR1408</div>
-            <div className="text-white/40" style={{ fontSize: 9 }}>Operator</div>
+            <div className="text-white/80 font-medium" style={{ fontSize: 11 }}>{getDisplayName(user)}</div>
+            <div className="text-white/40" style={{ fontSize: 9 }}>{getRoleLabel(user)}</div>
           </div>
         </div>
       </div>

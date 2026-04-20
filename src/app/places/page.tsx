@@ -3,6 +3,7 @@
 import PlaceCard from '@/components/ui/PlaceCard'
 import SectionHeader from '@/components/ui/SectionHeader'
 import { Plus, Search, Filter } from 'lucide-react'
+import PlacesManagementView from './PlacesManagementView'
 
 const PLACES = [
   { name: 'Amber Fort',        emoji: '🏯', visitors: '2,500', trend: '2,500', category: 'Fort & Palace',     status: 'live'    as const },
@@ -19,7 +20,7 @@ const PLACES = [
   { name: 'Hawa Mahal',        emoji: '🪟', visitors: '3,100', trend: '2,200', category: 'Palace',            status: 'live'    as const },
 ]
 
-export default function PlacesPage() {
+function LegacyPlacesPage() {
   return (
     <div className="px-6 py-6 space-y-6">
 
@@ -128,4 +129,8 @@ export default function PlacesPage() {
       </div>
     </div>
   )
+}
+
+export default function PlacesPage() {
+  return <PlacesManagementView />
 }

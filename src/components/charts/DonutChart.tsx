@@ -2,14 +2,14 @@
 
 const CIRCUMFERENCE = 2 * Math.PI * 50 // r=50
 
-interface Segment {
+export interface DonutSegment {
   label: string
   value: number
   count: string
   color: string
 }
 
-const SEGMENTS: Segment[] = [
+const DEFAULT_SEGMENTS: DonutSegment[] = [
   { label: 'Indian Visitors', value: 46, count: '1,79,799', color: '#8B1A1A' },
   { label: 'Indian Student',  value: 20, count: '62,799',   color: '#C8922A' },
   { label: 'Foreign Visitor', value: 10, count: '10,793',   color: '#1A7A6E' },
@@ -18,8 +18,16 @@ const SEGMENTS: Segment[] = [
   { label: 'Misc',            value: 11, count: '—',        color: '#C9B48A' },
 ]
 
-export default function DonutChart() {
+type DonutChartProps = {
+  segments?: DonutSegment[]
+}
+
+export default function DonutChart({ segments = DEFAULT_SEGMENTS }: DonutChartProps) {
   let offset = 0
+  const topSegment = segments.reduce(
+    (currentTop, segment) => segment.value > currentTop.value ? segment : currentTop,
+    segments[0] ?? DEFAULT_SEGMENTS[0]
+  )
 
   return (
     <div className="flex items-center gap-6">
@@ -37,7 +45,7 @@ export default function DonutChart() {
         />
 
         {/* Segments */}
-        {SEGMENTS.map(seg => {
+        {segments.map(seg => {
           const dashArray = (seg.value / 100) * CIRCUMFERENCE
           const dashOffset = -offset
           offset += dashArray
@@ -62,7 +70,7 @@ export default function DonutChart() {
           textAnchor="middle"
           style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 22, fontWeight: 700, fill: 'var(--text-dark)' }}
         >
-          46%
+          {topSegment.value}%
         </text>
         <text
           x={65} y={76}
@@ -75,7 +83,7 @@ export default function DonutChart() {
 
       {/* Legend */}
       <div className="flex flex-col gap-2 flex-1">
-        {SEGMENTS.map(seg => (
+        {segments.map(seg => (
           <div key={seg.label} className="flex items-center gap-2" style={{ fontSize: 12 }}>
             <span
               className="rounded-full flex-shrink-0"

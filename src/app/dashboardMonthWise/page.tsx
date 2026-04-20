@@ -3,6 +3,9 @@
 import { useState, useMemo } from 'react'
 import { Filter, X, ChevronDown, Calendar, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import SectionHeader from '@/components/ui/SectionHeader'
+import DashboardMonthWiseView from './DashboardMonthWiseView'
+
+export default DashboardMonthWiseView
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -183,7 +186,7 @@ function GroupSection({ group, cards }: { group: string; cards: MetricCard[] }) 
 
 // ─── Main Page Component ──────────────────────────────────────────────────────
 
-export default function DashboardMonthWisePage() {
+function LegacyDashboardMonthWisePage() {
   const [selectedMonth, setSelectedMonth] = useState('2026-04')
   const [showFilter,    setShowFilter]    = useState(false)
   const [place,         setPlace]         = useState('')

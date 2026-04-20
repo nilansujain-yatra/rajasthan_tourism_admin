@@ -1,12 +1,12 @@
 'use client'
 
-interface BarRow {
+export interface BarRow {
   label: string
   percent: number
   gradient: string
 }
 
-const BARS: BarRow[] = [
+const DEFAULT_BARS: BarRow[] = [
   { label: 'Online',   percent: 55, gradient: 'linear-gradient(90deg, #8B1A1A, #A83030)' },
   { label: 'Kiosk',   percent: 27, gradient: 'linear-gradient(90deg, #C8922A, #E8B84B)' },
   { label: 'Counter', percent: 18, gradient: 'linear-gradient(90deg, #1A7A6E, #2A9A8C)' },
@@ -17,7 +17,11 @@ const TREND_POINTS = [
   [0, 55], [45, 45], [90, 30], [135, 38], [180, 22], [225, 18], [270, 12], [315, 9], [320, 8],
 ]
 
-export default function BarChart() {
+type BarChartProps = {
+  bars?: BarRow[]
+}
+
+export default function BarChart({ bars = DEFAULT_BARS }: BarChartProps) {
   const pathD = TREND_POINTS
     .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x},${y}`)
     .join(' ')
@@ -28,7 +32,7 @@ export default function BarChart() {
     <div>
       {/* Bar rows */}
       <div className="flex flex-col gap-3 mb-6">
-        {BARS.map(bar => (
+        {bars.map(bar => (
           <div key={bar.label} className="flex items-center gap-3">
             <div
               className="text-right flex-shrink-0"

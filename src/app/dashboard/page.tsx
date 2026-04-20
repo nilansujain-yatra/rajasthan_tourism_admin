@@ -4,6 +4,9 @@ import StatCard from '@/components/ui/StatCard'
 import SectionHeader from '@/components/ui/SectionHeader'
 import DonutChart from '@/components/charts/DonutChart'
 import BarChart from '@/components/charts/BarChart'
+import DashboardView from './DashboardView'
+
+export default DashboardView
 
 const recentBookings = [
   { id: 'BK-29401', site: 'Amber Fort',       visitors: 4, amount: '₹800', status: 'Confirmed', time: '10:42 AM' },
@@ -19,7 +22,7 @@ const statusStyle = {
   Cancelled: { bg: 'rgba(139,26,26,0.1)',   color: '#8B1A1A' },
 }
 
-export default function DashboardPage() {
+function LegacyDashboardPage() {
   return (
     <div className="px-6 py-6 space-y-6">
 

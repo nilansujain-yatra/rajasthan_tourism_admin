@@ -125,7 +125,176 @@ html, body {
   animation: livePulse 1.6s ease-in-out infinite;
 }
 
+@keyframes rajLoaderSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rajLoaderFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.raj-loader {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 28%, rgba(253,243,227,0.95) 0 10px, transparent 11px),
+    linear-gradient(145deg, #FDF3E3 0%, #E8D5B0 48%, #C8922A 100%);
+  border: 1px solid rgba(200,146,42,0.48);
+  box-shadow: 0 12px 30px rgba(139,26,26,0.16), inset 0 0 0 6px rgba(255,255,255,0.35);
+  overflow: hidden;
+}
+
+.raj-loader::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  border: 2px dashed rgba(139,26,26,0.5);
+  border-top-color: rgba(200,146,42,0.95);
+  animation: rajLoaderSpin 2.8s linear infinite;
+}
+
+.raj-loader__sun {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  right: 17px;
+  top: 15px;
+  background: var(--gold-light);
+  box-shadow: 0 0 18px rgba(232,184,75,0.9);
+}
+
+.raj-loader__fort {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 23px;
+  height: 25px;
+  background: linear-gradient(180deg, var(--maroon-light), var(--maroon-dark));
+  border-radius: 3px 3px 0 0;
+  animation: rajLoaderFloat 1.9s ease-in-out infinite;
+}
+
+.raj-loader__fort::before,
+.raj-loader__fort::after,
+.raj-loader__fort span {
+  content: '';
+  position: absolute;
+  top: -9px;
+  width: 12px;
+  height: 12px;
+  background: var(--maroon-dark);
+  border-radius: 3px 3px 0 0;
+}
+
+.raj-loader__fort::before { left: 0; }
+.raj-loader__fort::after { right: 0; }
+.raj-loader__fort span:nth-child(1) { left: 18px; }
+.raj-loader__fort span:nth-child(2) { left: 50%; transform: translateX(-50%); }
+.raj-loader__fort span:nth-child(3) { right: 18px; }
+
+.raj-loader__arch {
+  position: absolute;
+  left: 35px;
+  bottom: 23px;
+  width: 14px;
+  height: 19px;
+  border-radius: 10px 10px 0 0;
+  background: rgba(28,16,8,0.34);
+  animation: rajLoaderFloat 1.9s ease-in-out infinite;
+}
+
+.raj-loader::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: 0;
+  height: 22px;
+  background: linear-gradient(180deg, rgba(90,58,26,0.05), rgba(90,58,26,0.24));
+}
+
 /* Sidebar active glow */
 .sb-active-glow {
   box-shadow: inset 3px 0 0 var(--gold-light);
+}
+
+/* Excel Button (Green Theme) */
+.btn-excel {
+  background: linear-gradient(135deg, #dff5e1, #b7e4c7);
+  color: #1b5e20;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.btn-excel:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* PDF Button (Primary Theme) */
+.btn-pdf {
+  background: linear-gradient(135deg, #8b1e1e, #a83232);
+  color: white;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(139,30,30,0.3);
+}
+.btn-pdf:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(139,30,30,0.4);
+}
+
+/* View Ticket */
+.btn-view {
+  background: linear-gradient(135deg, #f3e7df, #e6d3c4);
+  color: #5c1c1c;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+.btn-view:hover {
+  background: #e8d6c7;
+}
+
+/* Download Ticket */
+.btn-download {
+  background: linear-gradient(135deg, #8b1e1e, #7a1717);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+.btn-download:hover {
+  background: #6a1414;
+}
+
+
+.tab-btn {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #f3e7df;
+  color: #5c1c1c;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background: #e6d3c4;
+}
+
+.tab-active {
+  background: #8b1e1e;
+  color: white;
+  box-shadow: 0 3px 8px rgba(139, 30, 30, 0.3);
 }
