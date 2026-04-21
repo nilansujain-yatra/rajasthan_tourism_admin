@@ -406,11 +406,10 @@ useEffect(() => {
   ]);
 
   const visibleBookings = useMemo(() => {
-    return bookings.filter((row) => {
-      const bookingType = typeof row.bookingType === "string" ? row.bookingType.toUpperCase() : "";
-      return bookingType === activeTab;
-    });
-  }, [bookings, activeTab]);
+    // Don't filter by bookingType as each tab calls its own API endpoint
+    // that already returns the correct data
+    return bookings;
+  }, [bookings]);
 
   const offset = (currentPage - 1) * itemsPerPage;
   const totalPages = Math.max(1, Math.ceil((totalRecords || 0) / itemsPerPage));
