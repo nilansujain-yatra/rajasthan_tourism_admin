@@ -97,7 +97,7 @@ function getInitials(user: AuthUser | null) {
 export default function Sidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
+  const [user, setUser] = useState<AuthUser | null>(null)
   const initials = useMemo(() => getInitials(user), [user])
 
   const toggleSection = (label: string) => {
@@ -109,6 +109,11 @@ export default function Sidebar() {
 
     async function loadSession() {
       try {
+        const cachedUser = readCachedAuthUser()
+        if (isMounted) {
+          setUser(cachedUser)
+        }
+
         const response = await fetch('/api/auth/session', {
           headers: { Accept: 'application/json' },
         })

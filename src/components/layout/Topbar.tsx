@@ -73,7 +73,7 @@ export default function Topbar() {
   const pathname = usePathname()
   const title = pageTitles[pathname] ?? (pathname.startsWith('/places/') ? 'Place Details' : 'Admin Portal')
   const dateStr = getNowString()
-  const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
+  const [user, setUser] = useState<AuthUser | null>(null)
   const initials = useMemo(() => getInitials(user), [user])
 
   useEffect(() => {
@@ -81,6 +81,11 @@ export default function Topbar() {
 
     async function loadSession() {
       try {
+        const cachedUser = readCachedAuthUser()
+        if (isMounted) {
+          setUser(cachedUser)
+        }
+
         const response = await fetch('/api/auth/session', {
           headers: { Accept: 'application/json' },
         })
@@ -134,7 +139,7 @@ export default function Topbar() {
     >
       {/* Left: date + title */}
       <div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 300 }}>
+        <div suppressHydrationWarning style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 300 }}>
           {dateStr}
         </div>
         <h1
