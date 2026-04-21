@@ -281,7 +281,7 @@ useEffect(() => {
     endDate: todayMaxDate,
     dateType: "visit",
     bookingType: "",
-    transactionStatus: "SUCCESS",
+    transactionStatus: "ALL",
     departmentId: "",
   });
 
@@ -290,7 +290,7 @@ useEffect(() => {
     endDate: todayMaxDate,
     dateType: "visit",
     bookingType: "",
-    transactionStatus: "SUCCESS",
+    transactionStatus: "ALL",
     departmentId: "",
   }));
 
@@ -321,20 +321,36 @@ useEffect(() => {
         params.set("placeId", "");
         params.set("size", String(itemsPerPage));
         params.set("startDay", String(startDay));
-        params.set("ticketType", "");
-        params.set("transactionStatus", (appliedFilters.transactionStatus ?? "SUCCESS").toString());
+        // When transactionStatus is "ALL", send empty string to fetch all statuses
+        params.set("transactionStatus", appliedFilters.transactionStatus === "ALL" ? "" : (appliedFilters.transactionStatus ?? ""));
         params.set("departmentId", appliedFilters.departmentId ?? "");
         params.set("isFilter", "true");
         params.set("dateFilter", dateFilter);
         params.set("searchKey", appliedSearch ?? "");
-        params.set("zoneId", "");
-        params.set("shiftId", "");
-        params.set("quotaId", "");
-        params.set("inventoryId", "");
-        params.set("entryVerify", "ALL");
-        params.set("driverVerify", "ALL");
+        params.set("printCount", "ALL");
 
-        const response = await fetch(`/api/inventory/reports/mis_V3?${params.toString()}`, {
+        // Determine API endpoint and parameters based on active tab
+        let apiEndpoint = "/api/inventory/reports/mis_V3";
+
+        if (activeTab === "INVENTORY") {
+          params.set("ticketType", "");
+          params.set("zoneId", "");
+          params.set("shiftId", "");
+          params.set("quotaId", "");
+          params.set("inventoryId", "");
+          params.set("entryVerify", "ALL");
+          params.set("driverVerify", "ALL");
+        } else if (activeTab === "NON_INVENTORY") {
+          apiEndpoint = "/api/non-inventory/reports/mis_V3";
+          params.set("ticketType", "");
+          // Non-inventory API doesn't use these inventory-specific parameters
+        } else if (activeTab === "COMPOSITE") {
+          apiEndpoint = "/api/non-inventory/reports/mis_V3";
+          params.set("ticketType", "COMPOSITE");
+          // Non-inventory API doesn't use these inventory-specific parameters
+        }
+
+        const response = await fetch(`${apiEndpoint}?${params.toString()}`, {
           method: "GET",
           headers: { Accept: "application/json" },
           cache: "no-store",
@@ -378,6 +394,7 @@ useEffect(() => {
       controller.abort();
     };
   }, [
+    activeTab,
     currentPage,
     itemsPerPage,
     appliedSearch,
@@ -390,11 +407,10 @@ useEffect(() => {
   ]);
 
   const visibleBookings = useMemo(() => {
-    return bookings.filter((row) => {
-      const bookingType = typeof row.bookingType === "string" ? row.bookingType.toUpperCase() : "";
-      return bookingType === activeTab;
-    });
-  }, [bookings, activeTab]);
+    // Don't filter by bookingType as each tab calls its own API endpoint
+    // that already returns the correct data
+    return bookings;
+  }, [bookings]);
 
   const offset = (currentPage - 1) * itemsPerPage;
   const totalPages = Math.max(1, Math.ceil((totalRecords || 0) / itemsPerPage));
@@ -659,6 +675,7 @@ const getPaginationRange = () => {
         });
       }}
     >
+      <option value="ALL">ALL</option>
       <option value="SUCCESS">SUCCESS</option>
       <option value="FAILED">FAILED</option>
       <option value="PENDING">PENDING</option>
