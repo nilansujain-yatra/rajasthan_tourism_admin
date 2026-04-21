@@ -281,7 +281,7 @@ useEffect(() => {
     endDate: todayMaxDate,
     dateType: "visit",
     bookingType: "",
-    transactionStatus: "SUCCESS",
+    transactionStatus: "ALL",
     departmentId: "",
   });
 
@@ -290,7 +290,7 @@ useEffect(() => {
     endDate: todayMaxDate,
     dateType: "visit",
     bookingType: "",
-    transactionStatus: "SUCCESS",
+    transactionStatus: "ALL",
     departmentId: "",
   }));
 
@@ -321,7 +321,8 @@ useEffect(() => {
         params.set("placeId", "");
         params.set("size", String(itemsPerPage));
         params.set("startDay", String(startDay));
-        params.set("transactionStatus", (appliedFilters.transactionStatus ?? "SUCCESS").toString());
+        // When transactionStatus is "ALL", send empty string to fetch all statuses
+        params.set("transactionStatus", appliedFilters.transactionStatus === "ALL" ? "" : (appliedFilters.transactionStatus ?? ""));
         params.set("departmentId", appliedFilters.departmentId ?? "");
         params.set("isFilter", "true");
         params.set("dateFilter", dateFilter);
@@ -674,6 +675,7 @@ const getPaginationRange = () => {
         });
       }}
     >
+      <option value="ALL">ALL</option>
       <option value="SUCCESS">SUCCESS</option>
       <option value="FAILED">FAILED</option>
       <option value="PENDING">PENDING</option>
