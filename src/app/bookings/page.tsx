@@ -321,33 +321,32 @@ useEffect(() => {
         params.set("placeId", "");
         params.set("size", String(itemsPerPage));
         params.set("startDay", String(startDay));
-        params.set("ticketType", "");
         params.set("transactionStatus", (appliedFilters.transactionStatus ?? "SUCCESS").toString());
         params.set("departmentId", appliedFilters.departmentId ?? "");
         params.set("isFilter", "true");
         params.set("dateFilter", dateFilter);
         params.set("searchKey", appliedSearch ?? "");
-        params.set("zoneId", "");
-        params.set("shiftId", "");
-        params.set("quotaId", "");
-        params.set("inventoryId", "");
-        params.set("entryVerify", "ALL");
-        params.set("driverVerify", "ALL");
         params.set("printCount", "ALL");
 
-        // Determine API endpoint based on active tab
+        // Determine API endpoint and parameters based on active tab
         let apiEndpoint = "/api/inventory/reports/mis_V3";
-        if (activeTab === "NON_INVENTORY") {
+
+        if (activeTab === "INVENTORY") {
+          params.set("ticketType", "");
+          params.set("zoneId", "");
+          params.set("shiftId", "");
+          params.set("quotaId", "");
+          params.set("inventoryId", "");
+          params.set("entryVerify", "ALL");
+          params.set("driverVerify", "ALL");
+        } else if (activeTab === "NON_INVENTORY") {
           apiEndpoint = "/api/non-inventory/reports/mis_V3";
-          // Remove inventory-specific parameters for non-inventory API
-          params.delete("zoneId");
-          params.delete("shiftId");
-          params.delete("quotaId");
-          params.delete("inventoryId");
-          params.delete("entryVerify");
-          params.delete("driverVerify");
+          params.set("ticketType", "");
+          // Non-inventory API doesn't use these inventory-specific parameters
         } else if (activeTab === "COMPOSITE") {
-          apiEndpoint = "/api/inventory/reports/mis_V3";
+          apiEndpoint = "/api/non-inventory/reports/mis_V3";
+          params.set("ticketType", "COMPOSITE");
+          // Non-inventory API doesn't use these inventory-specific parameters
         }
 
         const response = await fetch(`${apiEndpoint}?${params.toString()}`, {
