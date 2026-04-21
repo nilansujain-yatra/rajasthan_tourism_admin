@@ -333,8 +333,24 @@ useEffect(() => {
         params.set("inventoryId", "");
         params.set("entryVerify", "ALL");
         params.set("driverVerify", "ALL");
+        params.set("printCount", "ALL");
 
-        const response = await fetch(`/api/inventory/reports/mis_V3?${params.toString()}`, {
+        // Determine API endpoint based on active tab
+        let apiEndpoint = "/api/inventory/reports/mis_V3";
+        if (activeTab === "NON_INVENTORY") {
+          apiEndpoint = "/api/non-inventory/reports/mis_V3";
+          // Remove inventory-specific parameters for non-inventory API
+          params.delete("zoneId");
+          params.delete("shiftId");
+          params.delete("quotaId");
+          params.delete("inventoryId");
+          params.delete("entryVerify");
+          params.delete("driverVerify");
+        } else if (activeTab === "COMPOSITE") {
+          apiEndpoint = "/api/inventory/reports/mis_V3";
+        }
+
+        const response = await fetch(`${apiEndpoint}?${params.toString()}`, {
           method: "GET",
           headers: { Accept: "application/json" },
           cache: "no-store",
@@ -378,6 +394,7 @@ useEffect(() => {
       controller.abort();
     };
   }, [
+    activeTab,
     currentPage,
     itemsPerPage,
     appliedSearch,
