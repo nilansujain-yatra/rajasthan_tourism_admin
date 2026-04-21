@@ -433,7 +433,7 @@ export default function MISReportView({
     dateType:    'Visit Date',
     startDate:   '2026-04-01',
     endDate:     '2026-04-13',
-    paymentType: 'SUCCESS',
+    paymentType: 'ALL',
     district:    '',
     place:       '',
     mode:        '',
@@ -450,6 +450,7 @@ export default function MISReportView({
 
   const filtered = useMemo(() => data.filter(r => {
     if (searchBookingId && !r.bookingId.toLowerCase().includes(searchBookingId.toLowerCase())) return false
+    if (filters.paymentType !== 'ALL' && r.transactionStatus !== filters.paymentType) return false
     if (filters.district && r.districtName !== filters.district) return false
     if (filters.place    && r.placeName    !== filters.place)    return false
     if (filters.mode     && r.bookingMode  !== filters.mode)     return false
@@ -512,7 +513,7 @@ export default function MISReportView({
           { label: 'Date Type',     val: filters.dateType    },
           { label: 'Start Date',    val: filters.startDate   ? new Date(filters.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
           { label: 'End Date',      val: filters.endDate     ? new Date(filters.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
-          { label: 'Payment Type',  val: filters.paymentType },
+          { label: 'Payment Type',  val: filters.paymentType === 'ALL' ? 'All' : filters.paymentType },
         ].map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
             <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500 }}>{item.label} :</span>
@@ -549,7 +550,7 @@ export default function MISReportView({
           </div>
 
           <FilterSelect label="Payment Type" value={filters.paymentType}
-            options={[{ v: 'SUCCESS', l: 'Success' }, { v: 'FAILED', l: 'Failed' }, { v: 'PENDING', l: 'Pending' }, { v: 'REFUNDED', l: 'Refunded' }]}
+            options={[{ v: 'ALL', l: 'All' }, { v: 'SUCCESS', l: 'Success' }, { v: 'FAILED', l: 'Failed' }, { v: 'PENDING', l: 'Pending' }, { v: 'REFUNDED', l: 'Refunded' }]}
             onChange={v => { setFilters(f => ({ ...f, paymentType: v })); setPage(1) }} />
 
           <FilterSelect label="District" value={filters.district}
