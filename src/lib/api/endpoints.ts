@@ -4,6 +4,9 @@ export const apiEndpoints = {
     logout: '/auth/logout',
     me: '/auth/me',
   },
+  users: {
+    getAllUserList: '/user/getAllUserList',
+  },
   dashboard: {
     summary: '/dashboard/summary',
     recentBookings: '/dashboard/recent-bookings',

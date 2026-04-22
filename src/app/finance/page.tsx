@@ -1,3 +1,5 @@
+'use client'
+
 import StatCard from '@/components/ui/StatCard'
 import SectionHeader from '@/components/ui/SectionHeader'
 import Sidebar from '@/components/layout/Sidebar'

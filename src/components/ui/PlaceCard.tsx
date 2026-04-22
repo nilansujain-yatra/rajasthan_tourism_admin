@@ -1,3 +1,5 @@
+'use client'
+
 interface PlaceCardProps {
   name: string
   emoji: string

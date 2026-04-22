@@ -305,3 +305,45 @@ html, body {
   margin-bottom: 4px;
   font-weight: 500;
 }
+
+
+/* Primary - Filter */
+.btn-filter {
+  background: linear-gradient(135deg, #8b1e1e, #a83232);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 10px rgba(139, 30, 30, 0.3);
+}
+.btn-filter:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(139, 30, 30, 0.4);
+}
+
+/* Reset */
+.btn-reset {
+  background: linear-gradient(135deg, #fff3cd, #ffe08a);
+  color: #8a6d3b;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn-reset:hover {
+  background: #ffd966;
+}
+
+/* Cancel */
+.btn-cancel {
+  background: #f3e7df;
+  color: #5c1c1c;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn-cancel:hover {
+  background: #e6d3c4;
+}

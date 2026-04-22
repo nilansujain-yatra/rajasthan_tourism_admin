@@ -12,8 +12,10 @@ import HeadSummaryReportView from './HeadSummaryReportView'
 import MISReportView from './MISReportView'
 import AddonReportView from './AddonReportView'
 import HeadWiseGSTReportView from './HeadWiseGSTReportView'
+import ChoiceDifferenceReportView from './ChoiceDifferenceReportView'
+import TransactionReportView from './TransactionReportView'
 
-type ReportType = 'mis' | 'country' | 'daywise' | 'headwise' | 'headdetail' | 'headsummary' | 'addon' | 'vehicleavail' | 'vehicletrip' | 'vehicleguide' | 'boarding' | 'failed' | 'choiceaddon' | 'diff' | 'entryexit' | 'guidetrip' | 'msgwise' | 'blockunblock' | 'blockuser' | 'checkstatus' | 'ticketgst' | 'choicegst' | 'headwisegst' | 'vehicletrip2' | 'guidetrip2' | 'transaction' | 'cancelled'
+type ReportType = 'mis' | 'country' | 'daywise' | 'headwise' | 'headdetail' | 'headsummary' | 'addon' | 'vehicleavail' | 'vehicletrip' | 'vehicleguide' | 'boarding' | 'failed' | 'choiceaddon' | 'diff' | 'entryexit' | 'guidetrip' | 'msgwise' | 'blockunblock' | 'blockuser' | 'checkstatus' | 'ticketgst' | 'choicegst' | 'headwisegst' | 'choicendiffreport' | 'vehicletrip2' | 'guidetrip2' | 'transaction' | 'cancelled'
 
 const REPORTS: Array<{ id: ReportType; label: string; description: string }> = [
   { id: 'mis', label: 'MIS Report', description: 'Management Information Summary' },
@@ -39,6 +41,7 @@ const REPORTS: Array<{ id: ReportType; label: string; description: string }> = [
   { id: 'ticketgst', label: 'Ticket GST Report', description: 'GST on ticket sales' },
   { id: 'choicegst', label: 'Choice GST Report', description: 'GST on add-on services' },
   { id: 'headwisegst', label: 'HeadWise Report(GST and Choice)', description: 'HeadWise Report of GST and Choice' },
+  { id: 'choicendiffreport', label: 'Choice & Diffrence Report', description: 'Choice & Diffrence Report' },
   { id: 'vehicletrip2', label: 'Vehicle Trip Reports', description: 'Vehicle trip history' },
   { id: 'guidetrip2', label: 'Guide Trip Reports', description: 'Guide trip completion history' },
   { id: 'transaction', label: 'Transaction Reports', description: 'All payment transactions log' },
@@ -232,6 +235,12 @@ export default function InventoryReportsPage() {
 
       case 'headwise':
         return <HeadWiseReportView />
+
+      case 'choicendiffreport':
+        return <ChoiceDifferenceReportView/>
+
+      case 'transaction':
+        return <TransactionReportView/>
 
       default:
         return <DefaultReportView reportId={activeReport} reportLabel={currentReport?.label || ''} reportDescription={currentReport?.description || ''} />

@@ -94,6 +94,34 @@ export type HomeDetailsResponse = {
   meta: Record<string, unknown>
 }
 
+export type UserDetailDto = {
+  id: string
+  email?: string
+  ssoId?: string
+  ssoRoles?: string[]
+  displayName?: string
+  mobile?: string
+  active?: boolean
+  block?: boolean
+  agent?: boolean
+  normalUser?: boolean
+  delete?: boolean
+}
+
+export type GetAllUserListResult = {
+  totalRecords: number
+  userDetailDtos: UserDetailDto[]
+  [key: string]: unknown
+}
+
+export type GetAllUserListResponse = {
+  code: number
+  message: string
+  result: GetAllUserListResult
+  errors: unknown[]
+  meta: Record<string, unknown>
+}
+
 export const dashboardApi = {
   getSummary: (options?: ApiRequestOptions) =>
     apiClient.get<DashboardSummary>(apiEndpoints.dashboard.summary, options),
@@ -107,6 +135,20 @@ export const dashboardApi = {
       query: {
         ...options?.query,
         isFilter: true,
+      },
+    }),
+}
+
+export const usersApi = {
+  getAllUserList: (query?: QueryParams, options?: ApiRequestOptions) =>
+    apiClient.get<GetAllUserListResponse>(apiEndpoints.users.getAllUserList, {
+      ...options,
+      query: {
+        searchKey: '',
+        block: false,
+        pagination: true,
+        isFilter: true,
+        ...query,
       },
     }),
 }

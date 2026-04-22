@@ -52,6 +52,23 @@ type DeptApiResponse = {
   meta?: unknown;
 };
 
+type Place = {
+  placeId?: string | number;
+  placeName?: string;
+  id?: string | number;
+  name?: string;
+  [key: string]: unknown;
+};
+
+type PlaceApiResponse = {
+  code?: number;
+  message?: string;
+  result?: unknown;
+  data?: unknown;
+  errors?: unknown;
+  meta?: unknown;
+};
+
 function getDepartmentId(dept: Department) {
   const candidate =
     dept.deptId ??
@@ -122,11 +139,59 @@ function extractDepartments(payload: unknown): Department[] {
   return list.filter((item) => item && typeof item === "object") as Department[];
 }
 
+function getPlaceId(place: Place) {
+  const candidate =
+    place.id ??
+    (place as any).id ??
+    place.placeId ??
+    (place as any).place_id ??
+    (place as any).placeCode ??
+    (place as any).placecode ??
+    undefined;
+
+  if (typeof candidate === "string" || typeof candidate === "number") {
+    return String(candidate);
+  }
+
+  const nameFallback = getPlaceName(place);
+  if (nameFallback) {
+    return nameFallback;
+  }
+
+  return "";
+}
+
+function getPlaceName(place: Place) {
+  const candidate =
+    place.placeName ??
+    (place as any).placename ??
+    (place as any).place_name ??
+    place.name ??
+    (place as any).name;
+
+  if (typeof candidate === "string") {
+    return candidate.trim();
+  }
+  return "";
+}
+
+function extractPlaces(payload: unknown): Place[] {
+  const list = findFirstArray(payload);
+  if (!list) return [];
+  return list.filter((item) => item && typeof item === "object") as Place[];
+}
+
 const DEFAULT_START_DAY = 1774981800000;
 
 function getTodayEndMs() {
   const today = new Date();
   today.setHours(23, 59, 59, 999);
+  return today.getTime();
+}
+
+function getTodayStartMs() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   return today.getTime();
 }
 
@@ -190,8 +255,11 @@ const [selectedBooking, setSelectedBooking] = useState<MisBookingRow | null>(nul
 const [activeTab, setActiveTab] = useState<
   "INVENTORY" | "NON_INVENTORY" | "COMPOSITE"
 >("INVENTORY");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [openRowActions, setOpenRowActions] = useState<string | null>(null);
 
   const todayMaxDate = useMemo(() => toDateInputValue(getTodayEndMs()), []);
+  const todayStartDate = useMemo(() => toDateInputValue(getTodayStartMs()), []);
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
 
@@ -199,6 +267,9 @@ const [activeTab, setActiveTab] = useState<
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [departmentsError, setDepartmentsError] = useState<string | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesError, setPlacesError] = useState<string | null>(null);
   const [bookings, setBookings] = useState<MisBookingRow[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
@@ -276,23 +347,94 @@ useEffect(() => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [departments]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPlaces() {
+      setPlacesLoading(true);
+      setPlacesError(null);
+
+      try {
+        const response = await fetch(
+          "/api/place?districtId=&searchKey=&deptList=&size=2000",
+          { headers: { Accept: "application/json" }, cache: "no-store" }
+        );
+
+        const payload = (await response.json()) as unknown;
+
+        if (!response.ok) {
+          const message =
+            typeof (payload as any)?.message === "string"
+              ? (payload as any).message
+              : "Unable to load places.";
+          throw new Error(message);
+        }
+
+        const list = extractPlaces(payload)
+          .filter((p) => Boolean(getPlaceId(p)) && Boolean(getPlaceName(p)));
+
+        if (isMounted) {
+          setPlaces(list);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setPlacesError(
+            error instanceof Error ? error.message : "Unable to load places."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setPlacesLoading(false);
+        }
+      }
+    }
+
+    loadPlaces();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const placeOptions = useMemo(() => {
+    return places
+      .map((place) => ({
+        id: getPlaceId(place),
+        name: getPlaceName(place),
+        raw: place,
+      }))
+      .filter((opt) => Boolean(opt.id) && Boolean(opt.name))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [places]);
+
   const [draftFilters, setDraftFilters] = useState({
-    startDate: toDateInputValue(DEFAULT_START_DAY),
+    startDate: todayStartDate,
     endDate: todayMaxDate,
     dateType: "visit",
     bookingType: "",
     transactionStatus: "ALL",
     departmentId: "",
+    placeId: "",
   });
 
   const [appliedFilters, setAppliedFilters] = useState(() => ({
-    startDate: toDateInputValue(DEFAULT_START_DAY),
+    startDate: todayStartDate,
     endDate: todayMaxDate,
     dateType: "visit",
     bookingType: "",
     transactionStatus: "ALL",
     departmentId: "",
+    placeId: "",
   }));
+
+  const openFilters = () => {
+    setDraftFilters(appliedFilters);
+    setFiltersOpen(true);
+  };
+
+  const closeFilters = () => {
+    setFiltersOpen(false);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -318,7 +460,7 @@ useEffect(() => {
         params.set("districtId", "");
         params.set("endDay", String(endDay));
         params.set("offSet", String(offset));
-        params.set("placeId", "");
+        params.set("placeId", appliedFilters.placeId ?? "");
         params.set("size", String(itemsPerPage));
         params.set("startDay", String(startDay));
         // When transactionStatus is "ALL", send empty string to fetch all statuses
@@ -404,6 +546,7 @@ useEffect(() => {
     appliedFilters.bookingType,
     appliedFilters.transactionStatus,
     appliedFilters.departmentId,
+    appliedFilters.placeId,
   ]);
 
   const visibleBookings = useMemo(() => {
@@ -535,6 +678,39 @@ const downloadTicket = (data: MisBookingRow) => {
   doc.save(`ticket_${data.bookingId ?? "booking"}.pdf`);
 };
 
+const fmtText = (value: unknown) => {
+  if (value === null || value === undefined) return "N/A";
+  if (typeof value === "string") return value.trim() || "N/A";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "N/A";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return "N/A";
+};
+
+const getAny = (obj: unknown, key: string) => {
+  if (!obj || typeof obj !== "object") return undefined;
+  return (obj as any)[key];
+};
+
+const detailValue = (booking: MisBookingRow, keys: string[], format?: (v: unknown) => string) => {
+  for (const key of keys) {
+    const v = getAny(booking, key);
+    if (v !== undefined && v !== null && (typeof v !== "string" || v.trim() !== "")) {
+      return format ? format(v) : fmtText(v);
+    }
+  }
+  return "N/A";
+};
+
+const formatEpochMaybe = (value: unknown) => {
+  if (typeof value === "number") {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      return `${d.toLocaleDateString("en-IN")} | ${d.toLocaleTimeString("en-IN")}`;
+    }
+  }
+  return fmtText(value);
+};
+
 const getPaginationRange = () => {
   const delta = 1; // pages around current
   const range: (number | string)[] = [];
@@ -572,6 +748,9 @@ const getPaginationRange = () => {
         </h1>
 
         <div className="flex gap-2">
+          <button onClick={openFilters} className="btn-filter">
+            Filter
+          </button>
           <button onClick={exportExcel} className="btn-excel">
             Export Excel
           </button>
@@ -581,166 +760,233 @@ const getPaginationRange = () => {
         </div>
       </div>
 
-      {/* FILTERS */}
-      <div className="bg-white rounded-xl p-4 border border-[#eadfd8] mb-4">
-        <p className="text-[#5c1c1c] font-medium mb-3">Active Filters</p>
+      {filtersOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-white rounded-2xl w-[980px] max-w-[95vw] max-h-[85vh] overflow-y-auto p-6 shadow-xl border">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-[#5c1c1c]">Filters</h2>
+                <p className="text-xs text-gray-500">Adjust filters and submit to apply</p>
+              </div>
+              <button
+                onClick={closeFilters}
+                className="text-gray-500 hover:text-black"
+                aria-label="Close filters"
+              >
+                ✕
+              </button>
+            </div>
 
-      <div className="grid grid-cols-7 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              {/* Start Date */}
+              <div className="flex flex-col">
+                <label className="filter-label">Start Day</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={draftFilters.startDate}
+                  max={todayMaxDate}
+                  onChange={(e) => {
+                    const nextStartDate = e.target.value;
+                    const nextEndDate =
+                      draftFilters.endDate && nextStartDate && draftFilters.endDate < nextStartDate
+                        ? nextStartDate
+                        : draftFilters.endDate;
 
-  {/* Start Date */}
-  <div className="flex flex-col">
-    <label className="filter-label">Start Day</label>
-    <input
-      type="date"
-      className="input"
-      value={draftFilters.startDate}
-      max={todayMaxDate}
-      onChange={(e) => {
-        const nextStartDate = e.target.value;
-        const nextEndDate =
-          draftFilters.endDate && nextStartDate && draftFilters.endDate < nextStartDate
-            ? nextStartDate
-            : draftFilters.endDate;
+                    setDraftFilters({ ...draftFilters, startDate: nextStartDate, endDate: nextEndDate });
+                  }}
+                />
+              </div>
 
-        setDraftFilters({ ...draftFilters, startDate: nextStartDate, endDate: nextEndDate });
-      }}
-    />
-  </div>
+              {/* End Date */}
+              <div className="flex flex-col">
+                <label className="filter-label">End Day</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={draftFilters.endDate}
+                  min={draftFilters.startDate || undefined}
+                  max={todayMaxDate}
+                  onChange={(e) => {
+                    const requestedEndDate = e.target.value;
+                    const nextEndDate =
+                      draftFilters.startDate && requestedEndDate && requestedEndDate < draftFilters.startDate
+                        ? draftFilters.startDate
+                        : requestedEndDate;
 
-  {/* End Date */}
-  <div className="flex flex-col">
-    <label className="filter-label">End Day</label>
-    <input
-      type="date"
-      className="input"
-      value={draftFilters.endDate}
-      min={draftFilters.startDate || undefined}
-      max={todayMaxDate}
-      onChange={(e) => {
-        const requestedEndDate = e.target.value;
-        const nextEndDate =
-          draftFilters.startDate && requestedEndDate && requestedEndDate < draftFilters.startDate
-            ? draftFilters.startDate
-            : requestedEndDate;
+                    setDraftFilters({ ...draftFilters, endDate: nextEndDate });
+                  }}
+                />
+              </div>
 
-        setDraftFilters({ ...draftFilters, endDate: nextEndDate });
-      }}
-    />
-  </div>
+              {/* Date Type */}
+              <div className="flex flex-col">
+                <label className="filter-label">Date Type</label>
+                <select
+                  className="input"
+                  value={draftFilters.dateType}
+                  onChange={(e) => {
+                    setDraftFilters({ ...draftFilters, dateType: e.target.value });
+                  }}
+                >
+                  <option value="visit">Visit Date</option>
+                  <option value="booking">Booking Date</option>
+                </select>
+              </div>
 
-  {/* Date Type */}
-  <div className="flex flex-col">
-    <label className="filter-label">Date Type</label>
-    <select
-      className="input"
-      value={draftFilters.dateType}
-      onChange={(e) => {
-        setDraftFilters({ ...draftFilters, dateType: e.target.value });
-      }}
-    >
-      <option value="visit">Visit Date</option>
-      <option value="booking">Booking Date</option>
-    </select>
-  </div>
+              {/* Booking Type */}
+              <div className="flex flex-col">
+                <label className="filter-label">Booking Type</label>
+                <select
+                  className="input"
+                  value={draftFilters.bookingType}
+                  onChange={(e) => {
+                    setDraftFilters({
+                      ...draftFilters,
+                      bookingType: e.target.value,
+                    });
+                  }}
+                >
+                  <option value="">Booking Type</option>
+                  <option value="ONLINE">ONLINE</option>
+                  <option value="OFFLINE">OFFLINE</option>
+                </select>
+              </div>
 
-  {/* Booking Type */}
-  <div className="flex flex-col">
-    <label className="filter-label">Booking Type</label>
-    <select
-      className="input"
-      value={draftFilters.bookingType}
-      onChange={(e) => {
-        setDraftFilters({
-          ...draftFilters,
-          bookingType: e.target.value,
-        });
-      }}
-    >
-      <option value="">Booking Type</option>
-      <option value="ONLINE">ONLINE</option>
-      <option value="OFFLINE">OFFLINE</option>
-    </select>
-  </div>
+              {/* Payment Status */}
+              <div className="flex flex-col">
+                <label className="filter-label">Payment Status</label>
+                <select
+                  className="input"
+                  value={draftFilters.transactionStatus}
+                  onChange={(e) => {
+                    setDraftFilters({
+                      ...draftFilters,
+                      transactionStatus: e.target.value,
+                    });
+                  }}
+                >
+                  <option value="ALL">ALL</option>
+                  <option value="SUCCESS">SUCCESS</option>
+                  <option value="FAILED">FAILED</option>
+                  <option value="PENDING">PENDING</option>
+                </select>
+              </div>
 
-  {/* Payment Status */}
-  <div className="flex flex-col">
-    <label className="filter-label">Payment Status</label>
-    <select
-      className="input"
-      value={draftFilters.transactionStatus}
-      onChange={(e) => {
-        setDraftFilters({
-          ...draftFilters,
-          transactionStatus: e.target.value,
-        });
-      }}
-    >
-      <option value="ALL">ALL</option>
-      <option value="SUCCESS">SUCCESS</option>
-      <option value="FAILED">FAILED</option>
-      <option value="PENDING">PENDING</option>
-    </select>
-  </div>
+              {/* Department */}
+              <div className="flex flex-col">
+                <label className="filter-label">Department</label>
+                <select
+                  className="input"
+                  value={draftFilters.departmentId}
+                  disabled={departmentsLoading}
+                  onChange={(e) => {
+                    const departmentId = e.target.value;
 
-  {/* Department */}
-  <div className="flex flex-col">
-    <label className="filter-label">Department</label>
-    <select
-      className="input"
-      value={draftFilters.departmentId}
-      disabled={departmentsLoading}
-      onChange={(e) => {
-        const departmentId = e.target.value;
+                    if (!departmentId) {
+                      setSelectedDepartment(null);
+                      setDraftFilters({
+                        ...draftFilters,
+                        departmentId: "",
+                      });
+                      return;
+                    }
 
-        if (!departmentId) {
-          setSelectedDepartment(null);
-          setDraftFilters({
-            ...draftFilters,
-            departmentId: "",
-          });
-          return;
-        }
+                    const selected = departmentOptions.find((d) => d.id === departmentId);
+                    setSelectedDepartment(selected?.raw ?? null);
+                    setDraftFilters({
+                      ...draftFilters,
+                      departmentId,
+                    });
+                  }}
+                >
+                  <option value="">
+                    {departmentsLoading
+                      ? "Loading Departments..."
+                      : departmentsError
+                      ? "Departments unavailable"
+                      : "All Departments"}
+                  </option>
+                  {departmentOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-        const selected = departmentOptions.find((d) => d.id === departmentId);
-        setSelectedDepartment(selected?.raw ?? null);
-        setDraftFilters({
-          ...draftFilters,
-          departmentId,
-        });
-      }}
-    >
-      <option value="">
-        {departmentsLoading
-          ? "Loading Departments..."
-          : departmentsError
-          ? "Departments unavailable"
-          : "All Departments"}
-      </option>
-      {departmentOptions.map((opt) => (
-        <option key={opt.id} value={opt.id}>
-          {opt.name}
-        </option>
-      ))}
-    </select>
-  </div>
+              {/* Place */}
+              <div className="flex flex-col">
+                <label className="filter-label">Place</label>
+                <select
+                  className="input"
+                  value={draftFilters.placeId}
+                  disabled={placesLoading}
+                  onChange={(e) => {
+                    const placeId = e.target.value;
+                    setDraftFilters({
+                      ...draftFilters,
+                      placeId,
+                    });
+                  }}
+                >
+                  <option value="">
+                    {placesLoading
+                      ? "Loading Places..."
+                      : placesError
+                      ? "Places unavailable"
+                      : "All Places"}
+                  </option>
+                  {placeOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-  {/* Submit Button */}
-  <div className="flex items-end">
-    <button
-      className="btn-pdf w-full h-[42px]"
-      disabled={bookingsLoading}
-      onClick={() => {
-        setAppliedFilters(draftFilters);
-        setAppliedSearch(draftSearch);
-        setCurrentPage(1);
-      }}
-    >
-      Submit
-    </button>
-  </div>
-
-</div>
-      </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setSelectedDepartment(null);
+                  setDraftFilters({
+                    startDate: todayStartDate,
+                    endDate: todayMaxDate,
+                    dateType: "visit",
+                    bookingType: "",
+                    transactionStatus: "ALL",
+                    departmentId: "",
+                    placeId: "",
+                  });
+                }}
+                className="btn-reset"
+                disabled={bookingsLoading}
+              >
+                Reset
+              </button>
+              <button
+                onClick={closeFilters}
+                className="btn-cancel"
+                disabled={bookingsLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-pdf h-[42px] px-6"
+                disabled={bookingsLoading}
+                onClick={() => {
+                  setAppliedFilters(draftFilters);
+                  setCurrentPage(1);
+                  setFiltersOpen(false);
+                }}
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SEARCH */}
       <input
@@ -825,7 +1071,15 @@ const getPaginationRange = () => {
             ) : (
               visibleBookings.map((item, i) => (
                 <tr key={item.id ?? item.bookingId ?? i} className="border-t">
-                  <td className="p-3">{item.bookingId}</td>
+                  <td className="p-3">
+                    <button
+                      className="font-medium text-[#8b1e1e] hover:underline"
+                      onClick={() => setSelectedBooking(item)}
+                      title="Open booking details"
+                    >
+                      {item.bookingId}
+                    </button>
+                  </td>
                   <td className="p-3">{item.departmentName}</td>
                   <td className="p-3">{item.placeName}</td>
                   <td className="p-3">{formatEpochMs(item.bookingDate)}</td>
@@ -845,19 +1099,40 @@ const getPaginationRange = () => {
                     </span>
                   </td>
 
-                  <td className="p-3 flex gap-2">
-                    <button
-                      onClick={() => setSelectedBooking(item)}
-                      className="btn-view"
-                    >
-                      View Details
-                    </button>
-                    <button
-                      onClick={() => downloadTicket(item)}
-                      className="btn-download"
-                    >
-                      Download Ticket
-                    </button>
+                  <td className="p-3">
+                    <div className="relative inline-block">
+                      <button
+                        className="px-2 py-1 rounded bg-[#f3e7df] hover:bg-[#eadfd8] text-[#5c1c1c] font-semibold"
+                        onClick={() => setOpenRowActions(prev => (prev === (item.bookingId ?? String(i)) ? null : (item.bookingId ?? String(i))))}
+                        aria-label="Row actions"
+                        title="Actions"
+                      >
+                        ⋯
+                      </button>
+
+                      {openRowActions === (item.bookingId ?? String(i)) && (
+                        <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-[#eadfd8] z-40 overflow-hidden">
+                          <button
+                            onClick={() => {
+                              setSelectedBooking(item);
+                              setOpenRowActions(null);
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => {
+                              downloadTicket(item);
+                              setOpenRowActions(null);
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                          >
+                            Download Ticket
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -953,19 +1228,45 @@ const getPaginationRange = () => {
       {/* Content Grid */}
       <div className="grid grid-cols-2 gap-4 text-sm">
 
-        <Detail label="Booking ID" value={selectedBooking.bookingId} />
-        <Detail label="Booking Date" value={formatEpochMs(selectedBooking.bookingDate)} />
-        <Detail label="Visit Date" value={formatEpochMs(selectedBooking.visitDate)} />
-        <Detail label="SSO ID" value="SSO123456" />
-        <Detail label="Mobile Number" value={selectedBooking.mobile ?? ""} />
-        <Detail label="Name" value={selectedBooking.createdBy ?? "Guest User"} />
-        <Detail label="Payment Status" value={selectedBooking.transactionStatus ?? ""} />
-        <Detail label="Emitra Txn ID" value={typeof (selectedBooking as any).emitraTransactionId === "string" ? (selectedBooking as any).emitraTransactionId : ""} />
-        <Detail label="Place Name" value={selectedBooking.placeName ?? ""} />
-        <Detail label="Department" value={selectedBooking.departmentName ?? ""} />
-        <Detail label="Booking Type" value={selectedBooking.bookingType ?? ""} />
-        <Detail label="Device Type" value={selectedBooking.device ?? ""} />
-        <Detail label="IP Address" value={selectedBooking.ipAddress ?? ""} />
+        <Detail label="Booking ID" value={fmtText(selectedBooking.bookingId)} />
+        <Detail label="Booking Date" value={formatEpochMaybe(selectedBooking.bookingDate)} />
+        <Detail label="Visit Date" value={formatEpochMaybe(selectedBooking.visitDate)} />
+        <Detail label="Emitra Transaction Id" value={detailValue(selectedBooking, ["emitraTransactionId", "emitraTxnId", "transactionId", "txnId"])} />
+        <Detail label="Consumer key" value={detailValue(selectedBooking, ["consumerKey", "consumer_key", "bookingId", "booking_id"])} />
+        <Detail label="Check Enc Data" value={detailValue(selectedBooking, ["checkEncData", "encDataStatus", "encStatus"])} />
+        <Detail label="Check Refund Status" value={detailValue(selectedBooking, ["refundStatus", "checkRefundStatus", "refund_status"])} />
+        <Detail label="Refund" value={detailValue(selectedBooking, ["refund", "refundAmount", "refund_amount"])} />
+        <Detail label="District Name" value={detailValue(selectedBooking, ["districtName", "district_name"])} />
+        <Detail label="Place Name" value={detailValue(selectedBooking, ["placeName", "place_name"])} />
+        <Detail label="Quota Name" value={detailValue(selectedBooking, ["quotaName", "quota_name"])} />
+        <Detail label="Shift Name" value={detailValue(selectedBooking, ["shiftName", "shift_name"])} />
+        <Detail label="Zone Name" value={detailValue(selectedBooking, ["zoneName", "zone_name"])} />
+        <Detail label="Vehicle Name" value={detailValue(selectedBooking, ["vehicleName", "vehicle_name"])} />
+        <Detail label="Total Amount (INR)" value={detailValue(selectedBooking, ["totalAmount", "amount"], (v) => typeof v === "number" ? `₹${v}` : fmtText(v))} />
+        <Detail label="Choice Add On Amount" value={detailValue(selectedBooking, ["choiceAddOnAmount", "choiceAddonAmount", "addOnAmountChoice"])} />
+        <Detail label="Difference Amount" value={detailValue(selectedBooking, ["differenceAmount", "diffAmount"])} />
+        <Detail label="Difference Amount Status" value={detailValue(selectedBooking, ["differenceAmountStatus", "diffAmountStatus"])} />
+        <Detail label="Indian Citizen" value={detailValue(selectedBooking, ["indianCitizen", "indian_citizen"])} />
+        <Detail label="Indian Student" value={detailValue(selectedBooking, ["indianStudent", "indian_student"])} />
+        <Detail label="Foreign Citizen" value={detailValue(selectedBooking, ["foreignCitizen", "foreign_citizen"])} />
+        <Detail label="Total Visitors" value={detailValue(selectedBooking, ["totalVisitors", "visitors"])} />
+        <Detail label="Add On Count" value={detailValue(selectedBooking, ["addOnCount", "addonCount"])} />
+        <Detail label="Add On Sum" value={detailValue(selectedBooking, ["addOnSum", "addonSum"])} />
+        <Detail label="Booking Mode" value={detailValue(selectedBooking, ["bookingMode", "mode"])} />
+        <Detail label="Transaction Status" value={detailValue(selectedBooking, ["transactionStatus", "paymentStatus", "status"])} />
+        <Detail label="Vehicle Number" value={detailValue(selectedBooking, ["vehicleNumber", "vehicle_no"])} />
+        <Detail label="Guide Name" value={detailValue(selectedBooking, ["guideName", "guide_name"])} />
+        <Detail label="Boarding Pass Status" value={detailValue(selectedBooking, ["boardingPassStatus", "boarding_pass_status"])} />
+        <Detail label="SSO Id" value={detailValue(selectedBooking, ["ssoId", "sso_id"])} />
+        <Detail label="Check In" value={detailValue(selectedBooking, ["checkIn", "check_in"])} />
+        <Detail label="Created By" value={detailValue(selectedBooking, ["createdBy", "created_by"])} />
+        <Detail label="Ip Address" value={detailValue(selectedBooking, ["ipAddress", "ip_address"])} />
+        <Detail label="Device" value={detailValue(selectedBooking, ["device", "deviceType"])} />
+        <Detail label="Driver Verify" value={detailValue(selectedBooking, ["driverVerify", "driver_verify"])} />
+        <Detail label="Guide Verify" value={detailValue(selectedBooking, ["guideVerify", "guide_verify"])} />
+        <Detail label="Payment Verify" value={detailValue(selectedBooking, ["paymentVerify", "payment_verify"])} />
+        <Detail label="Driver Verify Time" value={detailValue(selectedBooking, ["driverVerifyTime", "driver_verify_time"])} />
+        <Detail label="Guide Verify Time" value={detailValue(selectedBooking, ["guideVerifyTime", "guide_verify_time"])} />
 
       </div>
 
