@@ -1002,6 +1002,16 @@ const getPaginationRange = () => {
 <div className="flex justify-center gap-3 mb-4">
   <button
     onClick={() => {
+       setSelectedDepartment(null);
+                  setDraftFilters({
+                    startDate: todayStartDate,
+                    endDate: todayMaxDate,
+                    dateType: "visit",
+                    bookingType: "",
+                    transactionStatus: "ALL",
+                    departmentId: "",
+                    placeId: "",
+                  });
       setActiveTab("INVENTORY");
       setCurrentPage(1);
     }}

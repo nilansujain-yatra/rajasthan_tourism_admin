@@ -40,10 +40,12 @@ function getTokenFromExampleFile() {
 }
 
 export async function GET(request: NextRequest) {
+    const cookieStore = await cookies();
+
   const authToken =
-    cookies().get(AUTHENTICATION_TOKEN)?.value ??
+    cookieStore.get(AUTHENTICATION_TOKEN)?.value ??
     process.env.RAJASTHAN_API_TOKEN ??
-    getTokenFromExampleFile()
+    getTokenFromExampleFile();
 
   if (!authToken) {
     return NextResponse.json(

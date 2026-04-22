@@ -28,8 +28,10 @@ function getUsersUrl(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+    const cookieStore = await cookies();
+
   const authToken =
-    cookies().get(AUTHENTICATION_TOKEN)?.value ??
+    cookieStore.get(AUTHENTICATION_TOKEN)?.value ??
     process.env.RAJASTHAN_API_TOKEN ??
     process.env.NEXT_PUBLIC_LOGIN_TOKEN
 

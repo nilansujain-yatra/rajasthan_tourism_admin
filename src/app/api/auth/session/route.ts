@@ -4,7 +4,9 @@ import { AUTHENTICATION_TOKEN } from '@/lib/auth/constants'
 import { decodeJwt } from '@/lib/auth/jwt'
 
 export async function GET() {
-  const authToken = cookies().get(AUTHENTICATION_TOKEN)?.value
+    const cookieStore = await cookies();
+
+  const authToken = cookieStore.get(AUTHENTICATION_TOKEN)?.value
 
   if (!authToken) {
     return NextResponse.json({ authenticated: false }, {
