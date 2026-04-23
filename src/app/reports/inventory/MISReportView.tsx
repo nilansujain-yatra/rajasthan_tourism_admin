@@ -6,6 +6,7 @@ import {
   X, ChevronDown, ChevronRight as ChevronRightIcon,
   Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
 } from 'lucide-react'
+import React from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -648,8 +649,10 @@ export default function MISReportView({
 
                     return (
                       <>
+                          <React.Fragment key={r.bookingId}>
+
                         <tr
-                          key={r.bookingId}
+                          // key={r.bookingId}
                           style={{ background: rowBg, transition: 'background 0.12s', cursor: 'pointer' }}
                           onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(139,26,26,0.03)')}
                           onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = rowBg)}
@@ -730,6 +733,8 @@ export default function MISReportView({
 
                         {/* Expanded detail panel */}
                         {isExpanded && <ExpandedRow key={r.bookingId + '-exp'} row={r} />}
+                            </React.Fragment>
+
                       </>
                     )
                   })

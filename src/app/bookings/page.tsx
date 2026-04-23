@@ -4,6 +4,16 @@ import { useState, useMemo, useEffect  } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  Building2,
+  Calendar,
+  CheckCircle2,
+  ChevronDown,
+  MapPin,
+  SlidersHorizontal,
+  Ticket,
+  X,
+} from "lucide-react";
 
 type MisBookingRow = {
   id?: string;
@@ -761,6 +771,325 @@ const getPaginationRange = () => {
       </div>
 
       {filtersOpen && (
+        <div
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ background: "rgba(28,16,8,0.45)", zIndex: 1000, backdropFilter: "blur(4px)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeFilters(); }}
+        >
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: "#fff",
+              width: 760,
+              maxWidth: "95vw",
+              maxHeight: "92vh",
+              boxShadow: "0 24px 64px rgba(139,26,26,0.22)",
+              animation: "fadeIn 0.2s ease-out",
+            }}
+          >
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ background: "linear-gradient(135deg, #6B1212, #A83030)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center rounded-xl" style={{ width: 36, height: 36, background: "rgba(255,255,255,0.15)" }}>
+                  <SlidersHorizontal size={18} color="#fff" />
+                </div>
+                <div>
+                  <div className="font-serif font-bold text-white" style={{ fontSize: 17 }}>Booking Filters</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Booking Management</div>
+                </div>
+              </div>
+              <button
+                onClick={closeFilters}
+                aria-label="Close filters"
+                className="flex items-center justify-center rounded-xl transition-colors"
+                style={{ width: 32, height: 32, background: "rgba(255,255,255,0.15)", color: "#fff", border: "none", cursor: "pointer" }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 px-6 py-2.5 flex-wrap" style={{ background: "var(--gold-pale)", borderBottom: "1px solid var(--sand)" }}>
+              <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Active:</span>
+              {[
+                { label: draftFilters.dateType === "booking" ? "Booking Date" : "Visit Date" },
+                draftFilters.startDate && { label: `From ${draftFilters.startDate}` },
+                draftFilters.endDate && { label: `To ${draftFilters.endDate}` },
+                draftFilters.bookingType && { label: draftFilters.bookingType },
+                draftFilters.transactionStatus && { label: draftFilters.transactionStatus === "ALL" ? "All Payments" : draftFilters.transactionStatus },
+                draftFilters.departmentId && { label: departmentOptions.find((d) => d.id === draftFilters.departmentId)?.name ?? "Department" },
+                draftFilters.placeId && { label: placeOptions.find((p) => p.id === draftFilters.placeId)?.name ?? "Place" },
+              ].filter(Boolean).map((item: any, i) => (
+                <span
+                  key={i}
+                  className="rounded-full px-2.5 py-0.5 font-medium"
+                  style={{ fontSize: 10, background: "rgba(139,26,26,0.1)", color: "var(--maroon)" }}
+                >
+                  {item.label.length > 28 ? `${item.label.slice(0, 28)}...` : item.label}
+                </span>
+              ))}
+            </div>
+
+            <div className="px-6 py-5 grid gap-4 overflow-y-auto" style={{ gridTemplateColumns: "1fr 1fr", maxHeight: "calc(92vh - 150px)" }}>
+              <div className="col-span-2">
+                <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Calendar size={12} style={{ color: "var(--maroon)" }} />
+                  Date Type
+                </div>
+                <div className="flex gap-2">
+                  {[
+                    { v: "visit", l: "Visit Date" },
+                    { v: "booking", l: "Booking Date" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.v}
+                      onClick={() => setDraftFilters({ ...draftFilters, dateType: opt.v })}
+                      className="flex-1 py-2.5 rounded-xl font-medium transition-all"
+                      style={{
+                        fontSize: 13,
+                        background: draftFilters.dateType === opt.v ? "var(--maroon)" : "var(--cream)",
+                        color: draftFilters.dateType === opt.v ? "#fff" : "var(--text-mid)",
+                        border: `1px solid ${draftFilters.dateType === opt.v ? "var(--maroon)" : "var(--sand)"}`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Calendar size={12} style={{ color: "var(--maroon)" }} />
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={draftFilters.startDate}
+                  max={todayMaxDate}
+                  onChange={(e) => {
+                    const nextStartDate = e.target.value;
+                    const nextEndDate =
+                      draftFilters.endDate && nextStartDate && draftFilters.endDate < nextStartDate
+                        ? nextStartDate
+                        : draftFilters.endDate;
+
+                    setDraftFilters({ ...draftFilters, startDate: nextStartDate, endDate: nextEndDate });
+                  }}
+                  className="rounded-xl px-3 py-2.5 outline-none w-full"
+                  style={{ fontSize: 13, background: "var(--cream)", border: "1px solid var(--sand)", color: "var(--text-dark)" }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Calendar size={12} style={{ color: "var(--maroon)" }} />
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={draftFilters.endDate}
+                  min={draftFilters.startDate || undefined}
+                  max={todayMaxDate}
+                  onChange={(e) => {
+                    const requestedEndDate = e.target.value;
+                    const nextEndDate =
+                      draftFilters.startDate && requestedEndDate && requestedEndDate < draftFilters.startDate
+                        ? draftFilters.startDate
+                        : requestedEndDate;
+
+                    setDraftFilters({ ...draftFilters, endDate: nextEndDate });
+                  }}
+                  className="rounded-xl px-3 py-2.5 outline-none w-full"
+                  style={{ fontSize: 13, background: "var(--cream)", border: "1px solid var(--sand)", color: "var(--text-dark)" }}
+                />
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Ticket size={12} style={{ color: "var(--maroon)" }} />
+                  Booking Type
+                </div>
+                <div className="flex gap-2">
+                  {[
+                    { v: "", l: "All" },
+                    { v: "ONLINE", l: "Online" },
+                    { v: "OFFLINE", l: "Offline" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.v || "all"}
+                      onClick={() => setDraftFilters({ ...draftFilters, bookingType: opt.v })}
+                      className="flex-1 py-2.5 rounded-xl font-medium transition-all"
+                      style={{
+                        fontSize: 12,
+                        background: draftFilters.bookingType === opt.v ? "var(--maroon)" : "var(--cream)",
+                        color: draftFilters.bookingType === opt.v ? "#fff" : "var(--text-mid)",
+                        border: `1px solid ${draftFilters.bookingType === opt.v ? "var(--maroon)" : "var(--sand)"}`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <CheckCircle2 size={12} style={{ color: "var(--maroon)" }} />
+                  Payment Status
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { v: "ALL", l: "All", color: "var(--text-mid)" },
+                    { v: "SUCCESS", l: "Success", color: "#1A7A6E" },
+                    { v: "FAILED", l: "Failed", color: "#E53E3E" },
+                    { v: "PENDING", l: "Pending", color: "#C8922A" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.v}
+                      onClick={() => setDraftFilters({ ...draftFilters, transactionStatus: opt.v })}
+                      className="flex-1 py-2.5 rounded-xl font-medium transition-all"
+                      style={{
+                        minWidth: 72,
+                        fontSize: 12,
+                        background: draftFilters.transactionStatus === opt.v ? opt.color : "var(--cream)",
+                        color: draftFilters.transactionStatus === opt.v ? "#fff" : opt.color,
+                        border: `1px solid ${draftFilters.transactionStatus === opt.v ? opt.color : "var(--sand)"}`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Building2 size={12} style={{ color: "var(--maroon)" }} />
+                  Department
+                </label>
+                <div className="relative">
+                  <select
+                    value={draftFilters.departmentId}
+                    disabled={departmentsLoading}
+                    onChange={(e) => {
+                      const departmentId = e.target.value;
+
+                      if (!departmentId) {
+                        setSelectedDepartment(null);
+                        setDraftFilters({ ...draftFilters, departmentId: "" });
+                        return;
+                      }
+
+                      const selected = departmentOptions.find((d) => d.id === departmentId);
+                      setSelectedDepartment(selected?.raw ?? null);
+                      setDraftFilters({ ...draftFilters, departmentId });
+                    }}
+                    className="appearance-none w-full rounded-xl pr-8 pl-3 py-2.5 outline-none"
+                    style={{ fontSize: 13, background: "var(--cream)", border: "1px solid var(--sand)", color: "var(--text-dark)" }}
+                  >
+                    <option value="">
+                      {departmentsLoading
+                        ? "Loading Departments..."
+                        : departmentsError
+                        ? "Departments unavailable"
+                        : "All Departments"}
+                    </option>
+                    {departmentOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-muted)" }} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                  <MapPin size={12} style={{ color: "var(--maroon)" }} />
+                  Place / Site
+                </label>
+                <div className="relative">
+                  <select
+                    value={draftFilters.placeId}
+                    disabled={placesLoading}
+                    onChange={(e) => setDraftFilters({ ...draftFilters, placeId: e.target.value })}
+                    className="appearance-none w-full rounded-xl pr-8 pl-3 py-2.5 outline-none"
+                    style={{ fontSize: 13, background: "var(--cream)", border: "1px solid var(--sand)", color: "var(--text-dark)" }}
+                  >
+                    <option value="">
+                      {placesLoading
+                        ? "Loading Places..."
+                        : placesError
+                        ? "Places unavailable"
+                        : "All Places"}
+                    </option>
+                    {placeOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-muted)" }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: "1px solid var(--sand)", background: "var(--cream)" }}>
+              <button
+                onClick={() => {
+                  setSelectedDepartment(null);
+                  setDraftFilters({
+                    startDate: todayStartDate,
+                    endDate: todayMaxDate,
+                    dateType: "visit",
+                    bookingType: "",
+                    transactionStatus: "ALL",
+                    departmentId: "",
+                    placeId: "",
+                  });
+                }}
+                className="flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium"
+                style={{ fontSize: 13, background: "#fff", border: "1px solid var(--sand)", color: "var(--text-muted)", cursor: bookingsLoading ? "not-allowed" : "pointer", opacity: bookingsLoading ? 0.6 : 1 }}
+                disabled={bookingsLoading}
+              >
+                <X size={13} /> Reset All
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={closeFilters}
+                  className="rounded-xl px-5 py-2.5 font-medium"
+                  style={{ fontSize: 13, background: "#fff", border: "1px solid var(--sand)", color: "var(--text-mid)", cursor: bookingsLoading ? "not-allowed" : "pointer", opacity: bookingsLoading ? 0.6 : 1 }}
+                  disabled={bookingsLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="flex items-center gap-2 rounded-xl px-6 py-2.5 font-medium text-white"
+                  style={{ fontSize: 13, background: "linear-gradient(135deg, var(--maroon), var(--maroon-light))", cursor: bookingsLoading ? "not-allowed" : "pointer", opacity: bookingsLoading ? 0.6 : 1 }}
+                  disabled={bookingsLoading}
+                  onClick={() => {
+                    setAppliedFilters(draftFilters);
+                    setCurrentPage(1);
+                    setFiltersOpen(false);
+                  }}
+                >
+                  <SlidersHorizontal size={13} />
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {false && filtersOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-hidden">
           <div className="bg-white rounded-2xl w-[980px] max-w-[95vw] max-h-[85vh] overflow-y-auto p-6 shadow-xl border">
             <div className="flex justify-between items-center mb-4">

@@ -13,6 +13,7 @@ import MISReportView from './MISReportView'
 import AddonReportView from './AddonReportView'
 import HeadWiseGSTReportView from './HeadWiseGSTReportView'
 import ChoiceDifferenceReportView from './ChoiceDifferenceReportView'
+import CountryWiseReportView from './CountryWiseReportView'
 import TransactionReportView from './TransactionReportView'
 
 type ReportType = 'mis' | 'country' | 'daywise' | 'headwise' | 'headdetail' | 'headsummary' | 'addon' | 'vehicleavail' | 'vehicletrip' | 'vehicleguide' | 'boarding' | 'failed' | 'choiceaddon' | 'diff' | 'entryexit' | 'guidetrip' | 'msgwise' | 'blockunblock' | 'blockuser' | 'checkstatus' | 'ticketgst' | 'choicegst' | 'headwisegst' | 'choicendiffreport' | 'vehicletrip2' | 'guidetrip2' | 'transaction' | 'cancelled'
@@ -48,49 +49,7 @@ const REPORTS: Array<{ id: ReportType; label: string; description: string }> = [
   { id: 'cancelled', label: 'Cancelled Transaction Report', description: 'Refunded and cancelled bookings' },
 ]
 
-const CountryWiseView = () => (
-  <div className="space-y-5">
-    <div className="flex justify-between items-start">
-      <div>
-        <h1 className="text-2xl font-bold font-serif" style={{ color: 'var(--ink)' }}>Country Wise User Report</h1>
-        <p className="text-xs" style={{ color: 'var(--text-muted)', marginTop: 3 }}>Visitor breakdown by nationality</p>
-      </div>
-      <div className="flex gap-2">
-        <button className="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs hover:bg-gray-50" style={{ borderColor: 'var(--sand)', color: 'var(--text-muted)' }}>Filter</button>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs text-white" style={{ background: 'var(--maroon)' }}>Export</button>
-      </div>
-    </div>
 
-    <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
-      <table className="w-full">
-        <thead>
-          <tr style={{ background: 'var(--cream)' }}>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Sr.</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Country</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Visitors</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Revenue (INR)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            { sr: 1, country: 'India', visitors: '3,234', revenue: '₹32,40,000' },
-            { sr: 2, country: 'United States', visitors: '420', revenue: '₹8,40,000' },
-            { sr: 3, country: 'United Kingdom', visitors: '310', revenue: '₹6,20,000' },
-            { sr: 4, country: 'Germany', visitors: '180', revenue: '₹3,60,000' },
-            { sr: 5, country: 'France', visitors: '145', revenue: '₹2,90,000' },
-          ].map((row) => (
-            <tr key={row.sr} style={{ borderBottom: '1px solid var(--sand)' }} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{row.sr}</td>
-              <td className="px-4 py-3 text-sm">{row.country}</td>
-              <td className="px-4 py-3 text-sm">{row.visitors}</td>
-              <td className="px-4 py-3 text-sm font-semibold">{row.revenue}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)
 
 const FailedReportView = () => (
   <div className="space-y-5">
@@ -219,7 +178,7 @@ export default function InventoryReportsPage() {
       case 'mis':
         return <MISReportView />
       case 'country':
-        return <CountryWiseView />
+        return <CountryWiseReportView />
       case 'failed':
         return <FailedReportView />
       case 'vehicleavail':
@@ -240,7 +199,10 @@ export default function InventoryReportsPage() {
         return <ChoiceDifferenceReportView/>
 
       case 'transaction':
-        return <TransactionReportView/>
+        return <TransactionReportView/> 
+
+      case 'country':
+          return <CountryWiseReportView/>
 
       default:
         return <DefaultReportView reportId={activeReport} reportLabel={currentReport?.label || ''} reportDescription={currentReport?.description || ''} />

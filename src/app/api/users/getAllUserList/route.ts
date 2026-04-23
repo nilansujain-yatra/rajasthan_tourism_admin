@@ -10,19 +10,25 @@ function getUsersUrl(request: NextRequest) {
     ?? 'https://api-tourist.rajasthan.gov.in/rajasthan/api/v1'
   const url = new URL(`${baseUrl}/user/getAllUserList`)
 
-  const searchKey = request.nextUrl.searchParams.get('searchKey')
-  const size = request.nextUrl.searchParams.get('size')
-  const offSet = request.nextUrl.searchParams.get('offSet')
-  const block = request.nextUrl.searchParams.get('block')
-  const pagination = request.nextUrl.searchParams.get('pagination')
-  const isFilter = request.nextUrl.searchParams.get('isFilter')
+  const defaults: Record<string, string> = {
+    searchKey: '',
+    size: '50',
+    offSet: '0',
+    block: 'false',
+    pagination: 'true',
+    isFilter: 'true',
+  }
 
-  url.searchParams.set('searchKey', searchKey ?? '')
-  url.searchParams.set('size', size ?? '50')
-  url.searchParams.set('offSet', offSet ?? '0')
-  url.searchParams.set('block', block ?? 'false')
-  url.searchParams.set('pagination', pagination ?? 'true')
-  url.searchParams.set('isFilter', isFilter ?? 'true')
+  Object.entries(defaults).forEach(([key, value]) => {
+    url.searchParams.set(key, request.nextUrl.searchParams.get(key) ?? value)
+  })
+
+  ;['userType', 'role', 'status', 'active'].forEach(key => {
+    const value = request.nextUrl.searchParams.get(key)
+    if (value) {
+      url.searchParams.set(key, value)
+    }
+  })
 
   return url.toString()
 }

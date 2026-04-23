@@ -28,7 +28,7 @@ async function postToSsoSignOut(ssoToken?: string) {
 }
 
 export async function POST() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const ssoToken = cookieStore.get(SSO_TOKEN)?.value
 
   await postToSsoSignOut(ssoToken)

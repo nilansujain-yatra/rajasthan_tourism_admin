@@ -15,7 +15,7 @@ function escapeHtml(value: string) {
 }
 
 export async function GET(request: Request) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const ssoToken = cookieStore.get(SSO_TOKEN)?.value
   const responseInit = {
     headers: {
