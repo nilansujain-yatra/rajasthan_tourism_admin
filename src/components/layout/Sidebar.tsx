@@ -185,8 +185,8 @@ export default function Sidebar() {
           >
             Govt. of Rajasthan
           </div>
-          <div className="text-white/50 font-light" style={{ fontSize: 10, marginTop: 1 }}>
-            Booking Management System
+          <div className="text-white/50 font-light" style={{ fontSize: 8, marginTop: 1 }}>
+            Online Booking Management System
           </div>
         </div>
       </div>

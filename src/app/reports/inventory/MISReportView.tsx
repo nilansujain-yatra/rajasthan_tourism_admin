@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Download, Filter, Search, ChevronLeft, ChevronRight,
   X, ChevronDown, ChevronRight as ChevronRightIcon,
   Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
+  SlidersHorizontal, Ticket,
 } from 'lucide-react'
 import React from 'react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +35,7 @@ export interface MISRow {
   indianCitizen:          number
   indianStudent:          number
   foreignCitizen:         number
+  foreignStudent?:        number
   totalVisitors:          number
   addOnCount:             number
   addOnSum:               number
@@ -50,6 +54,32 @@ export interface MISRow {
   paymentVerify:          'Verified' | 'Not Verified' | 'N/A'
   driverVerifyTime:       string
   guideVerifyTime:        string
+}
+
+type Department = {
+  deptId?: string | number
+  deptName?: string
+  id?: string | number
+  name?: string
+  [key: string]: unknown
+}
+
+type Place = {
+  placeId?: string | number
+  placeName?: string
+  id?: string | number
+  name?: string
+  [key: string]: unknown
+}
+
+type DraftFilters = {
+  dateType: 'visit' | 'booking'
+  startDate: string
+  endDate: string
+  bookingType: string
+  transactionStatus: string
+  departmentId: string
+  placeId: string
 }
 
 // ─── Sample data ──────────────────────────────────────────────────────────────
@@ -227,6 +257,285 @@ const SAMPLE_DATA: MISRow[] = [
   },
 ]
 
+const DEFAULT_START_DAY = 1774981800000
+
+function getTodayEndMs() {
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+  return today.getTime()
+}
+
+function getTodayStartMs() {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return today.getTime()
+}
+
+function toDateInputValue(value: number) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function getDepartmentId(dept: Department) {
+  const candidate =
+    dept.deptId ??
+    (dept as any).departmentId ??
+    dept.id ??
+    (dept as any).dept_id ??
+    (dept as any).department_id ??
+    (dept as any).deptCode ??
+    (dept as any).departmentCode
+
+  if (typeof candidate === 'string' || typeof candidate === 'number') {
+    return String(candidate)
+  }
+
+  const nameFallback = getDepartmentName(dept)
+  return nameFallback || ''
+}
+
+function getDepartmentName(dept: Department) {
+  const candidate =
+    dept.deptName ??
+    (dept as any).departmentName ??
+    dept.name ??
+    (dept as any).dept_nm ??
+    (dept as any).department_nm ??
+    (dept as any).deptDesc ??
+    (dept as any).departmentDesc
+
+  return typeof candidate === 'string' ? candidate.trim() : ''
+}
+
+function getPlaceId(place: Place) {
+  const candidate =
+    place.id ??
+    (place as any).id ??
+    place.placeId ??
+    (place as any).place_id ??
+    (place as any).placeCode ??
+    (place as any).placecode
+
+  if (typeof candidate === 'string' || typeof candidate === 'number') {
+    return String(candidate)
+  }
+
+  const nameFallback = getPlaceName(place)
+  return nameFallback || ''
+}
+
+function getPlaceName(place: Place) {
+  const candidate =
+    place.placeName ??
+    (place as any).placename ??
+    (place as any).place_name ??
+    place.name ??
+    (place as any).name
+
+  return typeof candidate === 'string' ? candidate.trim() : ''
+}
+
+function findFirstArray(value: unknown, depth = 0): unknown[] | null {
+  if (Array.isArray(value)) return value
+  if (!value || typeof value !== 'object' || depth >= 4) return null
+
+  const obj = value as Record<string, unknown>
+  const preferredKeys = ['result', 'data', 'content', 'list', 'rows', 'items']
+
+  for (const key of preferredKeys) {
+    if (key in obj) {
+      const found = findFirstArray(obj[key], depth + 1)
+      if (found) return found
+    }
+  }
+
+  for (const child of Object.values(obj)) {
+    const found = findFirstArray(child, depth + 1)
+    if (found) return found
+  }
+
+  return null
+}
+
+function extractDepartments(payload: unknown): Department[] {
+  const list = findFirstArray(payload)
+  if (!list) return []
+  return list.filter(item => item && typeof item === 'object') as Department[]
+}
+
+function extractPlaces(payload: unknown): Place[] {
+  const list = findFirstArray(payload)
+  if (!list) return []
+  return list.filter(item => item && typeof item === 'object') as Place[]
+}
+
+function extractMisRows(payload: unknown) {
+  const list = findFirstArray(payload)
+  if (!list) return [] as Record<string, unknown>[]
+  return list.filter(item => item && typeof item === 'object') as Record<string, unknown>[]
+}
+
+function extractTotalRecords(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return 0
+
+  const root = payload as Record<string, any>
+  const candidate =
+    root?.result?.totalRecords ??
+    root?.result?.total ??
+    root?.totalRecords ??
+    root?.total ??
+    root?.result?.meta?.totalRecords ??
+    root?.meta?.totalRecords
+
+  return typeof candidate === 'number' && Number.isFinite(candidate) ? candidate : 0
+}
+
+function getAny(obj: unknown, keys: string[]) {
+  if (!obj || typeof obj !== 'object') return undefined
+  for (const key of keys) {
+    const value = (obj as any)[key]
+    if (value !== undefined && value !== null && (typeof value !== 'string' || value.trim() !== '')) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function toText(value: unknown, fallback = 'N/A') {
+  if (typeof value === 'string') return value.trim() || fallback
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  return fallback
+}
+
+function toNumber(value: unknown, fallback = 0) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+  return fallback
+}
+
+function formatEpochDate(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    const date = new Date(value)
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString('en-IN')
+    }
+  }
+
+  if (typeof value === 'string' && value.trim()) return value
+  return '—'
+}
+
+function formatEpochDateTime(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    const date = new Date(value)
+    if (!Number.isNaN(date.getTime())) {
+      return `${date.toLocaleDateString('en-IN')} | ${date.toLocaleTimeString('en-IN')}`
+    }
+  }
+
+  if (typeof value === 'string' && value.trim()) return value
+  return '—'
+}
+
+function extractTicketTypeCounts(row: Record<string, unknown>) {
+  const counts = {
+    indianCitizen: 0,
+    indianStudent: 0,
+    foreignCitizen: 0,
+    foreignStudent: 0,
+  }
+
+  const ticketTypeList = getAny(row, ['ticketTypeListDtos', 'ticketTypeListDto', 'ticketTypes'])
+  if (!Array.isArray(ticketTypeList)) return counts
+
+  for (const entry of ticketTypeList) {
+    if (!entry || typeof entry !== 'object') continue
+
+    const item = entry as Record<string, unknown>
+    const ticketTypeName = toText(
+      getAny(item, ['ticketTypeName', 'ticketName', 'name']),
+    ).toLowerCase().replace(/[^a-z]/g, '')
+    const ticketCount = toNumber(getAny(item, ['ticketCount', 'count', 'qty', 'quantity']))
+
+    if (!ticketTypeName || ticketCount <= 0) continue
+
+    if (ticketTypeName.includes('indiancitizen')) {
+      counts.indianCitizen += ticketCount
+    } else if (ticketTypeName.includes('indianstudent')) {
+      counts.indianStudent += ticketCount
+    } else if (ticketTypeName.includes('foreigncitizen')) {
+      counts.foreignCitizen += ticketCount
+    } else if (ticketTypeName.includes('foreignstudent')) {
+      counts.foreignStudent += ticketCount
+    }
+  }
+
+  return counts
+}
+
+function mapApiRowToMisRow(row: Record<string, unknown>, index: number): MISRow {
+  const bookingId = toText(getAny(row, ['bookingId', 'booking_id', 'consumerKey', 'consumer_key']), `ROW-${index + 1}`)
+  const ticketTypeCounts = extractTicketTypeCounts(row)
+  const indianCitizen = ticketTypeCounts.indianCitizen || toNumber(getAny(row, ['indianCitizen', 'indian_citizen']))
+  const indianStudent = ticketTypeCounts.indianStudent || toNumber(getAny(row, ['indianStudent', 'indian_student']))
+  const foreignCitizen = ticketTypeCounts.foreignCitizen || toNumber(getAny(row, ['foreignCitizen', 'foreign_citizen']))
+  const foreignStudent = ticketTypeCounts.foreignStudent || toNumber(getAny(row, ['foreignStudent', 'foreign_student']))
+  const totalVisitors = toNumber(getAny(row, ['totalVisitors', 'visitors'])) || (indianCitizen + indianStudent + foreignCitizen + foreignStudent)
+
+  return {
+    srNo: index + 1,
+    bookingDate: formatEpochDateTime(getAny(row, ['bookingDate', 'booking_date'])),
+    visitDate: formatEpochDate(getAny(row, ['visitDate', 'visit_date'])),
+    bookingId,
+    emitraTransactionId: toText(getAny(row, ['emitraTransactionId', 'emitraTxnId', 'transactionId', 'txnId']), '—'),
+    consumerKey: toText(getAny(row, ['consumerKey', 'consumer_key']), bookingId),
+    checkRefundStatus: toText(getAny(row, ['checkRefundStatus', 'refundStatus', 'check_refund_status']), 'N/A'),
+    refund: toText(getAny(row, ['refund', 'refundAmount', 'refund_amount']), 'Not Refunded'),
+    districtName: toText(getAny(row, ['districtName', 'district_name']), '—'),
+    placeName: toText(getAny(row, ['placeName', 'place_name']), '—'),
+    quotaName: toText(getAny(row, ['quotaName', 'quota_name']), '—'),
+    shiftName: toText(getAny(row, ['shiftName', 'shift_name']), '—'),
+    zoneName: toText(getAny(row, ['zoneName', 'zone_name']), '—'),
+    vehicleName: toText(getAny(row, ['vehicleName', 'vehicle_name']), '—'),
+    totalAmount: toNumber(getAny(row, ['totalAmount', 'amount'])),
+    choiceAddOnAmount: toNumber(getAny(row, ['choiceAddOnAmount', 'choiceAddonAmount', 'addOnAmountChoice'])),
+    differenceAmount: toNumber(getAny(row, ['differenceAmount', 'diffAmount'])),
+    differenceAmountStatus: toText(getAny(row, ['differenceAmountStatus', 'diffAmountStatus']), 'No difference amount'),
+    indianCitizen,
+    indianStudent,
+    foreignCitizen,
+    foreignStudent,
+    totalVisitors,
+    addOnCount: toNumber(getAny(row, ['addOnCount', 'addonCount'])),
+    addOnSum: toNumber(getAny(row, ['addOnSum', 'addonSum'])),
+    bookingMode: toText(getAny(row, ['bookingMode', 'mode']), 'ONLINE') as MISRow['bookingMode'],
+    transactionStatus: toText(getAny(row, ['transactionStatus', 'paymentStatus', 'status']), 'SUCCESS') as MISRow['transactionStatus'],
+    vehicleNumber: toText(getAny(row, ['vehicleNumber', 'vehicle_no']), '—'),
+    guideName: toText(getAny(row, ['guideName', 'guide_name']), '—'),
+    boardingPassStatus: toText(getAny(row, ['boardingPassStatus', 'boarding_pass_status']), 'Not Confirmed'),
+    ssoId: toText(getAny(row, ['ssoId', 'sso_id']), '—'),
+    checkIn: toText(getAny(row, ['checkIn', 'check_in']), '—'),
+    createdBy: toText(getAny(row, ['createdBy', 'created_by']), 'Guest User'),
+    ipAddress: toText(getAny(row, ['ipAddress', 'ip_address']), '—'),
+    device: toText(getAny(row, ['device', 'deviceType']), '—'),
+    driverVerify: toText(getAny(row, ['driverVerify', 'driver_verify']), 'N/A') as MISRow['driverVerify'],
+    guideVerify: toText(getAny(row, ['guideVerify', 'guide_verify']), 'N/A') as MISRow['guideVerify'],
+    paymentVerify: toText(getAny(row, ['paymentVerify', 'payment_verify']), 'N/A') as MISRow['paymentVerify'],
+    driverVerifyTime: toText(getAny(row, ['driverVerifyTime', 'driver_verify_time']), 'N/A'),
+    guideVerifyTime: toText(getAny(row, ['guideVerifyTime', 'guide_verify_time']), 'N/A'),
+  }
+}
+
 // ─── Column group config ──────────────────────────────────────────────────────
 
 const COL_GROUPS = [
@@ -358,6 +667,7 @@ function ExpandedRow({ row }: { row: MISRow }) {
         { label: 'Indian Citizen',  val: String(row.indianCitizen) },
         { label: 'Indian Student',  val: String(row.indianStudent) },
         { label: 'Foreign Citizen', val: String(row.foreignCitizen) },
+        { label: 'Foreign Student', val: String(row.foreignStudent ?? 0) },
         { label: 'Total Visitors',  val: String(row.totalVisitors) },
       ],
     },
@@ -425,21 +735,38 @@ export default function MISReportView({
   title         = 'MIS Report',
   totalResults  = 1803,
 }: MISReportViewProps) {
+  void data
+  void totalResults
 
-  const [searchBookingId,  setSearchBookingId]  = useState('')
-  const [expandedRows,     setExpandedRows]      = useState<Set<string>>(new Set())
-  const [showFilterPanel,  setShowFilterPanel]   = useState(false)
-  const [page,             setPage]              = useState(1)
-  const [filters, setFilters] = useState({
-    dateType:    'Visit Date',
-    startDate:   '2026-04-01',
-    endDate:     '2026-04-13',
-    paymentType: 'ALL',
-    district:    '',
-    place:       '',
-    mode:        '',
-    pageSize:    10,
-  })
+  const todayMaxDate = useMemo(() => toDateInputValue(getTodayEndMs()), [])
+  const todayStartDate = useMemo(() => toDateInputValue(DEFAULT_START_DAY), [])
+  const defaultFilters = useMemo<DraftFilters>(() => ({
+    dateType: 'visit',
+    startDate: todayStartDate,
+    endDate: todayMaxDate,
+    bookingType: 'ALL',
+    transactionStatus: 'ALL',
+    departmentId: '',
+    placeId: '',
+  }), [todayMaxDate, todayStartDate])
+
+  const [rows, setRows] = useState<MISRow[]>([])
+  const [searchBookingId, setSearchBookingId] = useState('')
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [draftFilters, setDraftFilters] = useState<DraftFilters>(defaultFilters)
+  const [appliedFilters, setAppliedFilters] = useState<DraftFilters>(defaultFilters)
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [departmentsLoading, setDepartmentsLoading] = useState(false)
+  const [departmentsError, setDepartmentsError] = useState('')
+  const [places, setPlaces] = useState<Place[]>([])
+  const [placesLoading, setPlacesLoading] = useState(false)
+  const [placesError, setPlacesError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [totalRecords, setTotalRecords] = useState(0)
 
   const toggleRow = (id: string) => {
     setExpandedRows(prev => {
@@ -448,25 +775,224 @@ export default function MISReportView({
       return n
     })
   }
+  const paged = rows
+  const totalPages = Math.max(1, Math.ceil((totalRecords || 0) / pageSize))
+  const grandTotal = useMemo(() => rows.reduce((s, r) => s + r.totalAmount, 0), [rows])
+  const totalVisitors = useMemo(() => rows.reduce((s, r) => s + r.totalVisitors, 0), [rows])
+  const firstResult = totalRecords === 0 ? 0 : (page - 1) * pageSize + 1
+  const lastResult = totalRecords === 0 ? 0 : Math.min(page * pageSize, totalRecords)
+  const activeDepartment = departments.find(department => getDepartmentId(department) === appliedFilters.departmentId)
+  const activePlace = places.find(place => getPlaceId(place) === appliedFilters.placeId)
+  const activeDepartmentName = activeDepartment ? getDepartmentName(activeDepartment) : ''
+  const activePlaceName = activePlace ? getPlaceName(activePlace) : ''
 
-  const filtered = useMemo(() => data.filter(r => {
-    if (searchBookingId && !r.bookingId.toLowerCase().includes(searchBookingId.toLowerCase())) return false
-    if (filters.paymentType !== 'ALL' && r.transactionStatus !== filters.paymentType) return false
-    if (filters.district && r.districtName !== filters.district) return false
-    if (filters.place    && r.placeName    !== filters.place)    return false
-    if (filters.mode     && r.bookingMode  !== filters.mode)     return false
-    return true
-  }), [data, searchBookingId, filters])
+  useEffect(() => {
+    setDraftFilters(defaultFilters)
+    setAppliedFilters(defaultFilters)
+  }, [defaultFilters])
 
-  const pageSize   = filters.pageSize
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const paged      = filtered.slice((page - 1) * pageSize, page * pageSize)
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
 
-  const grandTotal   = useMemo(() => filtered.reduce((s, r) => s + r.totalAmount, 0),   [filtered])
-  const totalVisitors = useMemo(() => filtered.reduce((s, r) => s + r.totalVisitors, 0), [filtered])
+  useEffect(() => {
+    let active = true
 
-  const districts = Array.from(new Set(data.map(r => r.districtName)))
-  const places    = Array.from(new Set(data.map(r => r.placeName)))
+    const loadDepartments = async () => {
+      setDepartmentsLoading(true)
+      setDepartmentsError('')
+      try {
+        const response = await fetch('/api/dept?offset=0&size=200&export=false&searchKey=', {
+          cache: 'no-store',
+        })
+        if (!response.ok) {
+          throw new Error(`Department request failed with ${response.status}`)
+        }
+        const payload = await response.json()
+        if (!active) return
+        setDepartments(extractDepartments(payload))
+      } catch (err) {
+        if (!active) return
+        setDepartments([])
+        setDepartmentsError(err instanceof Error ? err.message : 'Unable to load departments.')
+      } finally {
+        if (active) {
+          setDepartmentsLoading(false)
+        }
+      }
+    }
+
+    loadDepartments()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    const loadPlaces = async () => {
+      setPlacesLoading(true)
+      setPlacesError('')
+      try {
+        const params = new URLSearchParams({
+          districtId: '',
+          searchKey: '',
+          deptList: appliedFilters.departmentId,
+          size: '2000',
+        })
+        const response = await fetch(`/api/place?${params.toString()}`, { cache: 'no-store' })
+        if (!response.ok) {
+          throw new Error(`Place request failed with ${response.status}`)
+        }
+        const payload = await response.json()
+        if (!active) return
+        const nextPlaces = extractPlaces(payload)
+        setPlaces(nextPlaces)
+
+        if (appliedFilters.placeId && !nextPlaces.some(place => getPlaceId(place) === appliedFilters.placeId)) {
+          setDraftFilters(current => ({ ...current, placeId: '' }))
+          setAppliedFilters(current => ({ ...current, placeId: '' }))
+          setPage(1)
+        }
+      } catch (err) {
+        if (!active) return
+        setPlaces([])
+        setPlacesError(err instanceof Error ? err.message : 'Unable to load places.')
+      } finally {
+        if (active) {
+          setPlacesLoading(false)
+        }
+      }
+    }
+
+    loadPlaces()
+
+    return () => {
+      active = false
+    }
+  }, [appliedFilters.departmentId, appliedFilters.placeId])
+
+  useEffect(() => {
+    let active = true
+
+    const loadRows = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const params = new URLSearchParams({
+          bookingType: appliedFilters.bookingType,
+          divisionId: '',
+          districtId: '',
+          endDay: String(new Date(`${appliedFilters.endDate}T23:59:59.999`).getTime()),
+          offSet: String((page - 1) * pageSize),
+          placeId: appliedFilters.placeId,
+          size: String(pageSize),
+          startDay: String(new Date(`${appliedFilters.startDate}T00:00:00.000`).getTime()),
+          transactionStatus: appliedFilters.transactionStatus === 'ALL' ? '' : appliedFilters.transactionStatus,
+          departmentId: appliedFilters.departmentId,
+          isFilter: 'true',
+          dateFilter: appliedFilters.dateType === 'visit' ? 'Visit' : 'Booking',
+          searchKey: searchBookingId.trim(),
+          printCount: 'ALL',
+          ticketType: '',
+          zoneId: '',
+          shiftId: '',
+          quotaId: '',
+          inventoryId: '',
+          entryVerify: 'ALL',
+          driverVerify: 'ALL',
+        })
+
+        const response = await fetch(`/api/inventory/reports/mis_V3?${params.toString()}`, {
+          cache: 'no-store',
+        })
+        if (!response.ok) {
+          throw new Error(`MIS inventory request failed with ${response.status}`)
+        }
+        const payload = await response.json()
+        if (!active) return
+        const nextRows = extractMisRows(payload).map(mapApiRowToMisRow)
+        setRows(nextRows)
+        setTotalRecords(extractTotalRecords(payload) || nextRows.length)
+      } catch (err) {
+        if (!active) return
+        setRows([])
+        setTotalRecords(0)
+        setError(err instanceof Error ? err.message : 'Unable to load MIS inventory data.')
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadRows()
+
+    return () => {
+      active = false
+    }
+  }, [appliedFilters, page, pageSize, searchBookingId])
+
+  const openFilters = () => {
+    setDraftFilters(appliedFilters)
+    setFiltersOpen(true)
+  }
+
+  const closeFilters = () => {
+    setDraftFilters(appliedFilters)
+    setFiltersOpen(false)
+  }
+
+  const applyFilters = () => {
+    setAppliedFilters(draftFilters)
+    setPage(1)
+    setFiltersOpen(false)
+  }
+
+  const resetFilters = () => {
+    setDraftFilters(defaultFilters)
+    setAppliedFilters(defaultFilters)
+    setSearchBookingId('')
+    setPage(1)
+    setFiltersOpen(false)
+  }
+
+  const exportPDF = () => {
+    const pdf = new jsPDF('l', 'mm', 'a4')
+    pdf.setFontSize(14)
+    pdf.text(title, 14, 14)
+    autoTable(pdf, {
+      startY: 20,
+      styles: { fontSize: 7, cellPadding: 2 },
+      head: [[
+        'Booking Date',
+        'Visit Date',
+        'Booking ID',
+        'District',
+        'Place',
+        'Mode',
+        'Txn Status',
+        'Visitors',
+        'Amount',
+      ]],
+      body: rows.map(row => [
+        row.bookingDate,
+        row.visitDate,
+        row.bookingId,
+        row.districtName,
+        row.placeName,
+        row.bookingMode,
+        row.transactionStatus,
+        String(row.totalVisitors),
+        String(row.totalAmount),
+      ]),
+    })
+    pdf.save('mis-inventory-report.pdf')
+  }
 
   return (
     <div style={{ fontFamily: "'Outfit', sans-serif", color: 'var(--text-dark)' }}>
@@ -493,17 +1019,17 @@ export default function MISReportView({
           </div>
 
           <button
-            onClick={() => setShowFilterPanel(v => !v)}
+            onClick={openFilters}
             className="flex items-center gap-2 rounded-xl px-4 py-2 font-medium"
-            style={{ fontSize: 12, background: showFilterPanel ? 'var(--maroon)' : 'var(--cream-dark)', border: '1px solid ' + (showFilterPanel ? 'var(--maroon)' : 'var(--sand)'), color: showFilterPanel ? '#fff' : 'var(--text-mid)' }}
+            style={{ fontSize: 12, background: filtersOpen ? 'var(--maroon)' : 'var(--cream-dark)', border: '1px solid ' + (filtersOpen ? 'var(--maroon)' : 'var(--sand)'), color: filtersOpen ? '#fff' : 'var(--text-mid)' }}
           >
             <Filter size={13} /> Filter
           </button>
 
-          <button className="flex items-center gap-2 rounded-xl px-4 py-2 font-medium text-white"
+          <button onClick={exportPDF} className="flex items-center gap-2 rounded-xl px-4 py-2 font-medium text-white"
             style={{ fontSize: 12, background: 'linear-gradient(135deg, var(--maroon), var(--maroon-light))' }}
           >
-            <Download size={13} /> Export
+            <Download size={13} /> Export PDF
           </button>
         </div>
       </div>
@@ -511,10 +1037,13 @@ export default function MISReportView({
       {/* ── Active filter strip ───────────────────────────────── */}
       <div className="flex items-center gap-5 px-6 py-2.5 flex-wrap" style={{ background: 'var(--cream)', borderBottom: '1px solid var(--sand)' }}>
         {[
-          { label: 'Date Type',     val: filters.dateType    },
-          { label: 'Start Date',    val: filters.startDate   ? new Date(filters.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
-          { label: 'End Date',      val: filters.endDate     ? new Date(filters.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
-          { label: 'Payment Type',  val: filters.paymentType === 'ALL' ? 'All' : filters.paymentType },
+          { label: 'Date Type', val: appliedFilters.dateType === 'visit' ? 'Visit Date' : 'Booking Date' },
+          { label: 'Start Date', val: appliedFilters.startDate ? new Date(appliedFilters.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-' },
+          { label: 'End Date', val: appliedFilters.endDate ? new Date(appliedFilters.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-' },
+          { label: 'Booking Type', val: appliedFilters.bookingType === 'ALL' ? 'All' : appliedFilters.bookingType === 'KIOSK' ? 'OFFLINE' : appliedFilters.bookingType },
+          { label: 'Payment Type', val: appliedFilters.transactionStatus === 'ALL' ? 'All' : appliedFilters.transactionStatus },
+          { label: 'Department', val: activeDepartmentName || 'All' },
+          { label: 'Place', val: activePlaceName || 'All' },
         ].map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
             <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500 }}>{item.label} :</span>
@@ -524,68 +1053,173 @@ export default function MISReportView({
       </div>
 
       {/* ── Filter panel ─────────────────────────────────────── */}
-      {showFilterPanel && (
-        <div className="flex items-end gap-4 px-6 py-4 flex-wrap" style={{ background: 'var(--cream-dark)', borderBottom: '1px solid var(--sand)' }}>
-          <FilterSelect label="Date Type" value={filters.dateType}
-            options={[{ v: 'Visit Date', l: 'Visit Date' }, { v: 'Booking Date', l: 'Booking Date' }]}
-            onChange={v => setFilters(f => ({ ...f, dateType: v }))} />
+            {filtersOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(15, 23, 42, 0.34)' }}
+          onClick={closeFilters}
+        >
+          <div
+            className="w-full max-w-5xl overflow-hidden rounded-2xl"
+            style={{ background: '#fff', boxShadow: '0 24px 70px rgba(15, 23, 42, 0.22)' }}
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 text-white" style={{ background: 'linear-gradient(135deg, var(--maroon), var(--maroon-light))' }}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'rgba(255,255,255,0.14)' }}>
+                  <SlidersHorizontal size={18} />
+                </div>
+                <div>
+                  <div className="font-serif font-bold" style={{ fontSize: 20 }}>Filter Inventory MIS</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)' }}>Same inventory flow as Booking Management</div>
+                </div>
+              </div>
+              <button onClick={closeFilters} className="rounded-full p-2" style={{ background: 'rgba(255,255,255,0.12)' }}>
+                <X size={16} />
+              </button>
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' as const }}>Start Date</label>
-            <div className="relative">
-              <input type="date" value={filters.startDate} onChange={e => { setFilters(f => ({ ...f, startDate: e.target.value })); setPage(1) }}
-                className="rounded-xl pl-3 pr-8 py-2 outline-none"
-                style={{ fontSize: 12, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)', minWidth: 140 }} />
-              <Calendar size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+            <div className="flex items-center gap-2 border-b px-6 py-3" style={{ borderColor: 'var(--sand)', background: 'var(--cream)' }}>
+              {[
+                appliedFilters.dateType === 'visit' ? 'Visit Date' : 'Booking Date',
+                appliedFilters.bookingType === 'ALL' ? 'All Booking Types' : appliedFilters.bookingType === 'KIOSK' ? 'OFFLINE' : appliedFilters.bookingType,
+                appliedFilters.transactionStatus === 'ALL' ? 'All Statuses' : appliedFilters.transactionStatus,
+                activeDepartmentName || 'All Departments',
+                activePlaceName || 'All Places',
+              ].map(chip => (
+                <span key={chip} className="rounded-full px-3 py-1" style={{ fontSize: 11, background: 'rgba(139,26,26,0.08)', color: 'var(--maroon)', fontWeight: 600 }}>
+                  {chip}
+                </span>
+              ))}
+            </div>
+
+            <div className="grid gap-5 px-6 py-5 md:grid-cols-2 xl:grid-cols-3">
+              <div className="space-y-2">
+                <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Date Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'visit', label: 'Visit Date', icon: <Calendar size={14} /> },
+                    { value: 'booking', label: 'Booking Date', icon: <Ticket size={14} /> },
+                  ].map(option => {
+                    const active = draftFilters.dateType === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        onClick={() => setDraftFilters(current => ({ ...current, dateType: option.value as DraftFilters['dateType'] }))}
+                        className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium"
+                        style={{ fontSize: 12, border: `1px solid ${active ? 'var(--maroon)' : 'var(--sand)'}`, background: active ? 'rgba(139,26,26,0.08)' : '#fff', color: active ? 'var(--maroon)' : 'var(--text-mid)' }}
+                      >
+                        {option.icon}
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Start Date</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={draftFilters.startDate}
+                    max={todayMaxDate}
+                    onChange={event => setDraftFilters(current => ({ ...current, startDate: event.target.value }))}
+                    className="w-full rounded-xl py-3 pl-4 pr-10 outline-none"
+                    style={{ fontSize: 12, border: '1px solid var(--sand)', background: '#fff', color: 'var(--text-dark)' }}
+                  />
+                  <Calendar size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>End Date</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={draftFilters.endDate}
+                    max={todayMaxDate}
+                    min={draftFilters.startDate}
+                    onChange={event => setDraftFilters(current => ({ ...current, endDate: event.target.value }))}
+                    className="w-full rounded-xl py-3 pl-4 pr-10 outline-none"
+                    style={{ fontSize: 12, border: '1px solid var(--sand)', background: '#fff', color: 'var(--text-dark)' }}
+                  />
+                  <Calendar size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Booking Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['ALL', 'ONLINE', 'KIOSK'].map(option => {
+                    const active = draftFilters.bookingType === option
+                    return (
+                      <button
+                        key={option}
+                        onClick={() => setDraftFilters(current => ({ ...current, bookingType: option }))}
+                        className="rounded-xl px-4 py-3 font-medium"
+                        style={{ fontSize: 12, border: `1px solid ${active ? 'var(--maroon)' : 'var(--sand)'}`, background: active ? 'rgba(139,26,26,0.08)' : '#fff', color: active ? 'var(--maroon)' : 'var(--text-mid)' }}
+                      >
+                        {option === 'ALL' ? 'All' : option === 'KIOSK' ? 'OFFLINE' : option}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <FilterSelect
+                label="Payment Status"
+                value={draftFilters.transactionStatus}
+                options={[{ v: 'ALL', l: 'All Statuses' }, { v: 'SUCCESS', l: 'Success' }, { v: 'FAILED', l: 'Failed' }, { v: 'PENDING', l: 'Pending' }, { v: 'REFUNDED', l: 'Refunded' }]}
+                onChange={value => setDraftFilters(current => ({ ...current, transactionStatus: value }))}
+              />
+
+              <FilterSelect
+                label="Department"
+                value={draftFilters.departmentId}
+                options={[{ v: '', l: departmentsLoading ? 'Loading departments...' : 'All Departments' }, ...departments.map(department => ({ v: getDepartmentId(department), l: getDepartmentName(department) }))]}
+                onChange={value => setDraftFilters(current => ({ ...current, departmentId: value, placeId: '' }))}
+              />
+
+              <FilterSelect
+                label="Place"
+                value={draftFilters.placeId}
+                options={[{ v: '', l: placesLoading ? 'Loading places...' : 'All Places' }, ...places.map(place => ({ v: getPlaceId(place), l: getPlaceName(place) }))]}
+                onChange={value => setDraftFilters(current => ({ ...current, placeId: value }))}
+              />
+            </div>
+
+            {(departmentsError || placesError) && (
+              <div className="px-6 pb-2" style={{ fontSize: 12, color: '#B42318' }}>
+                {[departmentsError, placesError].filter(Boolean).join(' ')}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between border-t px-6 py-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+              <button onClick={resetFilters} className="rounded-xl px-4 py-2 font-medium" style={{ fontSize: 12, border: '1px solid var(--sand)', color: 'var(--text-mid)' }}>
+                Reset All
+              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={closeFilters} className="rounded-xl px-4 py-2 font-medium" style={{ fontSize: 12, border: '1px solid var(--sand)', color: 'var(--text-mid)' }}>
+                  Cancel
+                </button>
+                <button onClick={applyFilters} className="rounded-xl px-4 py-2 font-medium text-white" style={{ fontSize: 12, background: 'var(--maroon)' }}>
+                  Apply Filters
+                </button>
+              </div>
             </div>
           </div>
-
-          <div className="flex flex-col gap-1">
-            <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' as const }}>End Date</label>
-            <div className="relative">
-              <input type="date" value={filters.endDate} onChange={e => { setFilters(f => ({ ...f, endDate: e.target.value })); setPage(1) }}
-                className="rounded-xl pl-3 pr-8 py-2 outline-none"
-                style={{ fontSize: 12, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)', minWidth: 140 }} />
-              <Calendar size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
-            </div>
-          </div>
-
-          <FilterSelect label="Payment Type" value={filters.paymentType}
-            options={[{ v: 'ALL', l: 'All' }, { v: 'SUCCESS', l: 'Success' }, { v: 'FAILED', l: 'Failed' }, { v: 'PENDING', l: 'Pending' }, { v: 'REFUNDED', l: 'Refunded' }]}
-            onChange={v => { setFilters(f => ({ ...f, paymentType: v })); setPage(1) }} />
-
-          <FilterSelect label="District" value={filters.district}
-            options={[{ v: '', l: 'All Districts' }, ...districts.map(d => ({ v: d, l: d }))]}
-            onChange={v => { setFilters(f => ({ ...f, district: v })); setPage(1) }} />
-
-          <FilterSelect label="Booking Mode" value={filters.mode}
-            options={[{ v: '', l: 'All Modes' }, { v: 'ONLINE', l: 'Online' }, { v: 'KIOSK', l: 'Kiosk' }, { v: 'COUNTER', l: 'Counter' }]}
-            onChange={v => { setFilters(f => ({ ...f, mode: v })); setPage(1) }} />
-
-          <FilterSelect label="Rows / Page" value={String(filters.pageSize)}
-            options={[10, 25, 50, 100].map(n => ({ v: String(n), l: String(n) }))}
-            onChange={v => { setFilters(f => ({ ...f, pageSize: Number(v) })); setPage(1) }} />
-
-          <button onClick={() => setShowFilterPanel(false)}
-            className="flex items-center gap-1.5 rounded-xl px-4 py-2 font-medium text-white"
-            style={{ fontSize: 12, background: 'var(--maroon)' }}>Apply</button>
-
-          <button onClick={() => { setFilters(f => ({ ...f, district: '', place: '', mode: '' })); setSearchBookingId(''); setPage(1) }}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 font-medium"
-            style={{ fontSize: 11, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-muted)' }}>
-            <X size={11} /> Reset
-          </button>
         </div>
       )}
 
       {/* ── Summary cards ─────────────────────────────────────── */}
       <div className="grid grid-cols-5 gap-3 px-6 py-4" style={{ background: 'var(--cream)' }}>
         {[
-          { label: 'Total Records',    val: filtered.length.toLocaleString('en-IN'),           icon: '📋', color: 'var(--maroon)',  bg: '#fff' },
-          { label: 'Total Revenue',    val: '₹' + grandTotal.toLocaleString('en-IN'),           icon: '₹',  color: 'var(--maroon)',  bg: 'linear-gradient(135deg,#6B1212,#A83030)', white: true },
-          { label: 'Total Visitors',   val: totalVisitors.toLocaleString('en-IN'),              icon: '👥', color: '#1A7A6E',        bg: '#fff' },
-          { label: 'Online Bookings',  val: filtered.filter(r => r.bookingMode === 'ONLINE').length.toString(), icon: '🌐', color: '#1A7A6E', bg: '#fff' },
-          { label: 'Verified Trips',   val: filtered.filter(r => r.driverVerify === 'Verified').length.toString(), icon: '✅', color: '#C8922A', bg: '#fff' },
+          { label: 'Total Records', val: totalRecords.toLocaleString('en-IN'), icon: '📋', color: 'var(--maroon)', bg: '#fff' },
+          { label: 'Total Revenue', val: '₹' + grandTotal.toLocaleString('en-IN'), icon: '₹', color: 'var(--maroon)', bg: 'linear-gradient(135deg,#6B1212,#A83030)', white: true },
+          { label: 'Total Visitors', val: totalVisitors.toLocaleString('en-IN'), icon: '👥', color: '#1A7A6E', bg: '#fff' },
+          { label: 'Online Bookings', val: rows.filter(r => r.bookingMode === 'ONLINE').length.toString(), icon: '🌐', color: '#1A7A6E', bg: '#fff' },
+          { label: 'Verified Trips', val: rows.filter(r => r.driverVerify === 'Verified').length.toString(), icon: '✅', color: '#C8922A', bg: '#fff' },
         ].map(s => (
           <div key={s.label} className="rounded-xl px-4 py-3 flex items-center gap-3 relative overflow-hidden"
             style={{ background: s.bg, border: s.white ? 'none' : '1px solid var(--sand)' }}>
@@ -638,7 +1272,11 @@ export default function MISReportView({
               </thead>
 
               <tbody>
-                {paged.length === 0 ? (
+                {loading ? (
+                  <tr><td colSpan={50} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading inventory report...</td></tr>
+                ) : error ? (
+                  <tr><td colSpan={50} style={{ padding: 48, textAlign: 'center', color: '#B42318', fontSize: 13 }}>{error}</td></tr>
+                ) : paged.length === 0 ? (
                   <tr><td colSpan={50} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No records match.</td></tr>
                 ) : (
                   paged.map((r, i) => {
@@ -766,10 +1404,10 @@ export default function MISReportView({
             <div className="flex items-center gap-2">
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Display Data:</span>
               <div className="relative">
-                <select value={String(filters.pageSize)} onChange={e => { setFilters(f => ({ ...f, pageSize: Number(e.target.value) })); setPage(1) }}
+                <select value={String(pageSize)} onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
                   className="appearance-none rounded-lg pl-2.5 pr-6 py-1 outline-none"
                   style={{ fontSize: 11, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)' }}>
-                  {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+                  {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
                 <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
               </div>
@@ -793,8 +1431,8 @@ export default function MISReportView({
 
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
               Result: <strong style={{ color: 'var(--text-dark)' }}>
-                {filtered.length === 0 ? 0 : `${(page-1)*pageSize+1}–${Math.min(page*pageSize, filtered.length)}`}
-              </strong> of <strong style={{ color: 'var(--maroon)' }}>{totalResults}</strong>
+                {totalRecords === 0 ? 0 : `${firstResult}–${lastResult}`}
+              </strong> of <strong style={{ color: 'var(--maroon)' }}>{totalRecords}</strong>
             </div>
           </div>
         </div>
@@ -802,3 +1440,4 @@ export default function MISReportView({
     </div>
   )
 }
+

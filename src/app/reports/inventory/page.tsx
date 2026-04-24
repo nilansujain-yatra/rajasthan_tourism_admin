@@ -15,6 +15,8 @@ import HeadWiseGSTReportView from './HeadWiseGSTReportView'
 import ChoiceDifferenceReportView from './ChoiceDifferenceReportView'
 import CountryWiseReportView from './CountryWiseReportView'
 import TransactionReportView from './TransactionReportView'
+import DayWiseReportView from './DayWiseReportView'
+import VehicleAvailabilityReportView from './VehicleAvailabilityReportView'
 
 type ReportType = 'mis' | 'country' | 'daywise' | 'headwise' | 'headdetail' | 'headsummary' | 'addon' | 'vehicleavail' | 'vehicletrip' | 'vehicleguide' | 'boarding' | 'failed' | 'choiceaddon' | 'diff' | 'entryexit' | 'guidetrip' | 'msgwise' | 'blockunblock' | 'blockuser' | 'checkstatus' | 'ticketgst' | 'choicegst' | 'headwisegst' | 'choicendiffreport' | 'vehicletrip2' | 'guidetrip2' | 'transaction' | 'cancelled'
 
@@ -96,58 +98,7 @@ const FailedReportView = () => (
   </div>
 )
 
-const VehicleAvailView = () => (
-  <div className="space-y-5">
-    <div className="flex justify-between items-start">
-      <div>
-        <h1 className="text-2xl font-bold font-serif" style={{ color: 'var(--ink)' }}>Vehicle Availability Report</h1>
-        <p className="text-xs" style={{ color: 'var(--text-muted)', marginTop: 3 }}>Current fleet status across all sites</p>
-      </div>
-      <div className="flex gap-2">
-        <button className="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs hover:bg-gray-50" style={{ borderColor: 'var(--sand)', color: 'var(--text-muted)' }}>Filter</button>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs text-white" style={{ background: 'var(--maroon)' }}>Export</button>
-      </div>
-    </div>
 
-    <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
-      <table className="w-full">
-        <thead>
-          <tr style={{ background: 'var(--cream)' }}>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Sr.</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Site</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Total</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Available</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>On Trip</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            { sr: 1, site: 'Amber Fort', total: 12, available: 7, onTrip: 5, status: 'Active' },
-            { sr: 2, site: 'Mehrangarh Fort', total: 10, available: 4, onTrip: 6, status: 'Active' },
-            { sr: 3, site: 'Jaisalmer Fort', total: 8, available: 8, onTrip: 0, status: 'Active' },
-            { sr: 4, site: 'Chittorgarh Fort', total: 6, available: 2, onTrip: 4, status: 'Active' },
-            { sr: 5, site: 'Gagron Fort', total: 4, available: 1, onTrip: 3, status: 'Low' },
-          ].map((row) => (
-            <tr key={row.sr} style={{ borderBottom: '1px solid var(--sand)' }} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{row.sr}</td>
-              <td className="px-4 py-3 text-sm">{row.site}</td>
-              <td className="px-4 py-3 text-sm">{row.total}</td>
-              <td className="px-4 py-3 text-sm">{row.available}</td>
-              <td className="px-4 py-3 text-sm">{row.onTrip}</td>
-              <td className="px-4 py-3 text-xs">
-                <span className={clsx('px-2 py-1 rounded-full inline-flex items-center gap-1', row.status === 'Low' ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-teal-700')}>
-                  <span className={clsx('w-1.5 h-1.5 rounded-full', row.status === 'Low' ? 'bg-yellow-500' : 'bg-teal-500')}></span>
-                  {row.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)
 
 const DefaultReportView = ({ reportId, reportLabel, reportDescription }: { reportId: string; reportLabel: string; reportDescription: string }) => (
   <div className="space-y-5">
@@ -181,8 +132,7 @@ export default function InventoryReportsPage() {
         return <CountryWiseReportView />
       case 'failed':
         return <FailedReportView />
-      case 'vehicleavail':
-        return <VehicleAvailView />
+     
       case 'headdetail':
            return <HeadDetailedReportView />
       case 'headsummary':
@@ -203,6 +153,11 @@ export default function InventoryReportsPage() {
 
       case 'country':
           return <CountryWiseReportView/>
+      case 'daywise':
+          return <DayWiseReportView/>
+        
+      case 'vehicleavail':
+          return <VehicleAvailabilityReportView/>
 
       default:
         return <DefaultReportView reportId={activeReport} reportLabel={currentReport?.label || ''} reportDescription={currentReport?.description || ''} />

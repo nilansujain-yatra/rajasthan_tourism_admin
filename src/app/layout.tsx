@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
-  title: 'Rajasthan Tourism · Booking Management System',
+  title: 'OBMS-Admin',
   description: 'Government of Rajasthan — Online Tourist Site Booking & Administration Portal',
   icons: { icon: '/favicon.ico' },
 }
