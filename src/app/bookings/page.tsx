@@ -269,7 +269,6 @@ const [activeTab, setActiveTab] = useState<
   const [openRowActions, setOpenRowActions] = useState<string | null>(null);
 
   const todayMaxDate = useMemo(() => toDateInputValue(getTodayEndMs()), []);
-  const todayStartDate = useMemo(() => toDateInputValue(getTodayStartMs()), []);
   const [draftSearch, setDraftSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
 
@@ -284,6 +283,7 @@ const [activeTab, setActiveTab] = useState<
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [hasAppliedFilters, setHasAppliedFilters] = useState(false);
 
 useEffect(() => {
   if (selectedBooking) {
@@ -418,8 +418,8 @@ useEffect(() => {
   }, [places]);
 
   const [draftFilters, setDraftFilters] = useState({
-    startDate: todayStartDate,
-    endDate: todayMaxDate,
+    startDate: "",
+    endDate: "",
     dateType: "visit",
     bookingType: "",
     transactionStatus: "ALL",
@@ -428,8 +428,8 @@ useEffect(() => {
   });
 
   const [appliedFilters, setAppliedFilters] = useState(() => ({
-    startDate: todayStartDate,
-    endDate: todayMaxDate,
+    startDate: "",
+    endDate: "",
     dateType: "visit",
     bookingType: "",
     transactionStatus: "ALL",
@@ -447,6 +447,13 @@ useEffect(() => {
   };
 
   useEffect(() => {
+    if (!hasAppliedFilters) {
+      setBookings([]);
+      setBookingsError(null);
+      setTotalRecords(0);
+      return;
+    }
+
     let isMounted = true;
     const controller = new AbortController();
 
@@ -546,6 +553,7 @@ useEffect(() => {
       controller.abort();
     };
   }, [
+    hasAppliedFilters,
     activeTab,
     currentPage,
     itemsPerPage,
@@ -1045,8 +1053,8 @@ const getPaginationRange = () => {
                 onClick={() => {
                   setSelectedDepartment(null);
                   setDraftFilters({
-                    startDate: todayStartDate,
-                    endDate: todayMaxDate,
+                    startDate: "",
+                    endDate: "",
                     dateType: "visit",
                     bookingType: "",
                     transactionStatus: "ALL",
@@ -1076,6 +1084,8 @@ const getPaginationRange = () => {
                   disabled={bookingsLoading}
                   onClick={() => {
                     setAppliedFilters(draftFilters);
+                    setHasAppliedFilters(true);
+                    setAppliedSearch(draftSearch);
                     setCurrentPage(1);
                     setFiltersOpen(false);
                   }}
@@ -1280,8 +1290,8 @@ const getPaginationRange = () => {
                 onClick={() => {
                   setSelectedDepartment(null);
                   setDraftFilters({
-                    startDate: todayStartDate,
-                    endDate: todayMaxDate,
+                    startDate: "",
+                    endDate: "",
                     dateType: "visit",
                     bookingType: "",
                     transactionStatus: "ALL",
@@ -1306,6 +1316,8 @@ const getPaginationRange = () => {
                 disabled={bookingsLoading}
                 onClick={() => {
                   setAppliedFilters(draftFilters);
+                  setHasAppliedFilters(true);
+                  setAppliedSearch(draftSearch);
                   setCurrentPage(1);
                   setFiltersOpen(false);
                 }}
@@ -1333,14 +1345,26 @@ const getPaginationRange = () => {
     onClick={() => {
        setSelectedDepartment(null);
                   setDraftFilters({
-                    startDate: todayStartDate,
-                    endDate: todayMaxDate,
+                    startDate: "",
+                    endDate: "",
                     dateType: "visit",
                     bookingType: "",
                     transactionStatus: "ALL",
                     departmentId: "",
                     placeId: "",
                   });
+      setAppliedFilters({
+        startDate: "",
+        endDate: "",
+        dateType: "visit",
+        bookingType: "",
+        transactionStatus: "ALL",
+        departmentId: "",
+        placeId: "",
+      });
+      setHasAppliedFilters(false);
+      setAppliedSearch("");
+      setDraftSearch("");
       setActiveTab("INVENTORY");
       setCurrentPage(1);
     }}
@@ -1401,10 +1425,16 @@ const getPaginationRange = () => {
                   {bookingsError}
                 </td>
               </tr>
+            ) : !hasAppliedFilters ? (
+              <tr className="border-t">
+                <td className="p-6 text-center text-gray-500" colSpan={10}>
+                  Select filters to load bookings data.
+                </td>
+              </tr>
             ) : bookings.length === 0 ? (
               <tr className="border-t">
                 <td className="p-3 text-center text-gray-500" colSpan={10}>
-                  No bookings found.
+                  No data found.
                 </td>
               </tr>
             ) : (

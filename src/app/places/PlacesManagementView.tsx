@@ -7,16 +7,6 @@ import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import SectionHeader from '@/components/ui/SectionHeader'
 import type { HomeDetailsResponse, HomeDetailsReport, PlaceWiseReport } from '@/lib/api/services'
 
-type FilterKey = 'all' | 'hasVisitors' | 'hasRevenue' | 'online' | 'offline'
-
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'hasVisitors', label: 'Visitors' },
-  { key: 'hasRevenue', label: 'Revenue' },
-  { key: 'online', label: 'Online' },
-  { key: 'offline', label: 'Offline' },
-]
-
 function formatNumber(value: number) {
   return new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: 0,
@@ -35,20 +25,11 @@ function getPlaceKey(place: PlaceWiseReport) {
   return place.placeId || place.placeCode || place.placeName
 }
 
-function getInitials(placeName: string) {
-  return placeName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(part => part[0]?.toUpperCase())
-    .join('') || 'PL'
-}
-
 function getTotalBookings(place: PlaceWiseReport) {
   return place.totalBooking || place.totalBookingsOnline + place.totalBookingsOffline
 }
 
-function getFilteredPlaces(places: PlaceWiseReport[], searchTerm: string, activeFilter: FilterKey) {
+function getFilteredPlaces(places: PlaceWiseReport[], searchTerm: string) {
   const normalizedSearch = searchTerm.trim().toLowerCase()
 
   return places.filter(place => {
@@ -56,16 +37,7 @@ function getFilteredPlaces(places: PlaceWiseReport[], searchTerm: string, active
       || place.placeName.toLowerCase().includes(normalizedSearch)
       || place.placeCode.toLowerCase().includes(normalizedSearch)
 
-    if (!matchesSearch) {
-      return false
-    }
-
-    if (activeFilter === 'hasVisitors') return place.totalVisitors > 0
-    if (activeFilter === 'hasRevenue') return place.totalAmount > 0
-    if (activeFilter === 'online') return place.totalBookingsOnline > 0
-    if (activeFilter === 'offline') return place.totalBookingsOffline > 0
-
-    return true
+    return matchesSearch
   })
 }
 
@@ -139,49 +111,17 @@ function SummaryCard({
 
 function PlaceCard({ place }: { place: PlaceWiseReport }) {
   const detailHref = `/places/${encodeURIComponent(getPlaceKey(place))}`
+  const hasOnlineBookings = place.totalBookingsOnline > 0
+  const hasOfflineBookings = place.totalBookingsOffline > 0
 
   return (
     <div
-      className="rounded-xl3 overflow-hidden card-lift cursor-pointer"
+      className="rounded-xl3 card-lift cursor-pointer"
       style={{
         background: '#fff',
         border: '1px solid var(--sand)',
       }}
     >
-      <div
-        className="w-full flex items-center justify-center relative overflow-hidden"
-        style={{
-          height: 112,
-          backgroundImage: 'linear-gradient(135deg, rgba(107,18,18,0.2), rgba(200,146,42,0.08)), url(/place-card-placeholder.svg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      >
-        <div
-          className="flex items-center justify-center rounded-full font-serif font-bold"
-          style={{
-            width: 48,
-            height: 48,
-            background: 'rgba(255,255,255,0.9)',
-            color: 'var(--maroon)',
-            fontSize: 16,
-            boxShadow: '0 4px 16px rgba(28,16,8,0.18)',
-          }}
-        >
-          {getInitials(place.placeName)}
-        </div>
-        <div
-          className="absolute top-2 right-2 flex items-center gap-1 rounded-full px-2 py-0.5 font-medium capitalize"
-          style={{ fontSize: 9, background: 'rgba(26,122,110,0.1)', color: 'var(--teal)', backdropFilter: 'blur(6px)' }}
-        >
-          <span
-            className="live-pulse rounded-full inline-block"
-            style={{ width: 5, height: 5, background: 'var(--teal)' }}
-          />
-          live
-        </div>
-      </div>
-
       <div className="px-4 py-3">
         <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 4, letterSpacing: '0.5px' }}>
           {place.placeCode || 'Archaeological Site'}
@@ -192,6 +132,37 @@ function PlaceCard({ place }: { place: PlaceWiseReport }) {
           style={{ fontSize: 15, color: 'var(--text-dark)', minHeight: 38 }}
         >
           {place.placeName}
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap mb-3">
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium"
+            style={{
+              fontSize: 10,
+              background: hasOnlineBookings ? 'rgba(26,122,110,0.12)' : 'rgba(154,122,90,0.1)',
+              color: hasOnlineBookings ? 'var(--teal)' : 'var(--text-muted)',
+            }}
+          >
+            <span
+              className="rounded-full inline-block"
+              style={{ width: 6, height: 6, background: hasOnlineBookings ? 'var(--teal)' : 'var(--text-muted)' }}
+            />
+            Online {formatNumber(place.totalBookingsOnline)}
+          </span>
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium"
+            style={{
+              fontSize: 10,
+              background: hasOfflineBookings ? 'rgba(200,146,42,0.14)' : 'rgba(154,122,90,0.1)',
+              color: hasOfflineBookings ? 'var(--gold)' : 'var(--text-muted)',
+            }}
+          >
+            <span
+              className="rounded-full inline-block"
+              style={{ width: 6, height: 6, background: hasOfflineBookings ? 'var(--gold)' : 'var(--text-muted)' }}
+            />
+            Offline {formatNumber(place.totalBookingsOffline)}
+          </span>
         </div>
 
         <div className="flex items-center justify-between gap-3 mb-3">
@@ -237,7 +208,6 @@ function PlaceCard({ place }: { place: PlaceWiseReport }) {
 export default function PlacesManagementView() {
   const [report, setReport] = useState<HomeDetailsReport | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeFilter, setActiveFilter] = useState<FilterKey>('all')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
@@ -282,8 +252,8 @@ export default function PlacesManagementView() {
 
   const places = report?.placeWiseReports ?? []
   const filteredPlaces = useMemo(
-    () => getFilteredPlaces(places, searchTerm, activeFilter),
-    [activeFilter, places, searchTerm]
+    () => getFilteredPlaces(places, searchTerm),
+    [places, searchTerm]
   )
 
   const totals = useMemo(() => {
@@ -347,26 +317,6 @@ export default function PlacesManagementView() {
             </button>
           )}
         </div>
-
-        {FILTERS.map(filter => {
-          const isActive = filter.key === activeFilter
-
-          return (
-            <button
-              key={filter.key}
-              onClick={() => setActiveFilter(filter.key)}
-              className="rounded-full px-3 py-1 font-medium transition-colors"
-              style={{
-                fontSize: 11,
-                background: isActive ? 'var(--maroon)' : 'var(--cream-dark)',
-                color: isActive ? '#fff' : 'var(--text-mid)',
-                border: `1px solid ${isActive ? 'var(--maroon)' : 'var(--sand)'}`,
-              }}
-            >
-              {filter.label}
-            </button>
-          )
-        })}
       </div>
 
       <div className="grid grid-cols-4 gap-4">
@@ -425,7 +375,7 @@ export default function PlacesManagementView() {
                 No places match this filter
               </div>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                Try another search term or switch back to All.
+                Try another search term.
               </p>
             </div>
           )}
