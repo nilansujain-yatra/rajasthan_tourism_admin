@@ -455,7 +455,7 @@ useEffect(() => {
       setBookingsError(null);
 
       try {
-        const offset = (currentPage - 1) * itemsPerPage;
+        const offset = currentPage;
         const startDay = appliedFilters.startDate
           ? new Date(appliedFilters.startDate).setHours(0, 0, 0, 0)
           : DEFAULT_START_DAY;

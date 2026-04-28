@@ -888,7 +888,7 @@ export default function MISReportView({
           divisionId: '',
           districtId: '',
           endDay: String(new Date(`${appliedFilters.endDate}T23:59:59.999`).getTime()),
-          offSet: String((page - 1) * pageSize),
+          offSet: String(page),
           placeId: appliedFilters.placeId,
           size: String(pageSize),
           startDay: String(new Date(`${appliedFilters.startDate}T00:00:00.000`).getTime()),
