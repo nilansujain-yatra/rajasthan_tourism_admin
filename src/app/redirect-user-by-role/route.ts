@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { ALL_OBMS_USER_TYPES, AUTHENTICATION_TOKEN, SSO_TOKEN } from '@/lib/auth/constants'
 import { decodeJwt, getJwtMaxAgeSeconds } from '@/lib/auth/jwt'
 import { log } from 'node:console'
+import next from 'next'
 
 export const runtime = 'nodejs'
 
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  const response = NextResponse.redirect(new URL(getRedirectPath(request), request.url))
+  const response = NextResponse.redirect(new URL(getRedirectPath(request), request.nextUrl.origin))
   log("Response :: ",response,request.url)
   const maxAge = getJwtMaxAgeSeconds(userData)
   const cookieOptions = {
