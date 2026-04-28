@@ -30,7 +30,7 @@ export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
   const ssoToken = searchParams.get('token')
 
-  if (ssoToken && pathname !== '/sso/callback') {
+  if (ssoToken && pathname !== '/sso/callback' && pathname !== '/redirect-user-by-role') {
     const callbackUrl = request.nextUrl.clone()
     callbackUrl.pathname = '/sso/callback'
     return NextResponse.redirect(callbackUrl)

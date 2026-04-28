@@ -167,6 +167,8 @@ export default function InventoryReportsPage() {
       case 'diff':
           return <DifferenceReportView/>
 
+  
+
       default:
         return <DefaultReportView reportId={activeReport} reportLabel={currentReport?.label || ''} reportDescription={currentReport?.description || ''} />
     }
