@@ -34,8 +34,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  const response = NextResponse.redirect(new URL(getRedirectPath(request), request.nextUrl.origin))
-  log("Response :: ",response,request.url)
+  const host = request.headers.get('host')
+const protocol = 'http'
+
+const baseUrl = `${protocol}://${host}`
+
+const response = NextResponse.redirect(
+  new URL(getRedirectPath(request), baseUrl)
+)
   const maxAge = getJwtMaxAgeSeconds(userData)
   const cookieOptions = {
     httpOnly: true,
