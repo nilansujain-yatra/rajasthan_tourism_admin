@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { ALL_OBMS_USER_TYPES, AUTHENTICATION_TOKEN, SSO_TOKEN } from '@/lib/auth/constants'
 import { decodeJwt, getJwtMaxAgeSeconds } from '@/lib/auth/jwt'
+import { log } from 'node:console'
 
 export const runtime = 'nodejs'
 
@@ -23,7 +24,8 @@ export async function GET(request: NextRequest) {
   }
 
   const userData = decodeJwt(authToken)
-
+  log("Auth Token",authToken)
+  log("User Data",userData)
   if (!userData?.userType || !ALL_OBMS_USER_TYPES.includes(userData.userType as typeof ALL_OBMS_USER_TYPES[number])) {
     const loginUrl = new URL('/sso/login', request.url)
     loginUrl.searchParams.set('error', 'You are not authorised to access this website. Please login with correct account.')
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   const response = NextResponse.redirect(new URL(getRedirectPath(request), request.url))
+  log("Response :: ",response,request.url)
   const maxAge = getJwtMaxAgeSeconds(userData)
   const cookieOptions = {
     httpOnly: true,
