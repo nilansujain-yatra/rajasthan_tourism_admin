@@ -51,16 +51,7 @@ export const MENU_ITEMS: MenuItem[] = [
       { id: "dashboard-monthwise", label: "Dashboard Month Wise", parentId: "main" },
       { id: "place-management", label: "Place Management", parentId: "main" },
       { id: "bookings", label: "Bookings", parentId: "main" },
-      { id: "kiosk-management", label: "Kiosk Management", parentId: "main" },
-    ],
-  },
-  {
-    id: "finance",
-    label: "FINANCE",
-    children: [
-      { id: "total-amount", label: "Total Amount", parentId: "finance" },
-      { id: "risl-charge", label: "RISL Charge", parentId: "finance" },
-      { id: "cancellation-refund", label: "Cancellation Refund", parentId: "finance" },
+      { id: "service-head-management", label: "Service / Head Management", parentId: "main" },
     ],
   },
   {
@@ -69,6 +60,7 @@ export const MENU_ITEMS: MenuItem[] = [
     children: [
       { id: "analytics-report", label: "Analytics Report", parentId: "reports" },
       { id: "inventory-reports", label: "Inventory Reports", parentId: "reports" },
+      { id: "cancellation-refund", label: "Cancellation Refund", parentId: "reports" },
       { id: "total-bookings", label: "Total Bookings", parentId: "reports" },
       { id: "audit", label: "Audit", parentId: "reports" },
     ],
@@ -90,6 +82,7 @@ export const MENU_ITEMS: MenuItem[] = [
       { id: "feedback", label: "Feedback", parentId: "operations" },
       { id: "help-desk", label: "Help Desk", parentId: "operations" },
       { id: "content-management", label: "Content Management", parentId: "operations" },
+      { id: "cancellation-policy", label: "Cancellation Policy", parentId: "operations" },
       { id: "terms-conditions", label: "Terms & Conditions", parentId: "operations" },
       { id: "menu-management", label: "Menu Management", parentId: "operations" },
     ],

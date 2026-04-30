@@ -24,6 +24,10 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
+function sumRecordValues(record: Record<string, number>) {
+  return Object.values(record).reduce((sum, value) => sum + value, 0)
+}
+
 function getTotalBookings(report: HomeDetailsReport) {
   return report.totalBookingsOnline + report.totalBookingsOffline
 }
@@ -164,6 +168,10 @@ export default function DashboardView() {
       donutSegments: getDonutSegments(report),
       bookingBars: getBookingBars(report),
       topPlaces: getTopPlaces(report),
+      offlineBookings: sumRecordValues(report.offlineTotalTicketCount),
+      offlineAmount: sumRecordValues(report.offlineTotalTicketAmount),
+      onlineBookings: sumRecordValues(report.onlineTotalTicketCount),
+      onlineAmount: sumRecordValues(report.onlineTotalTicketAmount),
     }
   }, [report])
 
@@ -286,11 +294,20 @@ export default function DashboardView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         {[
-          { label: 'Refunds', val: formatNumber(report.noOfRefunds), icon: 'RF', note: 'From API report' },
-          { label: 'Offline Bookings', val: formatNumber(report.totalBookingsOffline), icon: 'OF', note: 'Counter bookings' },
-          { label: 'Notifications', val: formatNumber(report.totalNotification), icon: 'NT', note: 'Total notifications' },
+          {
+            label: 'Offline Bookings',
+            icon: 'OF',
+            bookingValue: formatNumber(dashboardData.offlineBookings),
+            amountValue: formatCurrency(dashboardData.offlineAmount),
+          },
+          {
+            label: 'Online Bookings',
+            icon: 'ON',
+            bookingValue: formatNumber(dashboardData.onlineBookings),
+            amountValue: formatCurrency(dashboardData.onlineAmount),
+          },
         ].map(s => (
           <div
             key={s.label}
@@ -303,9 +320,12 @@ export default function DashboardView() {
             >
               {s.icon}
             </div>
-            <div>
+            <div className="min-w-0">
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 300 }}>{s.label}</div>
-              <div className="font-serif font-bold" style={{ fontSize: 24, color: 'var(--maroon)', lineHeight: 1.2 }}>{s.val}</div>
+              <div className="font-serif font-bold" style={{ fontSize: 24, color: 'var(--maroon)', lineHeight: 1.2 }}>{s.bookingValue}</div>
+              <div className="font-serif" style={{ fontSize: 14, color: 'var(--maroon)', fontWeight: 600 }}>
+                Total Amount: {s.amountValue}
+              </div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.note}</div>
             </div>
           </div>

@@ -16,15 +16,7 @@ const navSections = [
       { href: '/dashboardMonthWise',        icon: '📊', label: 'Dashboard Month Wise' },
       { href: '/places',           icon: '🏯', label: 'Place Management' },
       { href: '/bookings',         icon: '📅', label: 'Bookings' },
-      { href: '/bookings/kiosk',   icon: '🖥️', label: 'Kiosk Management' },
-    ],
-  },
-  {
-    label: 'Finance',
-    items: [
-      { href: '/finance',          icon: '₹',  label: 'Total Amount' },
-      { href: '/finance/risl',     icon: '📋', label: 'RISL Charge' },
-      { href: '/finance/refunds',  icon: '↩️', label: 'Cancellation Refund' },
+      { href: '/operations/service-head', icon: '🧾', label: 'Service / Head Management' },
     ],
   },
   {
@@ -32,6 +24,7 @@ const navSections = [
     items: [
       { href: '/analytics',          icon: '📈', label: 'Analytics Report' },
       { href: '/reports/inventory',  icon: '📦', label: 'Inventory Reports' },
+      { href: '/finance/refunds',    icon: '??', label: 'Cancellation Refund' },
       { href: '/reports/audit',      icon: '🔍', label: 'Audit' },
     ],
   },
@@ -50,6 +43,7 @@ const navSections = [
       { href: '/operations/feedback', icon: '💬', label: 'Feedback' },
       { href: '/operations/helpdesk', icon: '🛟', label: 'Help Desk' },
       { href: '/operations/content',  icon: '📝', label: 'Content Management' },
+      { href: '/operations/cancellation-policy', icon: '🧾', label: 'Cancellation Policy' },
       { href: '/operations/menu',  icon: '📝', label: 'Menu Management' },
       { href: '/operations/terms',    icon: '📜', label: 'Terms & Conditions' },
     ],
@@ -283,3 +277,4 @@ export default function Sidebar() {
     </aside>
   )
 }
+
