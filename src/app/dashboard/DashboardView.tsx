@@ -326,7 +326,6 @@ export default function DashboardView() {
               <div className="font-serif" style={{ fontSize: 14, color: 'var(--maroon)', fontWeight: 600 }}>
                 Total Amount: {s.amountValue}
               </div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.note}</div>
             </div>
           </div>
         ))}
