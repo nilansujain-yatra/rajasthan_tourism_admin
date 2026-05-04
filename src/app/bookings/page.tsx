@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect  } from "react";
-import * as XLSX from "xlsx";
+// import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -597,12 +597,12 @@ useEffect(() => {
   };
 
   // 📊 EXPORT EXCEL
-  const exportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(bookings);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Bookings");
-    XLSX.writeFile(wb, "bookings.xlsx");
-  };
+  // const exportExcel = () => {
+  //   const ws = XLSX.utils.json_to_sheet(bookings);
+  //   const wb = XLSX.utils.book_new();
+  //   XLSX.utils.book_append_sheet(wb, ws, "Bookings");
+  //   XLSX.writeFile(wb, "bookings.xlsx");
+  // };
 
   // 📄 EXPORT PDF
   const exportPDF = () => {
@@ -769,9 +769,9 @@ const getPaginationRange = () => {
           <button onClick={openFilters} className="btn-filter">
             Filter
           </button>
-          <button onClick={exportExcel} className="btn-excel">
+          {/* <button onClick={exportExcel} className="btn-excel">
             Export Excel
-          </button>
+          </button> */}
           <button onClick={exportPDF} className="btn-pdf">
             Export PDF
           </button>
