@@ -24,6 +24,7 @@ const navSections = [
     items: [
       { href: '/analytics',          icon: '📈', label: 'Analytics Report' },
       { href: '/reports/inventory',  icon: '📦', label: 'Inventory Reports' },
+      { href: '/reports/non-inventory', icon: '🧾', label: 'Non-Inventory Reports' },
       { href: '/finance/refunds',    icon: '??', label: 'Cancellation Refund' },
     ],
   },

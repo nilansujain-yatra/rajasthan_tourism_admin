@@ -22,6 +22,7 @@ export const apiEndpoints = {
   },
   reports: {
     inventory: '/reports/inventory',
+    nonInventory: '/reports/non-inventory',
     audit: '/reports/audit',
   },
   system: {
