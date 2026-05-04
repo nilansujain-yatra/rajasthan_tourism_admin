@@ -152,6 +152,32 @@ function extractTotalRecords(payload: unknown) {
   return typeof candidate === 'number' && Number.isFinite(candidate) ? candidate : 0
 }
 
+function extractHelpdeskDetail(payload: unknown): HelpdeskRow | null {
+  if (!payload || typeof payload !== 'object') return null
+
+  const root = payload as Record<string, unknown>
+  if (root.result && typeof root.result === 'object' && !Array.isArray(root.result)) {
+    return root.result as HelpdeskRow
+  }
+
+  const list = findFirstArray(payload)
+  const first = list?.find(item => item && typeof item === 'object')
+  return first ? first as HelpdeskRow : null
+}
+
+function extractChatRows(payload: unknown): HelpdeskRow[] {
+  if (!payload || typeof payload !== 'object') return []
+
+  const root = payload as Record<string, unknown>
+  if (Array.isArray(root.result)) {
+    return root.result.filter(item => item && typeof item === 'object') as HelpdeskRow[]
+  }
+
+  const list = findFirstArray(payload)
+  if (!list) return []
+  return list.filter(item => item && typeof item === 'object') as HelpdeskRow[]
+}
+
 function formatDateTimeParts(value: unknown) {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
     const date = new Date(value)
@@ -222,13 +248,13 @@ function getValueFromKeys(obj: unknown, keys: string[]) {
 }
 
 function getTicketId(row: HelpdeskRow, index: number) {
-  const candidate = getValueFromKeys(row, ['helpdeskId', 'ticketId', 'id', 'grievanceId', 'complaintId'])
+  const candidate = getValueFromKeys(row, ['helpdeskId', 'helpTicketId', 'ticketId', 'id', 'grievanceId', 'complaintId'])
   if (typeof candidate === 'string' || typeof candidate === 'number') return String(candidate)
   return `HD-${index + 1}`
 }
 
 function getSubject(row: HelpdeskRow) {
-  const candidate = getValueFromKeys(row, ['subject', 'issue', 'title', 'remark', 'description'])
+  const candidate = getValueFromKeys(row, ['subject', 'issue', 'ticketTitle', 'title', 'remark', 'description'])
   return typeof candidate === 'string' && candidate.trim() ? candidate.trim() : 'No subject available'
 }
 
@@ -286,7 +312,7 @@ function getMobile(row: HelpdeskRow) {
 }
 
 function getIssueType(row: HelpdeskRow) {
-  return getText(getValueFromKeys(row, ['issueType', 'queryType', 'category', 'type']))
+  return getText(getValueFromKeys(row, ['issueType', 'ticketType', 'queryType', 'category', 'type']))
 }
 
 function getBookingNumber(row: HelpdeskRow) {
@@ -363,6 +389,26 @@ function extractChatMessages(row: HelpdeskRow): ChatMessage[] {
 
   if (messages.length > 0) return messages
 
+  const directMessage = getValueFromKeys(row, ['messages', 'message', 'comment', 'reply', 'text', 'description'])
+  if (typeof directMessage === 'string' && directMessage.trim()) {
+    const senderNameValue =
+      getValueFromKeys(row, ['senderName', 'name', 'createdBy', 'authorName'])
+      ?? getAny(getAny(row, 'userDto'), 'displayName')
+    const senderTypeRaw = getValueFromKeys(row, ['senderType', 'messageType', 'authorType', 'type'])
+    const senderType: ChatMessage['senderType'] =
+      typeof senderTypeRaw === 'string' && senderTypeRaw.toLowerCase().includes('admin') ? 'admin' : 'user'
+    const parts = formatDateTimeParts(getValueFromKeys(row, ['createdDate', 'date', 'createdAt', 'messageDate']))
+
+    return [{
+      id: `msg-direct-${getText(getValueFromKeys(row, ['id', 'messageId']))}`,
+      senderName: typeof senderNameValue === 'string' && senderNameValue.trim() ? senderNameValue.trim() : 'User',
+      senderType,
+      message: directMessage.trim(),
+      dateText: parts.date,
+      timeText: parts.time || 'N/A',
+    }]
+  }
+
   const fallbackDate = formatDateTimeParts(getRaisedDateValue(row))
   return [
     {
@@ -399,17 +445,59 @@ function extractAttachments(row: HelpdeskRow): AttachmentItem[] {
   if (attachments.length > 0) return attachments
 
   const directFileName = getValueFromKeys(row, ['attachmentName', 'fileName', 'documentName'])
-  const directFileUrl = getValueFromKeys(row, ['attachmentUrl', 'fileUrl', 'downloadUrl'])
+  const directFileUrl = getValueFromKeys(row, ['attachmentFile', 'attachmentUrl', 'fileUrl', 'downloadUrl'])
 
-  if (typeof directFileName === 'string' && directFileName.trim()) {
+  if (typeof directFileUrl === 'string' && directFileUrl.trim()) {
+    const resolvedFileName =
+      typeof directFileName === 'string' && directFileName.trim()
+        ? directFileName.trim()
+        : directFileUrl.split('/').pop()?.split('?')[0]?.split('_').pop() || 'Attachment'
     return [{
       id: 'att-direct',
-      fileName: directFileName.trim(),
-      fileUrl: typeof directFileUrl === 'string' && directFileUrl.trim() ? directFileUrl.trim() : null,
+      fileName: resolvedFileName,
+      fileUrl: directFileUrl.trim(),
     }]
   }
 
   return []
+}
+
+function getStatusKeyFromValue(value: unknown): HelpdeskStatusKey {
+  if (typeof value !== 'string') return 'ongoing'
+  const normalized = value.trim().toUpperCase()
+  if (normalized === 'RESOLVED') return 'resolved'
+  if (normalized === 'CANCELLED') return 'cancelled'
+  return 'ongoing'
+}
+
+function extractBookingAttachments(booking: BookingLookupRow): AttachmentItem[] {
+  const arrays = [
+    ...flattenCandidateArrays(getAny(booking, 'ticketUserDocs')),
+    ...flattenCandidateArrays(getAny(booking, 'documents')),
+    ...flattenCandidateArrays(getAny(booking, 'attachments')),
+    ...flattenCandidateArrays(getAny(booking, 'files')),
+  ]
+
+  const attachments = arrays
+    .filter(item => item && typeof item === 'object')
+    .map((item, index) => {
+      const fileUrl = getValueFromKeys(item, ['fileUrl', 'url', 'downloadUrl', 'attachmentUrl', 'documentUrl'])
+      if (typeof fileUrl !== 'string' || !fileUrl.trim()) return null
+
+      const fileName = getValueFromKeys(item, ['fileName', 'name', 'attachmentName', 'documentName'])
+
+      return {
+        id: `booking-attachment-${index + 1}`,
+        fileName:
+          typeof fileName === 'string' && fileName.trim()
+            ? fileName.trim()
+            : fileUrl.split('/').pop()?.split('?')[0] || `Booking attachment ${index + 1}`,
+        fileUrl: fileUrl.trim(),
+      }
+    })
+    .filter(Boolean) as AttachmentItem[]
+
+  return attachments
 }
 
 function PageBtn({ onClick, disabled, active, icon, label }: {
@@ -456,31 +544,47 @@ function HelpdeskDetailsDialog({
   rowIndex,
   statusKey,
   onClose,
+  onRefresh,
 }: {
   row: HelpdeskRow
   rowIndex: number
   statusKey: HelpdeskStatusKey
   onClose: () => void
+  onRefresh: () => void
 }) {
-  const statusConfig = STATUS_CONFIG[statusKey]
-  const raisedParts = formatDateTimeParts(getRaisedDateValue(row))
-  const cancelledParts = formatDateTimeParts(getCancelledDateValue(row))
-  const userName = getRaisedBy(row)
-  const userImage = getUserImage(row)
-  const baseChatMessages = useMemo(() => extractChatMessages(row), [row])
-  const attachments = useMemo(() => extractAttachments(row), [row])
-  const initialBookingNumber = getBookingNumber(row)
+  const recordId = String(getValueFromKeys(row, ['id', 'helpdeskId', 'helpTicketId', 'ticketId']) ?? '')
+  const [detailRow, setDetailRow] = useState<HelpdeskRow | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
+  const [chatRows, setChatRows] = useState<HelpdeskRow[]>([])
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatError, setChatError] = useState<string | null>(null)
 
-  const [bookingLookupId, setBookingLookupId] = useState(initialBookingNumber)
+  const effectiveRow = detailRow ?? row
+  const effectiveStatusKey = getStatusKeyFromValue(getValueFromKeys(effectiveRow, ['status', 'ticketStatus', 'statusName'])) || statusKey
+  const statusConfig = STATUS_CONFIG[effectiveStatusKey]
+  const raisedParts = formatDateTimeParts(getRaisedDateValue(effectiveRow))
+  const cancelledParts = formatDateTimeParts(getCancelledDateValue(effectiveRow))
+  const userName = getRaisedBy(effectiveRow)
+  const userImage = getUserImage(effectiveRow)
+  const attachments = useMemo(() => extractAttachments(effectiveRow), [effectiveRow])
+  const baseChatMessages = useMemo(() => {
+    if (chatRows.length > 0) {
+      return chatRows.flatMap(item => extractChatMessages(item))
+    }
+    return extractChatMessages(effectiveRow)
+  }, [chatRows, effectiveRow])
+
+  const [bookingLookupId, setBookingLookupId] = useState(getBookingNumber(row))
   const [bookingLookupError, setBookingLookupError] = useState<string | null>(null)
   const [bookingLookupLoading, setBookingLookupLoading] = useState(false)
+  const [bookingAttachments, setBookingAttachments] = useState<AttachmentItem[]>([])
   const [replyText, setReplyText] = useState('')
-  const [localReplies, setLocalReplies] = useState<ChatMessage[]>([])
-
-  const chatMessages = useMemo(
-    () => [...baseChatMessages, ...localReplies],
-    [baseChatMessages, localReplies]
-  )
+  const [messageSending, setMessageSending] = useState(false)
+  const [actionLoading, setActionLoading] = useState<'resolve' | 'refund' | 'cancel' | null>(null)
+  const [refundReason, setRefundReason] = useState('OTHER')
+  const [refundError, setRefundError] = useState<string | null>(null)
+  const chatMessages = baseChatMessages
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -490,6 +594,181 @@ function HelpdeskDetailsDialog({
     }
   }, [])
 
+  useEffect(() => {
+    setBookingLookupId(getBookingNumber(effectiveRow))
+  }, [effectiveRow])
+
+  useEffect(() => {
+    if (!recordId) return
+
+    const controller = new AbortController()
+
+    async function loadDetailAndChat() {
+      try {
+        setDetailLoading(true)
+        setChatLoading(true)
+        setDetailError(null)
+        setChatError(null)
+
+        const [detailResponse, chatResponse] = await Promise.all([
+          fetch(`/api/helpdesk/detail/${encodeURIComponent(recordId)}`, {
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+            signal: controller.signal,
+          }),
+          fetch(`/api/helpdesk/chat/${encodeURIComponent(recordId)}`, {
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+            signal: controller.signal,
+          }),
+        ])
+
+        const detailPayload = await detailResponse.json().catch(() => null)
+        const chatPayload = await chatResponse.json().catch(() => null)
+
+        if (!detailResponse.ok) {
+          throw new Error(
+            typeof (detailPayload as any)?.message === 'string'
+              ? (detailPayload as any).message
+              : 'Unable to load helpdesk details.'
+          )
+        }
+
+        const resolvedDetail = extractHelpdeskDetail(detailPayload)
+        if (resolvedDetail) setDetailRow(resolvedDetail)
+
+        if (!chatResponse.ok) {
+          setChatRows([])
+          setChatError(
+            typeof (chatPayload as any)?.message === 'string'
+              ? (chatPayload as any).message
+              : 'Unable to load chat history.'
+          )
+        } else {
+          setChatRows(extractChatRows(chatPayload))
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return
+        setDetailError(error instanceof Error ? error.message : 'Unable to load helpdesk details.')
+      } finally {
+        setDetailLoading(false)
+        setChatLoading(false)
+      }
+    }
+
+    loadDetailAndChat()
+
+    return () => controller.abort()
+  }, [recordId])
+
+  async function refreshDialogData() {
+    if (!recordId) return
+
+    try {
+      const [detailResponse, chatResponse] = await Promise.all([
+        fetch(`/api/helpdesk/detail/${encodeURIComponent(recordId)}`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        }),
+        fetch(`/api/helpdesk/chat/${encodeURIComponent(recordId)}`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        }),
+      ])
+
+      const detailPayload = await detailResponse.json().catch(() => null)
+      const chatPayload = await chatResponse.json().catch(() => null)
+
+      if (detailResponse.ok) {
+        const resolvedDetail = extractHelpdeskDetail(detailPayload)
+        if (resolvedDetail) setDetailRow(resolvedDetail)
+      }
+
+      if (chatResponse.ok) {
+        setChatRows(extractChatRows(chatPayload))
+        setChatError(null)
+      }
+    } catch {
+      // Best effort refresh only.
+    }
+  }
+
+  async function runStatusAction(action: 'resolve' | 'cancel') {
+    if (!recordId) return
+
+    try {
+      setActionLoading(action)
+      setDetailError(null)
+
+      const response = await fetch(`/api/helpdesk/status/${action}`, {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: recordId }),
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(
+          typeof (payload as any)?.message === 'string'
+            ? (payload as any).message
+            : `Unable to ${action} helpdesk ticket.`
+        )
+      }
+
+      onRefresh()
+      await refreshDialogData()
+    } catch (error) {
+      setDetailError(error instanceof Error ? error.message : `Unable to ${action} helpdesk ticket.`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleRefund() {
+    const bookingId = getBookingNumber(effectiveRow)
+    if (!bookingId) {
+      setRefundError('No booking id is available for this helpdesk ticket.')
+      return
+    }
+
+    try {
+      setActionLoading('refund')
+      setRefundError(null)
+      setDetailError(null)
+
+      const response = await fetch('/api/helpdesk/refund', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId,
+          refundReason,
+        }),
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(
+          typeof (payload as any)?.message === 'string'
+            ? (payload as any).message
+            : 'Unable to refund booking.'
+        )
+      }
+
+      onRefresh()
+      await refreshDialogData()
+    } catch (error) {
+      setRefundError(error instanceof Error ? error.message : 'Unable to refund booking.')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   async function handleDownloadTicket() {
     if (!bookingLookupId.trim()) {
       setBookingLookupError('Enter a booking id to fetch and download the ticket.')
@@ -498,32 +777,10 @@ function HelpdeskDetailsDialog({
 
     setBookingLookupLoading(true)
     setBookingLookupError(null)
+    setBookingAttachments([])
 
     try {
-      const params = new URLSearchParams()
-      params.set('bookingType', '')
-      params.set('divisionId', '')
-      params.set('districtId', '')
-      params.set('endDay', String(new Date().setHours(23, 59, 59, 999)))
-      params.set('offSet', '0')
-      params.set('placeId', '')
-      params.set('size', '1')
-      params.set('startDay', BOOKING_LOOKUP_START_DAY)
-      params.set('transactionStatus', '')
-      params.set('departmentId', '')
-      params.set('isFilter', 'true')
-      params.set('dateFilter', 'Booking')
-      params.set('searchKey', bookingLookupId.trim())
-      params.set('printCount', 'ALL')
-      params.set('ticketType', '')
-      params.set('zoneId', '')
-      params.set('shiftId', '')
-      params.set('quotaId', '')
-      params.set('inventoryId', '')
-      params.set('entryVerify', 'ALL')
-      params.set('driverVerify', 'ALL')
-
-      const response = await fetch(`/api/inventory/reports/mis_V3?${params.toString()}`, {
+      const response = await fetch(`/api/helpdesk/booking?bookingId=${encodeURIComponent(bookingLookupId.trim())}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -542,23 +799,36 @@ function HelpdeskDetailsDialog({
       if (!booking) {
         throw new Error('No booking found for the entered booking id.')
       }
+      setBookingAttachments(extractBookingAttachments(booking))
 
       const doc = new jsPDF()
       doc.setFontSize(16)
       doc.setTextColor(139, 30, 30)
       doc.text('Booking Ticket', 14, 18)
 
+      const placeName =
+        getText(getValueFromKeys(booking, ['placeName']))
+        || getText(getAny(getAny(booking, 'placeDetailDto'), 'name'))
+      const visitorCount = getValueFromKeys(booking, ['totalVisitors', 'totalUsers'])
+      const amount = getValueFromKeys(booking, ['totalAmount', 'amount', 'paidAmount'])
+      const ticketType = getValueFromKeys(booking, ['ticketType'])
+      const shiftName = getAny(getAny(booking, 'shiftDto'), 'name')
+      const zoneName = getAny(getAny(booking, 'zoneDto'), 'name')
+
       autoTable(doc, {
         startY: 26,
         head: [['Field', 'Details']],
         body: [
           ['Booking ID', getText(booking.bookingId)],
-          ['Booking Date', formatDate(booking.bookingDate)],
-          ['Visit Date', formatDate(booking.visitDate)],
-          ['Place', getText(booking.placeName)],
-          ['Visitors', getText(booking.totalVisitors)],
-          ['Amount', typeof booking.totalAmount === 'number' ? `Rs ${booking.totalAmount}` : getText(booking.totalAmount)],
-          ['Transaction Status', getText(booking.transactionStatus)],
+          ['Booking Date', formatDate(getValueFromKeys(booking, ['bookingDate', 'createdDate']))],
+          ['Visit Date', formatDate(getValueFromKeys(booking, ['visitDate', 'bookingDate']))],
+          ['Place', placeName],
+          ['Ticket Type', getText(ticketType)],
+          ['Visitors', getText(visitorCount)],
+          ['Amount', typeof amount === 'number' ? `Rs ${amount}` : getText(amount)],
+          ['Shift', getText(shiftName)],
+          ['Zone', getText(zoneName)],
+          ['Transaction Status', getText(getValueFromKeys(booking, ['transactionStatus', 'paymentStatus', 'status']))],
           ['Raised By', getText(booking.createdBy)],
           ['Mobile', getText(booking.mobile)],
         ],
@@ -580,23 +850,48 @@ function HelpdeskDetailsDialog({
     }
   }
 
-  function handleSendReply() {
+  async function handleSendReply() {
     const trimmedReply = replyText.trim()
     if (!trimmedReply) return
 
-    const now = new Date()
-    setLocalReplies(current => ([
-      ...current,
-      {
-        id: `local-reply-${now.getTime()}`,
-        senderName: 'Admin',
-        senderType: 'admin',
-        message: trimmedReply,
-        dateText: now.toLocaleDateString('en-IN'),
-        timeText: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]))
-    setReplyText('')
+    const helpTicketId = getValueFromKeys(effectiveRow, ['helpTicketId', 'ticketId', 'helpdeskId', 'id'])
+    const ticketType = getValueFromKeys(effectiveRow, ['ticketType', 'issueType'])
+    if (!helpTicketId) return
+
+    try {
+      setMessageSending(true)
+      setChatError(null)
+
+      const response = await fetch('/api/helpdesk/message', {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          helpTicketId: String(helpTicketId),
+          messages: trimmedReply,
+          ticketType: typeof ticketType === 'string' ? ticketType : '',
+        }),
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(
+          typeof (payload as any)?.message === 'string'
+            ? (payload as any).message
+            : 'Unable to send helpdesk message.'
+        )
+      }
+
+      setReplyText('')
+      await refreshDialogData()
+      onRefresh()
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : 'Unable to send helpdesk message.')
+    } finally {
+      setMessageSending(false)
+    }
   }
 
   return (
@@ -621,7 +916,7 @@ function HelpdeskDetailsDialog({
                 Helpdesk Ticket Details
               </div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.72)' }}>
-                {getTicketNumber(row, rowIndex)} | {getStatusLabel(row)}
+                {getTicketNumber(effectiveRow, rowIndex)} | {getStatusLabel(effectiveRow)}
               </div>
             </div>
           </div>
@@ -635,16 +930,22 @@ function HelpdeskDetailsDialog({
         </div>
 
         <div className="overflow-y-auto px-6 py-5" style={{ maxHeight: 'calc(92vh - 74px)', background: 'var(--cream)' }}>
+          {detailError && (
+            <div className="rounded-xl px-4 py-3 mb-5" style={{ background: '#fff4f4', border: '1px solid #ffd6d6', color: '#8B1A1A', fontSize: 12 }}>
+              {detailError}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-5">
             <div className="space-y-5">
               <div className="rounded-2xl p-5" style={{ background: '#fff', border: '1px solid var(--sand)' }}>
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                      {getPlaceName(row)}
+                      {getPlaceName(effectiveRow)}
                     </div>
                     <div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)', marginTop: 4 }}>
-                      {getSubject(row)}
+                      {detailLoading ? 'Loading details...' : getSubject(effectiveRow)}
                     </div>
                   </div>
                   <span
@@ -659,10 +960,10 @@ function HelpdeskDetailsDialog({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
                   <DetailCard label="Raised Date" value={raisedParts.date} icon={<CalendarDays size={11} />} />
                   <DetailCard label="Raised Time" value={raisedParts.time || 'N/A'} icon={<Clock3 size={11} />} />
-                  {statusKey === 'cancelled' ? (
+                  {effectiveStatusKey === 'cancelled' ? (
                     <DetailCard label="Cancel Date & Time" value={`${cancelledParts.date}${cancelledParts.time ? ` | ${cancelledParts.time}` : ''}`} icon={<XCircle size={11} />} />
                   ) : (
-                    <DetailCard label="Priority" value={getPriority(row)} icon={<AlertCircle size={11} />} />
+                    <DetailCard label="Priority" value={getPriority(effectiveRow)} icon={<AlertCircle size={11} />} />
                   )}
                 </div>
               </div>
@@ -678,6 +979,14 @@ function HelpdeskDetailsDialog({
                     border: '1px solid var(--sand)',
                   }}
                 >
+                  {chatLoading && chatMessages.length === 0 ? (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading chat history...</div>
+                  ) : null}
+
+                  {chatError && chatMessages.length === 0 ? (
+                    <div style={{ fontSize: 12, color: '#8B1A1A' }}>{chatError}</div>
+                  ) : null}
+
                   {chatMessages.map(message => (
                     <div
                       key={message.id}
@@ -749,19 +1058,19 @@ function HelpdeskDetailsDialog({
                   />
                   <div className="flex items-center justify-between gap-3 mt-3">
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      Replies added here are shown in the conversation trail immediately.
+                      Messages are sent to the live helpdesk conversation.
                     </div>
                     <button
                       onClick={handleSendReply}
-                      disabled={!replyText.trim()}
+                      disabled={!replyText.trim() || messageSending}
                       className="rounded-xl px-4 py-2 font-medium text-white"
                       style={{
                         fontSize: 12,
-                        background: !replyText.trim() ? 'rgba(139,26,26,0.45)' : 'var(--maroon)',
-                        cursor: !replyText.trim() ? 'not-allowed' : 'pointer',
+                        background: !replyText.trim() || messageSending ? 'rgba(139,26,26,0.45)' : 'var(--maroon)',
+                        cursor: !replyText.trim() || messageSending ? 'not-allowed' : 'pointer',
                       }}
                     >
-                      Send Message
+                      {messageSending ? 'Sending...' : 'Send Message'}
                     </button>
                   </div>
                 </div>
@@ -795,18 +1104,73 @@ function HelpdeskDetailsDialog({
                       {userName}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      Ticket Number: #{getTicketNumber(row, rowIndex)}
+                      Ticket Number: #{getTicketNumber(effectiveRow, rowIndex)}
                     </div>
                   </div>
                 </div>
 
+                {String(getValueFromKeys(effectiveRow, ['status', 'ticketStatus', 'statusName']) ?? '').toUpperCase() === 'IN_PROGRESS' && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <button
+                      onClick={() => runStatusAction('resolve')}
+                      disabled={actionLoading !== null}
+                      className="rounded-xl px-4 py-2 font-medium text-white"
+                      style={{ fontSize: 12, background: '#1A7A6E', opacity: actionLoading ? 0.7 : 1 }}
+                    >
+                      {actionLoading === 'resolve' ? 'Resolving...' : 'Resolve'}
+                    </button>
+                    <button
+                      onClick={handleRefund}
+                      disabled={actionLoading !== null}
+                      className="rounded-xl px-4 py-2 font-medium text-white"
+                      style={{ fontSize: 12, background: '#2B6CB0', opacity: actionLoading ? 0.7 : 1 }}
+                    >
+                      {actionLoading === 'refund' ? 'Refunding...' : 'Refund'}
+                    </button>
+                    <button
+                      onClick={() => runStatusAction('cancel')}
+                      disabled={actionLoading !== null}
+                      className="rounded-xl px-4 py-2 font-medium text-white"
+                      style={{ fontSize: 12, background: '#E53E3E', opacity: actionLoading ? 0.7 : 1 }}
+                    >
+                      {actionLoading === 'cancel' ? 'Cancelling...' : 'Cancel'}
+                    </button>
+                  </div>
+                )}
+
+                {String(getValueFromKeys(effectiveRow, ['status', 'ticketStatus', 'statusName']) ?? '').toUpperCase() === 'IN_PROGRESS' && (
+                  <div className="rounded-xl p-3 mb-4" style={{ background: 'var(--cream)', border: '1px solid var(--sand)' }}>
+                    <div className="mb-2" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                      Refund Reason
+                    </div>
+                    <select
+                      value={refundReason}
+                      onChange={event => setRefundReason(event.target.value)}
+                      className="w-full rounded-xl px-3 py-2.5 outline-none"
+                      style={{ fontSize: 12, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)' }}
+                    >
+                      <option value="CHANGED_PLAN">Change plans</option>
+                      <option value="NOT_NEEDED">Not needed anymore</option>
+                      <option value="FOUND_ANOTHER_OPTION">Found another option</option>
+                      <option value="FINANCIAL_REASONS">Financial reasons</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                    {refundError && (
+                      <div className="mt-2" style={{ fontSize: 11, color: '#8B1A1A' }}>
+                        {refundError}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-3">
-                  <DetailCard label="Email ID" value={getEmail(row)} icon={<Mail size={11} />} />
-                  <DetailCard label="Mobile Number" value={getMobile(row)} icon={<Phone size={11} />} />
-                  <DetailCard label="Issue Type" value={getIssueType(row)} icon={<AlertCircle size={11} />} />
-                  <DetailCard label="Booking Number" value={getBookingNumber(row) ? `#${getBookingNumber(row)}` : 'N/A'} icon={<Ticket size={11} />} />
-                  <DetailCard label="Ticket Number" value={`#${getTicketNumber(row, rowIndex)}`} icon={<FileText size={11} />} />
-                  <DetailCard label="Place" value={getPlaceName(row)} icon={<UserRound size={11} />} />
+                  <DetailCard label="Email ID" value={getEmail(effectiveRow)} icon={<Mail size={11} />} />
+                  <DetailCard label="Mobile Number" value={getMobile(effectiveRow)} icon={<Phone size={11} />} />
+                  <DetailCard label="Issue Type" value={getIssueType(effectiveRow)} icon={<AlertCircle size={11} />} />
+                  <DetailCard label="Booking Number" value={getBookingNumber(effectiveRow) ? `#${getBookingNumber(effectiveRow)}` : 'N/A'} icon={<Ticket size={11} />} />
+                  <DetailCard label="Ticket Number" value={`#${getTicketNumber(effectiveRow, rowIndex)}`} icon={<FileText size={11} />} />
+                  <DetailCard label="Place" value={getPlaceName(effectiveRow)} icon={<UserRound size={11} />} />
+                  <DetailCard label="Description" value={getDescription(effectiveRow)} icon={<MessageSquareText size={11} />} />
                 </div>
               </div>
 
@@ -885,6 +1249,27 @@ function HelpdeskDetailsDialog({
                     <Download size={14} />
                     {bookingLookupLoading ? 'Fetching Ticket...' : 'Fetch & Download Ticket'}
                   </button>
+
+                  {bookingAttachments.length > 0 && (
+                    <div className="space-y-2">
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                        Related Attachments
+                      </div>
+                      {bookingAttachments.map(attachment => (
+                        <a
+                          key={attachment.id}
+                          href={attachment.fileUrl ?? '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5"
+                          style={{ background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)' }}
+                        >
+                          <span style={{ fontSize: 12, wordBreak: 'break-word' }}>{attachment.fileName}</span>
+                          <span style={{ fontSize: 11, color: 'var(--maroon)', fontWeight: 600 }}>Open</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -900,6 +1285,7 @@ export default function HelpDeskPage() {
   const [searchKey, setSearchKey] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [refreshKey, setRefreshKey] = useState(0)
   const [rows, setRows] = useState<HelpdeskRow[]>([])
   const [totalRecords, setTotalRecords] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -955,7 +1341,7 @@ export default function HelpDeskPage() {
     loadHelpdeskRows()
 
     return () => controller.abort()
-  }, [activeTab, page, pageSize, searchKey])
+  }, [activeTab, page, pageSize, refreshKey, searchKey])
 
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize))
   const visiblePages = getVisiblePages(page, totalPages)
@@ -1218,6 +1604,7 @@ export default function HelpDeskPage() {
           rowIndex={selectedRowIndex ?? 0}
           statusKey={activeTab}
           onClose={() => setSelectedRowIndex(null)}
+          onRefresh={() => setRefreshKey(current => current + 1)}
         />
       )}
     </div>

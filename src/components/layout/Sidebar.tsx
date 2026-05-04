@@ -25,7 +25,6 @@ const navSections = [
       { href: '/analytics',          icon: '📈', label: 'Analytics Report' },
       { href: '/reports/inventory',  icon: '📦', label: 'Inventory Reports' },
       { href: '/finance/refunds',    icon: '??', label: 'Cancellation Refund' },
-      { href: '/reports/audit',      icon: '🔍', label: 'Audit' },
     ],
   },
   {
@@ -35,6 +34,7 @@ const navSections = [
       { href: '/operations/drivers',icon: '🚗', label: 'Driver Management' },
       { href: '/operations/guides', icon: '🧭', label: 'Guide Management' },
       { href: '/operations/vendors',icon: '🏪', label: 'Vendor Management' },
+      { href: '/operations/packages',icon: '📦', label: 'Package Management' },
     ],
   },
   {

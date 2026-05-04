@@ -17,7 +17,6 @@ const pageTitles: Record<string, string> = {
   '/finance/refunds':        'Cancellation Refunds',
   '/analytics':              'Analytics Report',
   '/reports/bookings':       'Total Bookings Report',
-  '/reports/audit':          'Audit Log',
   '/users':                  'User Management',
   '/operations/drivers':     'Driver Management',
   '/operations/guides':      'Guide Management',
