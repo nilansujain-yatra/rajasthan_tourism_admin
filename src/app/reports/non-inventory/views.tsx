@@ -522,7 +522,7 @@ function useBasicState(start: string) {
   const [draftFilters, setDraftFilters] = useState<FilterState>(base)
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(base)
   const [filterOpen, setFilterOpen] = useState(false)
-  const [page, setPage] = useState(0)
+  const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
   return { base, draftFilters, setDraftFilters, appliedFilters, setAppliedFilters, filterOpen, setFilterOpen, page, setPage, pageSize, setPageSize, search, setSearch }
@@ -722,24 +722,6 @@ function mapPlaceRow(row: RecordRow, index: number) {
   }
 }
 
-function monthStartMs(month: string) {
-  const date = new Date(month + "-01")
-  return date.getTime()
-}
-
-function monthEndMs(month: string) {
-  const date = new Date(month + "-01")
-  const end = new Date(
-    date.getFullYear(),
-    date.getMonth() + 1,
-    0,
-    23,
-    59,
-    59,
-    999
-  )
-  return end.getTime()
-}
 
 
 
