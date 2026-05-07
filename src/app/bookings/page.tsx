@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect  } from "react";
+import { useSearchParams } from "next/navigation";
 // import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -78,6 +79,21 @@ type PlaceApiResponse = {
   errors?: unknown;
   meta?: unknown;
 };
+
+type BookingTab = "INVENTORY" | "NON_INVENTORY" | "COMPOSITE";
+
+function getInitialBookingTab(value: string | null): BookingTab {
+  switch ((value ?? "").trim().toLowerCase()) {
+    case "non-inventory":
+    case "non_inventory":
+    case "noninventory":
+      return "NON_INVENTORY";
+    case "composite":
+      return "COMPOSITE";
+    default:
+      return "INVENTORY";
+  }
+}
 
 function getDepartmentId(dept: Department) {
   const candidate =
@@ -259,12 +275,11 @@ function extractTotalRecords(payload: unknown) {
 }
 
 export default function BookingManagement() {
+  const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 const [selectedBooking, setSelectedBooking] = useState<MisBookingRow | null>(null);
-const [activeTab, setActiveTab] = useState<
-  "INVENTORY" | "NON_INVENTORY" | "COMPOSITE"
->("INVENTORY");
+const [activeTab, setActiveTab] = useState<BookingTab>(() => getInitialBookingTab(searchParams.get("tab")));
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [openRowActions, setOpenRowActions] = useState<string | null>(null);
 
@@ -284,6 +299,10 @@ const [activeTab, setActiveTab] = useState<
   const [bookingsError, setBookingsError] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
   const [hasAppliedFilters, setHasAppliedFilters] = useState(false);
+
+useEffect(() => {
+  setActiveTab(getInitialBookingTab(searchParams.get("tab")));
+}, [searchParams]);
 
 useEffect(() => {
   if (selectedBooking) {

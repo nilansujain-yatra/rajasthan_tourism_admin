@@ -6,6 +6,10 @@ export type AuthUser = {
   userRole?: string
   userType?: string
   systemAdmin?: boolean
+  placeId?: string[]
+  isDepartmentAdmin?: boolean
+  onSiteBooking?: boolean
+  placeName?: string
   expireType?: number
   exp?: number
   iat?: number

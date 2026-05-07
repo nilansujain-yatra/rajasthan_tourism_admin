@@ -1,16 +1,21 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { Bell, LogOut, Printer, SlidersHorizontal } from 'lucide-react'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
+import { getAccessRole } from '@/lib/auth/access'
 
 const pageTitles: Record<string, string> = {
   '/dashboard':              'Dashboard Overview',
   '/dashboardMonthWise':     'Dashboard Month Wise',
   '/places':                 'Place Management',
   '/bookings':               'Bookings',
+  '/bookings/operator':      'Ticket Booking',
+  '/bookings/composite':     'Composite Ticket',
+  '/operator/information':   'Informations',
+  '/operator/verification':  'Verification',
   '/operations/service-head':'Service / Head Management',
   '/finance':                'Finance — Total Amount',
   '/finance/risl':           'Finance — RISL Charge',
@@ -72,10 +77,57 @@ function getInitials(user: AuthUser | null) {
 
 export default function Topbar() {
   const pathname = usePathname()
-  const title = pageTitles[pathname] ?? (pathname.startsWith('/places/') ? 'Place Details' : 'Admin Portal')
+  const searchParams = useSearchParams()
   const dateStr = getNowString()
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
   const initials = useMemo(() => getInitials(user), [user])
+  const title = useMemo(() => {
+    if (pathname === '/bookings') {
+      const tab = searchParams.get('tab')?.toLowerCase()
+
+      if (tab === 'composite') {
+        return 'Composite Ticket'
+      }
+
+      if (getAccessRole(user) === 'operator' || tab === 'inventory') {
+        return 'Ticket Booking'
+      }
+    }
+
+    if (pathname === '/bookings/operator') {
+      return 'Ticket Booking'
+    }
+
+    if (pathname === '/bookings/composite') {
+      return 'Composite Ticket'
+    }
+
+    if (pathname === '/reports/inventory' && searchParams.get('report')?.toLowerCase() === 'mis') {
+      return getAccessRole(user) === 'operator' ? 'Report' : 'Inventory Reports'
+    }
+
+    if (pathname === '/operations/terms' && getAccessRole(user) === 'operator') {
+      return 'Informations'
+    }
+
+    if (pathname === '/operations/vendors' && getAccessRole(user) === 'operator') {
+      return 'Verification'
+    }
+
+    if (pathname === '/operator/information') {
+      return 'Informations'
+    }
+
+    if (pathname === '/operator/verification') {
+      return 'Verification'
+    }
+
+    if (pathname === '/system/logs' && getAccessRole(user) === 'operator') {
+      return 'Audit'
+    }
+
+    return pageTitles[pathname] ?? (pathname.startsWith('/places/') ? 'Place Details' : 'Admin Portal')
+  }, [pathname, searchParams, user])
 
   useEffect(() => {
     let isMounted = true

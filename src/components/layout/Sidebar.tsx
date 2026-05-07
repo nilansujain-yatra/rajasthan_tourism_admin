@@ -1,65 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
-
-const navSections = [
-  {
-    label: 'Main',
-    items: [
-      { href: '/dashboard',        icon: '📊', label: 'Dashboard' },
-      { href: '/dashboardMonthWise',        icon: '📊', label: 'Dashboard Month Wise' },
-      { href: '/places',           icon: '🏯', label: 'Place Management' },
-      { href: '/bookings',         icon: '📅', label: 'Bookings' },
-      { href: '/operations/service-head', icon: '🧾', label: 'Service / Head Management' },
-    ],
-  },
-  {
-    label: 'Reports',
-    items: [
-      { href: '/analytics',          icon: '📈', label: 'Analytics Report' },
-      { href: '/reports/inventory',  icon: '📦', label: 'Inventory Reports' },
-      { href: '/reports/non-inventory', icon: '🧾', label: 'Non-Inventory Reports' },
-      { href: '/reports/jkk', icon: '🏛️', label: 'JKK Report' },
-      { href: '/finance/refunds',    icon: '??', label: 'Cancellation Refund' },
-    ],
-  },
-  {
-    label: 'User & Logistics',
-    items: [
-      { href: '/users',            icon: '👤', label: 'User Management' },
-      { href: '/operations/drivers',icon: '🚗', label: 'Driver Management' },
-      { href: '/operations/guides', icon: '🧭', label: 'Guide Management' },
-      { href: '/operations/vendors',icon: '🏪', label: 'Vendor Management' },
-      { href: '/operations/packages',icon: '📦', label: 'Package Management' },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { href: '/operations/feedback', icon: '💬', label: 'Feedback' },
-      { href: '/operations/helpdesk', icon: '🛟', label: 'Help Desk' },
-      { href: '/operations/content',  icon: '📝', label: 'Content Management' },
-      { href: '/operations/cancellation-policy', icon: '🧾', label: 'Cancellation Policy' },
-      { href: '/operations/menu',  icon: '📝', label: 'Menu Management' },
-      { href: '/operations/terms',    icon: '📜', label: 'Terms & Conditions' },
-    ],
-  },
-  {
-    label: 'System',
-    items: [
-      { href: '/system/logs',      icon: '📂', label: 'User Logs' },
-      { href: '/system/server',    icon: '🖥️', label: 'Server Logs' },
-      { href: '/system/payment',   icon: '💳', label: 'Payment Reverify' },
-      { href: '/system/status',    icon: '🟢', label: 'Place Active Status' },
-    ],
-  },
-]
+import { getSidebarSectionsForUser, type NavItem } from '@/lib/navigation/sidebar'
 
 function getUserText(user: AuthUser | null, fields: string[]) {
   for (const field of fields) {
@@ -90,11 +38,30 @@ function getInitials(user: AuthUser | null) {
     .join('') || 'AU'
 }
 
+function isItemActive(pathname: string, searchParams: { get: (key: string) => string | null }, item: NavItem) {
+  const matchPath = item.matchPath ?? item.href.split('?')[0]
+  const pathMatches = pathname === matchPath || pathname.startsWith(`${matchPath}/`)
+
+  if (!pathMatches) {
+    return false
+  }
+
+  if (!item.matchQuery) {
+    return true
+  }
+
+  return Object.entries(item.matchQuery).every(([key, value]) => {
+    return searchParams.get(key)?.toLowerCase() === value.toLowerCase()
+  })
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
   const initials = useMemo(() => getInitials(user), [user])
+  const navSections = useMemo(() => getSidebarSectionsForUser(user), [user])
 
   const toggleSection = (label: string) => {
     setCollapsed(prev => ({ ...prev, [label]: !prev[label] }))
@@ -154,7 +121,6 @@ export default function Sidebar() {
         minHeight: '100vh',
       }}
     >
-      {/* Decorative top arc */}
       <div
         className="absolute top-0 right-0 w-40 h-40 opacity-10 pointer-events-none"
         style={{
@@ -162,17 +128,17 @@ export default function Sidebar() {
         }}
       />
 
-      {/* Header */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
         <div
           className="flex items-center justify-center flex-shrink-0 text-lg rounded-full"
           style={{
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             background: 'linear-gradient(135deg, var(--gold), var(--gold-light))',
             boxShadow: '0 2px 8px rgba(200,146,42,0.4)',
           }}
         >
-          🏛️
+          {'🏛️'}
         </div>
         <div>
           <div
@@ -187,13 +153,11 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3" style={{ scrollbarWidth: 'none' }}>
         {navSections.map(section => {
           const isOpen = !collapsed[section.label]
           return (
             <div key={section.label} className="mb-1">
-              {/* Section toggle */}
               <button
                 onClick={() => toggleSection(section.label)}
                 className="w-full flex items-center justify-between px-5 py-2 group"
@@ -211,11 +175,11 @@ export default function Sidebar() {
                 />
               </button>
 
-              {/* Items */}
               {isOpen && (
                 <div>
                   {section.items.map(item => {
-                    const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                    const active = isItemActive(pathname, searchParams, item)
+
                     return (
                       <Link
                         key={item.href}
@@ -250,7 +214,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
       <div
         className="px-5 py-4 border-t"
         style={{ borderColor: 'rgba(255,255,255,0.08)' }}
@@ -269,7 +232,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Bottom decorative arc */}
       <div
         className="absolute bottom-0 left-0 w-32 h-32 opacity-8 pointer-events-none"
         style={{
@@ -279,4 +241,3 @@ export default function Sidebar() {
     </aside>
   )
 }
-

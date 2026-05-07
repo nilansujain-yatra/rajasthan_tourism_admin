@@ -1,18 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { ALL_OBMS_USER_TYPES, AUTHENTICATION_TOKEN, SSO_TOKEN } from '@/lib/auth/constants'
-import { decodeJwt, getJwtMaxAgeSeconds } from '@/lib/auth/jwt'
+import { getDefaultPathForUser } from '@/lib/auth/access'
+import { decodeJwt, getJwtMaxAgeSeconds, type AuthUser } from '@/lib/auth/jwt'
 import { exchangeSsoToken, getSsoSignInUrl } from '@/lib/auth/sso'
 
 export const runtime = 'nodejs'
 
-function getRedirectPath(request: NextRequest) {
+function getRedirectPath(request: NextRequest, authUser: AuthUser | null) {
   const redirectTo = request.nextUrl.searchParams.get('redirectTo')
 
   if (redirectTo?.startsWith('/')) {
     return redirectTo
   }
 
-  return '/dashboard'
+  return getDefaultPathForUser(authUser)
 }
 
 export async function GET(request: NextRequest) {
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(getSsoSignInUrl())
     }
 
-    const response = NextResponse.redirect(new URL(getRedirectPath(request), request.url))
+    const response = NextResponse.redirect(new URL(getRedirectPath(request, userData), request.url))
     const maxAge = getJwtMaxAgeSeconds(userData)
     const cookieOptions = {
       httpOnly: true,

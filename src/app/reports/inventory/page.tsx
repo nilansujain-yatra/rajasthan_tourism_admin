@@ -3,7 +3,8 @@
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
 import SectionHeader from '@/components/ui/SectionHeader'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 import HeadDetailedReportView from './HeadDetailedReportView'
@@ -121,10 +122,22 @@ const DefaultReportView = ({ reportId, reportLabel, reportDescription }: { repor
   </div>
 )
 
+function getInitialReportType(value: string | null): ReportType {
+  const normalizedValue = (value ?? '').trim().toLowerCase()
+  const matchedReport = REPORTS.find(report => report.id === normalizedValue)
+
+  return matchedReport?.id ?? 'mis'
+}
+
 export default function InventoryReportsPage() {
-  const [activeReport, setActiveReport] = useState<ReportType>('mis')
+  const searchParams = useSearchParams()
+  const [activeReport, setActiveReport] = useState<ReportType>(() => getInitialReportType(searchParams.get('report')))
   const [isOpen, setIsOpen] = useState(false)
   const currentReport = REPORTS.find(r => r.id === activeReport)
+
+  useEffect(() => {
+    setActiveReport(getInitialReportType(searchParams.get('report')))
+  }, [searchParams])
 
   const renderReport = () => {
     switch (activeReport) {
