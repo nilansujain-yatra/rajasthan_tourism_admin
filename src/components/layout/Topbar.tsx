@@ -14,6 +14,7 @@ const pageTitles: Record<string, string> = {
   '/bookings':               'Bookings',
   '/bookings/operator':      'Ticket Booking',
   '/bookings/composite':     'Composite Ticket',
+  '/operator/reports':       'Report',
   '/operator/information':   'Informations',
   '/operator/verification':  'Verification',
   '/operations/service-head':'Service / Head Management',
@@ -104,6 +105,10 @@ export default function Topbar() {
 
     if (pathname === '/reports/inventory' && searchParams.get('report')?.toLowerCase() === 'mis') {
       return getAccessRole(user) === 'operator' ? 'Report' : 'Inventory Reports'
+    }
+
+    if (pathname === '/operator/reports') {
+      return 'Report'
     }
 
     if (pathname === '/operations/terms' && getAccessRole(user) === 'operator') {

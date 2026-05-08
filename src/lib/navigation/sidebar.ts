@@ -78,14 +78,13 @@ const OPERATOR_NAV_SECTIONS: NavSection[] = [
         matchPath: '/bookings/operator',
       },
       {
-        href: '/reports/inventory?report=mis',
+        href: '/operator/reports',
         icon: '📊',
         label: 'Report',
-        matchPath: '/reports/inventory',
-        matchQuery: { report: 'mis' },
+        matchPath: '/operator/reports',
       },
       {
-        href: '/system/logs',
+        href: '/operator/audit',
         icon: '🧾',
         label: 'Audit',
       },

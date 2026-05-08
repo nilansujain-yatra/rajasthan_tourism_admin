@@ -794,7 +794,6 @@ export default function OperatorTicketBookingPage() {
                 </div>
                 <div>
                   <div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Visitor Details</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Capture the basic details before creating the booking.</div>
                 </div>
               </div>
 
@@ -852,7 +851,6 @@ export default function OperatorTicketBookingPage() {
                 </div>
                 <div>
                   <div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Shift Selection</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Only currently valid shifts from the configured season are shown.</div>
                 </div>
               </div>
 
@@ -888,7 +886,6 @@ export default function OperatorTicketBookingPage() {
               <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
                 <div>
                   <div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Ticket Options</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Choose ticket quantities and optional add-ons exactly like the operator flow.</div>
                 </div>
 
                 {allowAddonOnly ? (
@@ -1020,9 +1017,7 @@ export default function OperatorTicketBookingPage() {
                   <span className="font-serif font-bold" style={{ fontSize: 28, color: 'var(--maroon)' }}>{formatCurrency(grandTotal)}</span>
                 </div>
 
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {availability?.roundOff ? 'Round-off is active for this place.' : 'Exact configured ticket pricing is applied.'}
-                </div>
+               
               </div>
 
               <button
