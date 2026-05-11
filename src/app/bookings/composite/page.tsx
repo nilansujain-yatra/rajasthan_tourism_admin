@@ -182,6 +182,10 @@ function printCompositeInvoice(invoice: CompositeInvoice) {
 }
 
 export default function CompositeBookingPage() {
+  const [extraDetails, setExtraDetails] = useState<{
+    departmentName?: string
+    assignedPlaces?: string[]
+  } | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const queryPackageId = searchParams.get('packageId')?.trim() ?? ''
@@ -218,7 +222,10 @@ export default function CompositeBookingPage() {
     let isMounted = true
     async function loadSession() {
       try {
-        const response = await fetch('/api/auth/session', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+        const response = await fetch('/api/auth/session', {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        })
         if (!response.ok) throw new Error('Unable to read session.')
         const payload = await response.json() as { user?: AuthUser | null }
         if (!isMounted) return
@@ -226,6 +233,10 @@ export default function CompositeBookingPage() {
         setUser(sessionUser)
         setBookingFlags(getBookingFlags(sessionUser))
         writeCachedAuthUser(sessionUser)
+
+        if (sessionUser?.sub) {
+          void loadExtraDetails(sessionUser.sub)
+        }
       } catch {
         if (!isMounted) return
         setUser(null)
@@ -233,6 +244,35 @@ export default function CompositeBookingPage() {
         clearCachedAuthUser()
       }
     }
+
+    async function loadExtraDetails(userId: string) {
+      try {
+        const response = await fetch(`/api/user/${userId}`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        })
+        if (!response.ok) return
+
+        const payload = await response.json()
+        if (!isMounted || !payload?.result) return
+
+        const result = payload.result
+        const roleData = result.roleResponseDto
+
+        const departmentName = Array.isArray(roleData?.departmentDto)
+          ? roleData.departmentDto[0]?.name
+          : roleData?.departmentDto?.name
+
+        const assignedPlaces = Array.isArray(roleData?.placeDtos)
+          ? roleData.placeDtos.map((p: any) => p.name).filter(Boolean)
+          : []
+
+        setExtraDetails({ departmentName, assignedPlaces })
+      } catch (err) {
+        console.error('Failed to load extra user details:', err)
+      }
+    }
+
     loadSession()
     return () => { isMounted = false }
   }, [])
@@ -444,8 +484,10 @@ export default function CompositeBookingPage() {
           </div>
           <button onClick={reloadBookingSetup} disabled={!selectedPackageId || loading} className="rounded-2xl px-4 py-3 font-medium text-white disabled:opacity-50" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.18)', fontSize: 13 }}><span className="inline-flex items-center gap-2"><RefreshCw size={14} />Reload</span></button>
         </div>
-        <div className="grid gap-px md:grid-cols-4" style={{ background: 'rgba(255,255,255,0.14)' }}>
+        <div className="grid gap-px md:grid-cols-6" style={{ background: 'rgba(255,255,255,0.14)' }}>
           {[
+            { label: 'Assigned Place', value: extraDetails?.assignedPlaces?.join(', ') || 'Not mapped' },
+            { label: 'Department', value: extraDetails?.departmentName || 'N/A' },
             { label: 'Packages', value: String(filteredPackages.length) },
             { label: 'Selected Package', value: selectedPackage?.packageName || 'Choose package' },
             { label: 'Included Places', value: String(selectedPackage?.placeNames.length ?? 0) },

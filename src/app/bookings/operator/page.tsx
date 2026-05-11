@@ -312,6 +312,10 @@ function printInvoice(invoice: InvoiceData) {
 
 export default function OperatorTicketBookingPage() {
   const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
+  const [extraDetails, setExtraDetails] = useState<{
+    departmentName?: string
+    assignedPlaces?: string[]
+  } | null>(null)
   const [specificCharges, setSpecificCharges] = useState<SpecificCharge[]>([])
   const [selectedSpecificChargeId, setSelectedSpecificChargeId] = useState('')
   const [availability, setAvailability] = useState<TicketAvailabilityResult | null>(null)
@@ -358,12 +362,44 @@ export default function OperatorTicketBookingPage() {
         if (active) {
           setUser(nextUser)
           writeCachedAuthUser(nextUser)
+
+          if (nextUser?.sub) {
+            void loadExtraDetails(nextUser.sub)
+          }
         }
       } catch {
         clearCachedAuthUser()
         if (active) setUser(null)
       } finally {
         if (active) setLoadingSession(false)
+      }
+    }
+
+    async function loadExtraDetails(userId: string) {
+      try {
+        const response = await fetch(`/api/user/${userId}`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        })
+        if (!response.ok) return
+
+        const payload = await response.json()
+        if (!active || !payload?.result) return
+
+        const result = payload.result
+        const roleData = result.roleResponseDto
+        
+        const departmentName = Array.isArray(roleData?.departmentDto)
+          ? roleData.departmentDto[0]?.name
+          : roleData?.departmentDto?.name
+
+        const assignedPlaces = Array.isArray(roleData?.placeDtos)
+          ? roleData.placeDtos.map((p: any) => p.name).filter(Boolean)
+          : []
+
+        setExtraDetails({ departmentName, assignedPlaces })
+      } catch (err) {
+        console.error('Failed to load extra user details:', err)
       }
     }
 
@@ -752,9 +788,10 @@ export default function OperatorTicketBookingPage() {
           </div>
         </div>
 
-        <div className="grid gap-px md:grid-cols-4" style={{ background: 'rgba(255,255,255,0.14)' }}>
+        <div className="grid gap-px md:grid-cols-5" style={{ background: 'rgba(255,255,255,0.14)' }}>
           {[
-            { label: 'Assigned Place', value: placeName || placeId || 'Not mapped' },
+            { label: 'Assigned Place', value: extraDetails?.assignedPlaces?.join(', ') || placeName || placeId || 'Not mapped' },
+            { label: 'Department', value: extraDetails?.departmentName || 'N/A' },
             { label: 'Ticket Types', value: String(ticketOptions.length) },
             { label: 'Visible Shifts', value: String(visibleShifts.length) },
             { label: 'Booking Mode', value: bookingFlags.onSite ? 'On-site' : 'Department' },

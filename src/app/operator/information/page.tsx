@@ -33,6 +33,10 @@ function prettifyKey(value: string) {
 
 export default function OperatorInformationPage() {
   const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
+  const [extraDetails, setExtraDetails] = useState<{
+    departmentName?: string
+    assignedPlaces?: string[]
+  } | null>(null)
 
   useEffect(() => {
     let active = true
@@ -52,10 +56,42 @@ export default function OperatorInformationPage() {
         const nextUser = payload.user ?? null
         setUser(nextUser)
         writeCachedAuthUser(nextUser)
+
+        if (nextUser?.sub) {
+          void loadExtraDetails(nextUser.sub)
+        }
       } catch {
         if (!active) return
         setUser(null)
         clearCachedAuthUser()
+      }
+    }
+
+    async function loadExtraDetails(userId: string) {
+      try {
+        const response = await fetch(`/api/user/${userId}`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        })
+        if (!response.ok) return
+
+        const payload = await response.json()
+        if (!active || !payload?.result) return
+
+        const result = payload.result
+        const roleData = result.roleResponseDto
+
+        const departmentName = Array.isArray(roleData?.departmentDto)
+          ? roleData.departmentDto[0]?.name
+          : roleData?.departmentDto?.name
+
+        const assignedPlaces = Array.isArray(roleData?.placeDtos)
+          ? roleData.placeDtos.map((p: any) => p.name).filter(Boolean)
+          : []
+
+        setExtraDetails({ departmentName, assignedPlaces })
+      } catch (err) {
+        console.error('Failed to load extra user details:', err)
       }
     }
 
@@ -64,20 +100,27 @@ export default function OperatorInformationPage() {
   }, [])
 
   const placeNames = useMemo(() => {
+    if (extraDetails?.assignedPlaces?.length) return extraDetails.assignedPlaces
     if (!user) return []
     if (typeof user.placeName === 'string' && user.placeName.trim()) {
       return user.placeName.split(',').map(item => item.trim()).filter(Boolean)
     }
     return []
-  }, [user])
+  }, [user, extraDetails])
 
   const availableMeta = useMemo(() => {
     if (!user) return []
 
-    return Object.entries(user)
+    const baseMeta = Object.entries(user)
       .filter(([key, value]) => !['email', 'ssoid', 'placeId', 'placeName', 'userType', 'userRole', 'sub', 'iat', 'exp', 'onSiteBooking', 'isDepartmentAdmin', 'entryVerification', 'exitVerification'].includes(key) && value !== undefined && value !== null && value !== '')
       .slice(0, 12)
-  }, [user])
+
+    if (extraDetails?.departmentName) {
+      baseMeta.unshift(['departmentName', extraDetails.departmentName])
+    }
+
+    return baseMeta
+  }, [user, extraDetails])
 
   const identityCards = [
     { label: 'Display Name', value: getUserText(user, ['name', 'displayName', 'fullName', 'userName', 'username']), icon: UserRound },
@@ -87,7 +130,8 @@ export default function OperatorInformationPage() {
   ]
 
   const accessCards = [
-    { label: 'Assigned Place', value: getUserText(user, ['placeName']) },
+    { label: 'Assigned Place', value: extraDetails?.assignedPlaces?.join(', ') || getUserText(user, ['placeName']) },
+    { label: 'Department', value: extraDetails?.departmentName || 'N/A' },
     { label: 'Department Booking', value: getBooleanFlag(user?.isDepartmentAdmin) },
     { label: 'On-site Booking', value: getBooleanFlag(user?.onSiteBooking) },
     { label: 'Entry Verification', value: getBooleanFlag(user?.entryVerification) },

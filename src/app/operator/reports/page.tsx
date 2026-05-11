@@ -436,9 +436,11 @@ function FilterModal({
 
 function BookingReportView({
   placeName,
+  departmentName,
   composite,
 }: {
   placeName: string
+  departmentName: string
   composite?: boolean
 }) {
   const base = useMemo(() => defaultFilters(todayInput()), [])
@@ -573,9 +575,10 @@ function BookingReportView({
           </div>
         )}
       >
-        <div className="grid gap-3 px-6 py-4 md:grid-cols-4" style={{ background: 'var(--cream)' }}>
-          <StatCard label="Assigned Place" value={placeName || 'N/A'} />
-          <StatCard label="Rows Loaded" value={rows.length.toLocaleString('en-IN')} />
+        <div className="grid gap-3 px-6 py-4 md:grid-cols-5" style={{ background: 'var(--cream)' }}>
+          {/* <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+          <StatCard label="Department" value={departmentName} /> */}
+          <StatCard label="TotalBookings" value={rows.length.toLocaleString('en-IN')} />
           <StatCard label="Visitors" value={totalVisitors.toLocaleString('en-IN')} />
           <StatCard label={composite ? 'Total Amount' : 'Amount With Add On'} value={formatMoney(composite ? totalAmount : totalAmountWithAddOn)} solid />
         </div>
@@ -670,6 +673,7 @@ function BookingReportView({
 function PlaceSummaryReportView({
   placeId,
   placeName,
+  departmentName,
   title,
   reportPath,
   composite,
@@ -677,6 +681,7 @@ function PlaceSummaryReportView({
 }: {
   placeId: string
   placeName: string
+  departmentName: string
   title: string
   reportPath: string
   composite?: boolean
@@ -793,8 +798,9 @@ function PlaceSummaryReportView({
           </div>
         )}
       >
-        <div className="grid gap-3 px-6 py-4 md:grid-cols-4" style={{ background: 'var(--cream)' }}>
-          <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+        <div className="grid gap-3 px-6 py-4 md:grid-cols-5" style={{ background: 'var(--cream)' }}>
+          {/* <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+          <StatCard label="Department" value={departmentName} /> */}
           <StatCard label="Total Bookings" value={totals.bookings.toLocaleString('en-IN')} />
           <StatCard label="Visitors" value={totals.visitors.toLocaleString('en-IN')} />
           <StatCard label="Total Amount" value={formatMoney(composite ? totals.amount : (totals.amountWithAddOn || totals.amount))} solid />
@@ -872,9 +878,11 @@ function PlaceSummaryReportView({
 function AddOnSummaryReportView({
   placeId,
   placeName,
+  departmentName,
 }: {
   placeId: string
   placeName: string
+  departmentName: string
 }) {
   const base = useMemo(() => defaultFilters(todayInput()), [])
   const [draftFilters, setDraftFilters] = useState<FilterState>(base)
@@ -969,8 +977,9 @@ function AddOnSummaryReportView({
           </div>
         )}
       >
-        <div className="grid gap-3 px-6 py-4 md:grid-cols-4" style={{ background: 'var(--cream)' }}>
-          <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+        <div className="grid gap-3 px-6 py-4 md:grid-cols-5" style={{ background: 'var(--cream)' }}>
+          {/* <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+          <StatCard label="Department" value={departmentName} /> */}
           <StatCard label="Places" value={rows.length.toLocaleString('en-IN')} />
           <StatCard label="Total Quantity" value={totalQuantity.toLocaleString('en-IN')} />
           <StatCard label="Total Amount" value={formatMoney(totalAmount)} solid />
@@ -1032,6 +1041,10 @@ function AddOnSummaryReportView({
 
 export default function OperatorReportsPage() {
   const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
+  const [extraDetails, setExtraDetails] = useState<{
+    departmentName?: string
+    assignedPlaces?: string[]
+  } | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
   const [ticketTab, setTicketTab] = useState<TicketTab>('general')
   const [reportTab, setReportTab] = useState<ReportTab>('general-report')
@@ -1058,12 +1071,44 @@ export default function OperatorReportsPage() {
         if (active) {
           setUser(nextUser)
           writeCachedAuthUser(nextUser)
+
+          if (nextUser?.sub) {
+            void loadExtraDetails(nextUser.sub)
+          }
         }
       } catch {
         clearCachedAuthUser()
         if (active) setUser(null)
       } finally {
         if (active) setLoadingSession(false)
+      }
+    }
+
+    async function loadExtraDetails(userId: string) {
+      try {
+        const response = await fetch(`/api/user/${userId}`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        })
+        if (!response.ok) return
+
+        const payload = await response.json()
+        if (!active || !payload?.result) return
+
+        const result = payload.result
+        const roleData = result.roleResponseDto
+
+        const departmentName = Array.isArray(roleData?.departmentDto)
+          ? roleData.departmentDto[0]?.name
+          : roleData?.departmentDto?.name
+
+        const assignedPlaces = Array.isArray(roleData?.placeDtos)
+          ? roleData.placeDtos.map((p: any) => p.name).filter(Boolean)
+          : []
+
+        setExtraDetails({ departmentName, assignedPlaces })
+      } catch (err) {
+        console.error('Failed to load extra user details:', err)
       }
     }
 
@@ -1078,7 +1123,8 @@ export default function OperatorReportsPage() {
   }, [reportTab, ticketTab])
 
   const placeId = getPlaceId(user)
-  const placeName = toText(user?.placeName)
+  const placeName = extraDetails?.assignedPlaces?.join(', ') || toText(user?.placeName)
+  const departmentName = extraDetails?.departmentName || 'N/A'
   const tabs = ticketTab === 'general'
     ? [
         { id: 'general-report' as const, label: 'General Report' },
@@ -1096,16 +1142,16 @@ export default function OperatorReportsPage() {
     if (!placeId) return null
 
     if (ticketTab === 'general') {
-      if (reportTab === 'general-report') return <BookingReportView placeName={placeName} />
-      if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" start={todayInput()} />
-      if (reportTab === 'month-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" start={monthStartInput()} />
-      return <AddOnSummaryReportView placeId={placeId} placeName={placeName} />
+      if (reportTab === 'general-report') return <BookingReportView placeName={placeName} departmentName={departmentName} />
+      if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" start={todayInput()} />
+      if (reportTab === 'month-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" start={monthStartInput()} />
+      return <AddOnSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} />
     }
 
-    if (reportTab === 'general-report') return <BookingReportView placeName={placeName} composite />
-    if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" composite start={todayInput()} />
-    return <PlaceSummaryReportView placeId={placeId} placeName={placeName} title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" composite start={monthStartInput()} />
-  }, [placeId, placeName, reportTab, ticketTab])
+    if (reportTab === 'general-report') return <BookingReportView placeName={placeName} departmentName={departmentName} composite />
+    if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" composite start={todayInput()} />
+    return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" composite start={monthStartInput()} />
+  }, [placeId, placeName, departmentName, reportTab, ticketTab])
 
   return (
     <div className="flex min-h-screen" style={{ background: 'var(--cream)' }}>
@@ -1126,7 +1172,7 @@ export default function OperatorReportsPage() {
               <div className="grid gap-px md:grid-cols-4" style={{ background: 'rgba(255,255,255,0.14)' }}>
                 {[
                   { label: 'Assigned Place', value: placeName || 'Not mapped' },
-                  { label: 'Place ID', value: placeId || 'N/A' },
+                  { label: 'Department', value: departmentName },
                   { label: 'Ticket Module', value: ticketTab === 'general' ? 'General Ticket' : 'Composite Ticket' },
                   { label: 'Report Type', value: tabs.find(tab => tab.id === reportTab)?.label ?? 'Report' },
                 ].map(card => (
