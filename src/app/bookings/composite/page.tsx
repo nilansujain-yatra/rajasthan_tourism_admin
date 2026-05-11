@@ -13,7 +13,9 @@ type PackageOption = { id: string, packageName: string, days: number, placeCount
 type PackageDetail = { id: string, packageName: string, days: number, placeNames: string[] }
 type BookingFlags = { isDepartmentAdmin: boolean, onSite: boolean }
 type CompositeInvoiceLine = { label: string, quantity: number, total: number, notes: string[] }
-type CompositeInvoice = { bookingId: string, bookingDate: number, packageName: string, totalAmount: number, mobile: string, email: string, visitorName: string, placeNames: string[], validityDays: number, lines: CompositeInvoiceLine[] }
+type CompositeTicketSummary = { ticketName: string, quantity: number, totalAmount: number }
+type CompositeAddonSummary = { ticketName: string, name: string, quantity: number, totalAmount: number }
+type CompositeInvoice = { bookingId: string, bookingDate: number, packageName: string, totalAmount: number, mobile: string, email: string, visitorName: string, placeNames: string[], validityDays: number, qrDetail: string, districtName: string, purchasePlaceName: string, totalUsers: number, lines: CompositeInvoiceLine[], ticketSummary: CompositeTicketSummary[], addonSummary: CompositeAddonSummary[] }
 
 function toNumber(value: unknown, fallback = 0) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -55,6 +57,32 @@ function formatDate(value: number | string) {
   const date = new Date(typeof value === 'number' ? value : toNumber(value))
   if (Number.isNaN(date.getTime())) return 'N/A'
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatTicketDate(value: number | string) {
+  const date = new Date(typeof value === 'number' ? value : toNumber(value))
+  if (Number.isNaN(date.getTime())) return 'N/A'
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}-${month}-${year}`
+}
+
+function formatTicketTime(value: number | string) {
+  const date = new Date(typeof value === 'number' ? value : toNumber(value))
+  if (Number.isNaN(date.getTime())) return 'N/A'
+  const hours = date.getHours()
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  const meridiem = hours >= 12 ? 'PM' : 'AM'
+  const formattedHours = hours % 12 || 12
+  return `${String(formattedHours).padStart(2, '0')}:${minutes}:${seconds} ${meridiem}`
+}
+
+function buildQrImageUrl(qrDetail: string) {
+  const value = qrDetail.trim()
+  if (!value) return ''
+  return `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(value)}`
 }
 
 function getBookingFlags(user: AuthUser | null): BookingFlags {
@@ -110,33 +138,71 @@ function normalizeCompositeInvoice(payload: unknown, packageDetail: PackageDetai
     }))
     return [...baseLine, ...addonLines]
   })
+  const invoiceBookingDtos = Array.isArray(result?.invoiceBookingDtos) ? result?.invoiceBookingDtos as Array<Record<string, unknown>> : []
+  const ticketSummary = invoiceBookingDtos.length
+    ? invoiceBookingDtos.map(item => ({
+        ticketName: toText(item.ticketName || item.ticketTypeName, 'Ticket'),
+        quantity: toNumber(item.quantity || item.qty),
+        totalAmount: toNumber(item.totalAmount),
+      }))
+    : selectedTickets.filter(ticket => ticket.quantity > 0).map(ticket => ({
+        ticketName: ticket.masterTicketTypeName,
+        quantity: ticket.quantity,
+        totalAmount: ticket.quantity * ticket.amount,
+      }))
+  const addonSummary = invoiceBookingDtos.length
+    ? invoiceBookingDtos.flatMap(item => {
+        const ticketName = toText(item.ticketName || item.ticketTypeName, 'Ticket')
+        const addons = Array.isArray(item.addonItems) ? item.addonItems as Array<Record<string, unknown>> : []
+        return addons.map(addon => ({
+          ticketName,
+          name: toText(addon.name, 'Add On'),
+          quantity: toNumber(addon.quantity),
+          totalAmount: toNumber(addon.totalAmount || addon.amount),
+        }))
+      })
+    : selectedTickets.flatMap(ticket => ticket.addOnList.filter(addon => addon.qty > 0).map(addon => ({
+        ticketName: ticket.masterTicketTypeName,
+        name: addon.name,
+        quantity: addon.qty,
+        totalAmount: addon.qty * addon.amount,
+      })))
 
   return {
     bookingId: toText(result?.bookingId, 'N/A'),
     bookingDate: toNumber(result?.bookingDate, Date.now()),
-    packageName: packageDetail?.packageName ?? 'Composite Booking',
+    packageName: toText((result?.packageDto as Record<string, unknown> | undefined)?.packageName, packageDetail?.packageName ?? 'Composite Booking'),
     totalAmount: toNumber(result?.totalAmountWithAddOn, totalAmount),
     mobile,
     email,
     visitorName: visitorName || 'Guest',
-    placeNames: packageDetail?.placeNames ?? [],
-    validityDays: packageDetail?.days ?? 0,
+    placeNames: Array.isArray(result?.placeNames) ? (result?.placeNames as unknown[]).map(item => toText(item)).filter(Boolean) : packageDetail?.placeNames ?? [],
+    validityDays: toNumber((result?.packageDto as Record<string, unknown> | undefined)?.duration, packageDetail?.days ?? 0),
+    qrDetail: toText(result?.qrDetail),
+    districtName: toText((result?.placeDetailDto as Record<string, unknown> | undefined)?.districtName),
+    purchasePlaceName: toText((result?.purchasePlaceDto as Record<string, unknown> | undefined)?.name),
+    totalUsers: toNumber(result?.totalUsers, ticketSummary.reduce((sum, item) => sum + item.quantity, 0)),
     lines,
+    ticketSummary,
+    addonSummary,
   }
 }
 
 function printCompositeInvoice(invoice: CompositeInvoice) {
   const popup = window.open('', '_blank', 'width=900,height=900')
   if (!popup) return
-  const placeMarkup = invoice.placeNames.map(place => `<li>${place}</li>`).join('')
-  const lineMarkup = invoice.lines.map(line => `
+  const qrImageUrl = buildQrImageUrl(invoice.qrDetail)
+  const placeMarkup = invoice.placeNames.map(place => `<p style="color:#000;font-size:18px;font-weight:600;text-align:left;margin:0;">${place}</p>`).join('')
+  const ticketMarkup = invoice.ticketSummary.map(line => `
     <tr>
-      <td style="padding:12px;border-bottom:1px solid #eadfd8;">
-        <div style="font-weight:700;color:#2f241d;">${line.label}</div>
-        ${line.notes.length ? `<div style="margin-top:4px;font-size:12px;color:#7a6a5e;">${line.notes.join('<br/>')}</div>` : ''}
-      </td>
-      <td style="padding:12px;border-bottom:1px solid #eadfd8;text-align:center;">${line.quantity}</td>
-      <td style="padding:12px;border-bottom:1px solid #eadfd8;text-align:right;">${formatCurrency(line.total)}</td>
+      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;width:170px;">${line.ticketName}</td>
+      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;text-align:right;">${line.quantity}</td>
+    </tr>
+  `).join('')
+  const addonMarkup = invoice.addonSummary.map(line => `
+    <tr>
+      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;width:170px;">${line.ticketName} - ${line.name}</td>
+      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;text-align:right;">${line.quantity}</td>
     </tr>
   `).join('')
 
@@ -145,40 +211,173 @@ function printCompositeInvoice(invoice: CompositeInvoice) {
       <head>
         <title>Composite Ticket ${invoice.bookingId}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 24px; color: #241a14; }
-          .frame { max-width: 760px; margin: 0 auto; border: 1px solid #eadfd8; border-radius: 18px; overflow: hidden; }
-          .hero { background: linear-gradient(135deg, #6B1212 0%, #A83030 58%, #D3A64A 100%); color: white; padding: 24px; }
-          .section { padding: 20px 24px; border-top: 1px solid #f0e5d8; }
-          .meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-          .meta-card { background:#fcf7f0; border:1px solid #eadfd8; border-radius:14px; padding:12px 14px; }
-          .label { font-size:11px; color:#8c7f74; text-transform:uppercase; letter-spacing:0.6px; }
-          .value { margin-top:4px; font-size:15px; font-weight:700; }
-          table { width:100%; border-collapse:collapse; }
-          th { text-align:left; font-size:11px; letter-spacing:0.6px; text-transform:uppercase; color:#8c7f74; background:#f8f4ee; padding:12px; }
-          ul { margin:10px 0 0 18px; padding:0; }
+          body { font-family: Arial, sans-serif; padding: 24px; color: #000; background: #fff; }
+          .ticket { width: 400px; margin: 0 auto; background: #fff; padding: 0 25px 25px; }
         </style>
       </head>
       <body>
-        <div class="frame">
-          <div class="hero"><div style="font-size:28px;font-weight:700;">Composite Ticket</div><div style="margin-top:6px;font-size:14px;opacity:0.84;">${invoice.packageName}</div></div>
-          <div class="section">
-            <div class="meta">
-              <div class="meta-card"><div class="label">Booking ID</div><div class="value">${invoice.bookingId}</div></div>
-              <div class="meta-card"><div class="label">Visit Date</div><div class="value">${formatDate(invoice.bookingDate)}</div></div>
-              <div class="meta-card"><div class="label">Visitor</div><div class="value">${invoice.visitorName}</div></div>
-              <div class="meta-card"><div class="label">Mobile</div><div class="value">${invoice.mobile || 'N/A'}</div></div>
+        <div class="ticket">
+          <h5 style="color:#0F172B;text-align:center;font-size:20px;font-style:normal;font-weight:900;line-height:normal;text-transform:uppercase;font-family:'Arial Black';margin-bottom:10px;">${invoice.purchasePlaceName || 'Composite Booking'}</h5>
+          <h1 style="color:#000;font-size:13px;text-transform:uppercase;font-weight:800;text-align:center;margin-bottom:10px;">Government of Rajasthan</h1>
+          <h5 style="color:#0F172B;text-align:center;font-size:20px;font-style:normal;font-weight:900;line-height:normal;text-transform:uppercase;font-family:'Arial Black';margin:0;">${invoice.packageName}<br/>${invoice.districtName || ''}</h5>
+          ${invoice.purchasePlaceName === 'Amber Fort' ? '<h1 style="color:#000;font-size:13px;text-transform:uppercase;font-weight:800;text-align:center;margin-top:10px;margin-bottom:10px;">( A UNESCO WORLD HERITAGE SITE )</h1>' : ''}
+          ${qrImageUrl ? `<div><img src="${qrImageUrl}" alt="QR code" style="height:100px;width:100px;display:block;margin:0 auto;" /></div>` : ''}
+          <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;">
+            <div>
+              <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Visit Date</p>
+              <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Booking ID</p>
+            </div>
+            <div>
+              <p style="color:#000;font-size:18px;font-weight:500;text-align:right;margin:0;">${formatTicketDate(invoice.bookingDate)}</p>
+              <p style="color:#000;font-size:18px;font-weight:500;margin:0;">${invoice.bookingId}</p>
             </div>
           </div>
-          <div class="section"><div class="label">Included Places</div><ul>${placeMarkup}</ul></div>
-          <div class="section" style="padding-top:0;"><table><thead><tr><th>Item</th><th>Qty</th><th>Total</th></tr></thead><tbody>${lineMarkup}</tbody></table></div>
-          <div class="section"><div style="display:flex;justify-content:space-between;align-items:center;"><div><div class="label">Validity</div><div class="value">Composite ticket valid for ${invoice.validityDays || 0} day(s) only.</div></div><div style="text-align:right;"><div class="label">Grand Total</div><div style="font-size:28px;font-weight:700;color:#6B1212;">${formatCurrency(invoice.totalAmount)}</div></div></div></div>
-          <div class="section" style="font-size:12px;line-height:1.8;color:#6f6358;">1. Carry a valid ID along with the printed ticket.<br/>2. This composite ticket is valid only for the configured package duration.<br/>3. Verify ticket quantities, add-ons and remarks before entry.</div>
+          <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;">${placeMarkup}</div>
+          <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;"></div>
+          <table style="width:100%;">
+            <thead>
+              <tr>
+                <th style="text-align:left;color:#000;font-size:18px;font-weight:600;padding:0 0 4px;">Visitor Type</th>
+                <th style="text-align:right;color:#000;font-size:18px;font-weight:600;padding:0 0 4px;">Qty</th>
+              </tr>
+            </thead>
+            <tbody>${ticketMarkup}</tbody>
+          </table>
+          ${invoice.addonSummary.length ? '<div style="color:#000;font-size:20px;font-weight:750;margin-top:8px;">Add On Charges :-</div>' : ''}
+          ${invoice.addonSummary.length ? `<table style="width:100%;"><tbody>${addonMarkup}</tbody></table>` : ''}
+          <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;margin-top:2px;padding-top:2px;">
+            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Total Vistors</p>
+            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">${invoice.totalUsers}</p>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:2px;padding-top:2px;">
+            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Total Amount</p>
+            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">${formatCurrency(invoice.totalAmount)}</p>
+          </div>
+          <div style="border-top:2px dotted #676767;margin-top:5px;padding-top:5px;text-align:left;">
+            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">T &amp; C apply</p>
+            <p style="color:#000;font-size:16px;font-weight:500;text-align:left;margin:8px 0 0;">1. Composite Tickets Valid For ${invoice.validityDays || 0} Days Only.</p>
+          </div>
+          <div style="border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;">
+            <p style="color:#000;font-size:16px;font-weight:500;text-align:left;margin:0 0 8px;">1. For your next visit, book ticket at <br/><a href="https://obms-tourist.rajasthan.gov.in">obms-tourist.rajasthan.gov.in</a></p>
+            <p style="color:#000;font-size:16px;font-weight:500;text-align:left;margin:0;">2. Explore and purchase various products at <br/><a href="https://ebazaar.rajasthan.gov.in">ebazaar.rajasthan.gov.in</a></p>
+          </div>
+          <div style="border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;text-align:center;">
+            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Thanks For Visit</p>
+            <p style="color:#000;font-size:18px;font-weight:400;margin-top:10px;margin-bottom:10px;">${formatTicketDate(invoice.bookingDate)} ${formatTicketTime(invoice.bookingDate)}</p>
+          </div>
         </div>
         <script>window.onload = () => window.print();</script>
       </body>
     </html>
   `)
   popup.document.close()
+}
+
+function CompositeTicketSlipPreview({ invoice }: { invoice: CompositeInvoice }) {
+  const qrImageUrl = buildQrImageUrl(invoice.qrDetail)
+
+  return (
+    <div className="mx-auto w-full max-w-[400px] rounded-[28px] bg-white px-6 pb-6 pt-1 shadow-sm" style={{ border: '1px solid #eadfd8' }}>
+      <h5 style={{ color: '#0F172B', textAlign: 'center', fontSize: 20, fontStyle: 'normal', fontWeight: 900, lineHeight: 'normal', textTransform: 'uppercase', fontFamily: '"Arial Black"', marginBottom: 10 }}>
+        {invoice.purchasePlaceName || 'Composite Booking'}
+      </h5>
+      <h1 style={{ color: '#000', fontSize: 13, textTransform: 'uppercase', fontWeight: 800, textAlign: 'center', marginBottom: 10 }}>Government of Rajasthan</h1>
+      <h5 style={{ color: '#0F172B', textAlign: 'center', fontSize: 20, fontStyle: 'normal', fontWeight: 900, lineHeight: 'normal', textTransform: 'uppercase', fontFamily: '"Arial Black"', margin: 0 }}>
+        {invoice.packageName}
+        <br />
+        {invoice.districtName || ''}
+      </h5>
+      {invoice.purchasePlaceName === 'Amber Fort' ? (
+        <h1 style={{ color: '#000', fontSize: 13, textTransform: 'uppercase', fontWeight: 800, textAlign: 'center', marginTop: 10, marginBottom: 10 }}>
+          ( A UNESCO WORLD HERITAGE SITE )
+        </h1>
+      ) : null}
+      {qrImageUrl ? <img src={qrImageUrl} alt="QR code" style={{ height: 100, width: 100, display: 'block', margin: '0 auto' }} /> : null}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5 }}>
+        <div>
+          <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Visit Date</p>
+          <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Booking ID</p>
+        </div>
+        <div>
+          <p style={{ color: '#000', fontSize: 18, fontWeight: 500, textAlign: 'right', margin: 0 }}>{formatTicketDate(invoice.bookingDate)}</p>
+          <p style={{ color: '#000', fontSize: 18, fontWeight: 500, margin: 0 }}>{invoice.bookingId}</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5 }}>
+        <div>
+          {invoice.placeNames.map(place => (
+            <p key={place} style={{ color: '#000', fontSize: 18, fontWeight: 600, textAlign: 'left', margin: 0 }}>{place}</p>
+          ))}
+        </div>
+      </div>
+
+      <table style={{ width: '100%' }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'left', color: '#000', fontSize: 18, fontWeight: 600, paddingBottom: 4 }}>Visitor Type</th>
+            <th style={{ textAlign: 'right', color: '#000', fontSize: 18, fontWeight: 600, paddingBottom: 4 }}>Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoice.ticketSummary.map(item => (
+            <tr key={item.ticketName}>
+              <td style={{ paddingBottom: 1, color: '#000', fontSize: 18, fontWeight: 600, width: 170 }}>{item.ticketName}</td>
+              <td style={{ color: '#000', fontSize: 18, fontWeight: 600, textAlign: 'right' }}>{item.quantity}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {invoice.addonSummary.length ? <div style={{ color: '#000', fontSize: 20, fontWeight: 750, marginTop: 8 }}>Add On Charges :-</div> : null}
+      {invoice.addonSummary.length ? (
+        <table style={{ width: '100%' }}>
+          <tbody>
+            {invoice.addonSummary.map(item => (
+              <tr key={`${item.ticketName}-${item.name}`}>
+                <td style={{ paddingBottom: 1, color: '#000', fontSize: 18, fontWeight: 600, width: 170 }}>{item.ticketName} - {item.name}</td>
+                <td style={{ color: '#000', fontSize: 18, fontWeight: 600, textAlign: 'right' }}>{item.quantity}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px dotted #676767', marginTop: 2, paddingTop: 2 }}>
+        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Total Vistors</p>
+        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>{invoice.totalUsers}</p>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, paddingTop: 2 }}>
+        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Total Amount</p>
+        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>{formatCurrency(invoice.totalAmount)}</p>
+      </div>
+
+      <div style={{ borderTop: '2px dotted #676767', marginTop: 5, paddingTop: 5, textAlign: 'left' }}>
+        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>T &amp; C apply</p>
+        <p style={{ color: '#000', fontSize: 16, fontWeight: 500, textAlign: 'left', margin: '8px 0 0' }}>
+          1. Composite Tickets Valid For {invoice.validityDays || 0} Days Only.
+        </p>
+      </div>
+
+      <div style={{ borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5 }}>
+        <p style={{ color: '#000', fontSize: 16, fontWeight: 500, textAlign: 'left', margin: '0 0 8px' }}>
+          1. For your next visit, book ticket at <br />
+          <a href="https://obms-tourist.rajasthan.gov.in" target="_blank" rel="noreferrer">obms-tourist.rajasthan.gov.in</a>
+        </p>
+        <p style={{ color: '#000', fontSize: 16, fontWeight: 500, textAlign: 'left', margin: 0 }}>
+          2. Explore and purchase various products at <br />
+          <a href="https://ebazaar.rajasthan.gov.in" target="_blank" rel="noreferrer">ebazaar.rajasthan.gov.in</a>
+        </p>
+      </div>
+
+      <div style={{ borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5, textAlign: 'center' }}>
+        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Thanks For Visit</p>
+        <p style={{ color: '#000', fontSize: 18, fontWeight: 400, marginTop: 10, marginBottom: 10 }}>{formatTicketDate(invoice.bookingDate)} {formatTicketTime(invoice.bookingDate)}</p>
+      </div>
+    </div>
+  )
 }
 
 export default function CompositeBookingPage() {
@@ -579,9 +778,9 @@ export default function CompositeBookingPage() {
         </div>
       </div>
 
-      {paymentModalOpen ? <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(28,16,8,0.48)', backdropFilter: 'blur(6px)' }} onClick={event => { if (event.target === event.currentTarget) setPaymentModalOpen(false) }}><div className="w-full max-w-lg overflow-hidden rounded-[28px] bg-white" style={{ boxShadow: '0 32px 90px rgba(107,18,18,0.24)' }}><div className="flex items-center justify-between px-6 py-5" style={{ background: 'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #D3A64A 100%)' }}><div><div className="font-serif font-bold text-white" style={{ fontSize: 24 }}>Payment Method</div><div style={{ fontSize: 12, color: 'rgba(255,255,255,0.76)' }}>Choose the booking mode before continuing.</div></div><button onClick={() => setPaymentModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: 'rgba(255,255,255,0.14)' }}><X size={16} /></button></div><div className="p-6 space-y-4"><button type="button" onClick={() => setBookingFlags({ isDepartmentAdmin: true, onSite: false })} className="w-full rounded-2xl border px-5 py-4 text-left" style={{ borderColor: bookingFlags.isDepartmentAdmin && !bookingFlags.onSite ? 'rgba(139,26,26,0.24)' : 'var(--sand)', background: bookingFlags.isDepartmentAdmin && !bookingFlags.onSite ? 'rgba(139,26,26,0.06)' : '#fff' }}><div className="inline-flex items-center gap-3"><Wallet size={18} style={{ color: 'var(--maroon)' }} /><div><div className="font-semibold" style={{ color: 'var(--text-dark)' }}>Cash / Department</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Books as department-admin composite flow.</div></div></div></button><button type="button" onClick={() => setBookingFlags({ isDepartmentAdmin: false, onSite: true })} className="w-full rounded-2xl border px-5 py-4 text-left" style={{ borderColor: !bookingFlags.isDepartmentAdmin && bookingFlags.onSite ? 'rgba(139,26,26,0.24)' : 'var(--sand)', background: !bookingFlags.isDepartmentAdmin && bookingFlags.onSite ? 'rgba(139,26,26,0.06)' : '#fff' }}><div className="inline-flex items-center gap-3"><CreditCard size={18} style={{ color: '#1A7A6E' }} /><div><div className="font-semibold" style={{ color: 'var(--text-dark)' }}>E-Mitra Wallet</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Books as on-site operator composite flow.</div></div></div></button></div><div className="flex justify-end gap-3 px-6 py-5" style={{ borderTop: '1px solid var(--sand)', background: '#FCF7F0' }}><button onClick={() => setPaymentModalOpen(false)} className="rounded-2xl px-4 py-2.5 font-medium" style={{ background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-mid)' }}>Cancel</button><button onClick={() => void createCompositeBooking()} className="rounded-2xl px-5 py-2.5 font-semibold text-white" style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)' }}>Continue</button></div></div></div> : null}
+      {paymentModalOpen ? <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4 sm:p-6" style={{ background: 'rgba(28,16,8,0.48)', backdropFilter: 'blur(6px)' }} onClick={event => { if (event.target === event.currentTarget) setPaymentModalOpen(false) }}><div className="my-auto w-full max-w-lg overflow-hidden rounded-[28px] bg-white" style={{ boxShadow: '0 32px 90px rgba(107,18,18,0.24)' }}><div className="flex items-center justify-between px-6 py-5" style={{ background: 'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #D3A64A 100%)' }}><div><div className="font-serif font-bold text-white" style={{ fontSize: 24 }}>Payment Method</div><div style={{ fontSize: 12, color: 'rgba(255,255,255,0.76)' }}>Choose the booking mode before continuing.</div></div><button onClick={() => setPaymentModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: 'rgba(255,255,255,0.14)' }}><X size={16} /></button></div><div className="p-6 space-y-4"><button type="button" onClick={() => setBookingFlags({ isDepartmentAdmin: true, onSite: false })} className="w-full rounded-2xl border px-5 py-4 text-left" style={{ borderColor: bookingFlags.isDepartmentAdmin && !bookingFlags.onSite ? 'rgba(139,26,26,0.24)' : 'var(--sand)', background: bookingFlags.isDepartmentAdmin && !bookingFlags.onSite ? 'rgba(139,26,26,0.06)' : '#fff' }}><div className="inline-flex items-center gap-3"><Wallet size={18} style={{ color: 'var(--maroon)' }} /><div><div className="font-semibold" style={{ color: 'var(--text-dark)' }}>Cash / Department</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Books as department-admin composite flow.</div></div></div></button><button type="button" onClick={() => setBookingFlags({ isDepartmentAdmin: false, onSite: true })} className="w-full rounded-2xl border px-5 py-4 text-left" style={{ borderColor: !bookingFlags.isDepartmentAdmin && bookingFlags.onSite ? 'rgba(139,26,26,0.24)' : 'var(--sand)', background: !bookingFlags.isDepartmentAdmin && bookingFlags.onSite ? 'rgba(139,26,26,0.06)' : '#fff' }}><div className="inline-flex items-center gap-3"><CreditCard size={18} style={{ color: '#1A7A6E' }} /><div><div className="font-semibold" style={{ color: 'var(--text-dark)' }}>E-Mitra Wallet</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Books as on-site operator composite flow.</div></div></div></button></div><div className="flex justify-end gap-3 px-6 py-5" style={{ borderTop: '1px solid var(--sand)', background: '#FCF7F0' }}><button onClick={() => setPaymentModalOpen(false)} className="rounded-2xl px-4 py-2.5 font-medium" style={{ background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-mid)' }}>Cancel</button><button onClick={() => void createCompositeBooking()} className="rounded-2xl px-5 py-2.5 font-semibold text-white" style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)' }}>Continue</button></div></div></div> : null}
 
-      {showSuccess && invoice ? <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(28,16,8,0.48)', backdropFilter: 'blur(6px)' }} onClick={event => { if (event.target === event.currentTarget) setShowSuccess(false) }}><div className="w-full max-w-4xl overflow-hidden rounded-[30px] bg-white" style={{ boxShadow: '0 40px 96px rgba(107,18,18,0.24)' }}><div className="flex items-center justify-between px-6 py-5" style={{ background: 'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #C8922A 100%)' }}><div><div className="font-serif font-bold text-white" style={{ fontSize: 26 }}>Composite Booking Successful</div><div style={{ fontSize: 12, color: 'rgba(255,255,255,0.76)' }}>Booking ID {invoice.bookingId}</div></div><button onClick={() => setShowSuccess(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: 'rgba(255,255,255,0.14)' }}><X size={16} /></button></div><div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.3fr_0.7fr]"><div className="space-y-4"><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#FCF7F0' }}><div className="font-serif font-bold mb-3" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Ticket Preview</div><div className="grid gap-4 md:grid-cols-2"><div><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Package</div><div style={{ fontSize: 14, color: 'var(--text-dark)', fontWeight: 600 }}>{invoice.packageName}</div></div><div><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Visit Date</div><div style={{ fontSize: 14, color: 'var(--text-dark)', fontWeight: 600 }}>{formatDate(invoice.bookingDate)}</div></div><div><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Visitor</div><div style={{ fontSize: 14, color: 'var(--text-dark)', fontWeight: 600 }}>{invoice.visitorName}</div></div><div><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Mobile</div><div style={{ fontSize: 14, color: 'var(--text-dark)', fontWeight: 600 }}>{invoice.mobile}</div></div></div></div><div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--sand)' }}><table className="w-full"><thead><tr style={{ background: '#F8F4EE' }}>{['Item', 'Qty', 'Total'].map(header => <th key={header} className="px-4 py-3 text-left" style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{header}</th>)}</tr></thead><tbody>{invoice.lines.map((line, index) => <tr key={`${line.label}-${index}`} style={{ borderTop: index === 0 ? 'none' : '1px solid var(--cream-dark)' }}><td className="px-4 py-3"><div style={{ fontSize: 14, color: 'var(--text-dark)', fontWeight: 600 }}>{line.label}</div>{line.notes.map(note => <div key={note} style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{note}</div>)}</td><td className="px-4 py-3" style={{ fontSize: 13, color: 'var(--text-mid)' }}>{line.quantity}</td><td className="px-4 py-3" style={{ fontSize: 13, color: 'var(--text-dark)', fontWeight: 700 }}>{formatCurrency(line.total)}</td></tr>)}</tbody></table></div></div><div className="space-y-4"><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#fff' }}><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Grand Total</div><div className="font-serif font-bold mt-2" style={{ fontSize: 30, color: 'var(--maroon)' }}>{formatCurrency(invoice.totalAmount)}</div></div><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#FCF7F0' }}><div className="font-semibold mb-2" style={{ color: 'var(--text-dark)' }}>Composite Conditions</div><div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.8 }}>1. Carry a valid ID along with the printed ticket.<br />2. Composite ticket valid for {invoice.validityDays || 0} day(s) only.<br />3. Verify included places, add-ons and remarks before printing.</div></div><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#fff' }}><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Included Places</div><div className="space-y-2">{invoice.placeNames.map(place => <div key={place} className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mr-2 mb-2" style={{ background: '#F8F4EE', color: 'var(--text-dark)', fontSize: 12 }}><Building2 size={13} style={{ color: 'var(--maroon)' }} />{place}</div>)}</div></div><button onClick={() => printCompositeInvoice(invoice)} className="w-full rounded-2xl px-4 py-3 font-semibold text-white" style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)' }}><span className="inline-flex items-center gap-2"><Printer size={15} />Print Ticket</span></button><button onClick={() => { setShowSuccess(false); reloadBookingSetup() }} className="w-full rounded-2xl px-4 py-3 font-medium" style={{ background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-mid)' }}>Continue Booking</button></div></div></div></div> : null}
+      {showSuccess && invoice ? <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4 sm:p-6" style={{ background: 'rgba(28,16,8,0.48)', backdropFilter: 'blur(6px)' }} onClick={event => { if (event.target === event.currentTarget) setShowSuccess(false) }}><div className="my-auto w-full max-w-4xl overflow-hidden rounded-[30px] bg-white" style={{ boxShadow: '0 40px 96px rgba(107,18,18,0.24)' }}><div className="flex items-center justify-between px-6 py-5" style={{ background: 'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #C8922A 100%)' }}><div><div className="font-serif font-bold text-white" style={{ fontSize: 26 }}>Composite Booking Successful</div><div style={{ fontSize: 12, color: 'rgba(255,255,255,0.76)' }}>Booking ID {invoice.bookingId}</div></div><button onClick={() => setShowSuccess(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: 'rgba(255,255,255,0.14)' }}><X size={16} /></button></div><div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.3fr_0.7fr]"><div className="space-y-4"><div className="rounded-[28px] border p-5" style={{ borderColor: 'var(--sand)', background: '#FCF7F0' }}><div className="font-serif font-bold mb-4" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Ticket Preview</div><CompositeTicketSlipPreview invoice={invoice} /></div></div><div className="space-y-4"><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#fff' }}><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Grand Total</div><div className="font-serif font-bold mt-2" style={{ fontSize: 30, color: 'var(--maroon)' }}>{formatCurrency(invoice.totalAmount)}</div></div><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#FCF7F0' }}><div className="font-semibold mb-2" style={{ color: 'var(--text-dark)' }}>Composite Conditions</div><div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.8 }}>1. Ticket layout and print match the composite operator ticket format.<br />2. Composite ticket valid for {invoice.validityDays || 0} day(s) only.<br />3. Verify included places and add-ons before printing.</div></div><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#fff' }}><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Included Places</div><div className="space-y-2">{invoice.placeNames.map(place => <div key={place} className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mr-2 mb-2" style={{ background: '#F8F4EE', color: 'var(--text-dark)', fontSize: 12 }}><Building2 size={13} style={{ color: 'var(--maroon)' }} />{place}</div>)}</div></div><button onClick={() => printCompositeInvoice(invoice)} className="w-full rounded-2xl px-4 py-3 font-semibold text-white" style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)' }}><span className="inline-flex items-center gap-2"><Printer size={15} />Print Ticket</span></button><button onClick={() => { setShowSuccess(false); reloadBookingSetup() }} className="w-full rounded-2xl px-4 py-3 font-medium" style={{ background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-mid)' }}>Continue Booking</button></div></div></div></div> : null}
     </div>
   )
 }

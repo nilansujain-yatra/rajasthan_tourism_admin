@@ -9,6 +9,7 @@ import JkkBookingReportView from './JkkBookingReportView'
 import JkkBookingStatusView from './JkkBookingStatusView'
 import JkkBankDetailsReportView from './JkkBankDetailsReportView'
 import JkkGstReportView from './JkkGstReportView'
+import { isJkkAdminViewer, isJkkWorkflowUser, useSessionUser } from './shared'
 
 type ReportType = 'booking-report' | 'booking-status' | 'bank-details' | 'gst-report'
 
@@ -20,12 +21,15 @@ const REPORTS: Array<{ id: ReportType; label: string; description: string }> = [
 ]
 
 export default function JkkReportsPage() {
+  const user = useSessionUser()
   const [activeReport, setActiveReport] = useState<ReportType>('booking-report')
   const [open, setOpen] = useState(false)
+  const canAccessJkkReports = user == null || isJkkWorkflowUser(user) || isJkkAdminViewer(user)
+  const visibleReports = useMemo(() => (canAccessJkkReports ? REPORTS : []), [canAccessJkkReports])
 
   const currentReport = useMemo(
-    () => REPORTS.find(report => report.id === activeReport) ?? REPORTS[0],
-    [activeReport],
+    () => visibleReports.find(report => report.id === activeReport) ?? visibleReports[0],
+    [activeReport, visibleReports],
   )
 
   const renderReport = () => {
@@ -51,7 +55,14 @@ export default function JkkReportsPage() {
         <main className="page-enter flex-1 space-y-5 overflow-y-auto px-6 py-6">
           <SectionHeader title="JKK Report" />
 
-          <div className="relative">
+          {!canAccessJkkReports ? (
+            <div className="rounded-2xl border px-6 py-6" style={{ borderColor: 'var(--sand)', background: '#fff', color: 'var(--text-mid)' }}>
+              This account does not have access to the JKK reports module.
+            </div>
+          ) : null}
+
+          {canAccessJkkReports ? (
+            <div className="relative">
             <button
               onClick={() => setOpen(current => !current)}
               className="w-full rounded-xl border px-4 py-3 text-left"
@@ -60,10 +71,10 @@ export default function JkkReportsPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-                    {currentReport.label}
+                    {currentReport?.label ?? 'JKK Report'}
                   </div>
                   <div className="text-xs" style={{ color: 'var(--text-muted)', marginTop: 2 }}>
-                    {currentReport.description}
+                    {currentReport?.description ?? 'JKK report workspace'}
                   </div>
                 </div>
                 <ChevronDown
@@ -82,7 +93,7 @@ export default function JkkReportsPage() {
                 className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border shadow-lg"
                 style={{ borderColor: 'var(--sand)', background: '#fff', maxHeight: 420, overflowY: 'auto' }}
               >
-                {REPORTS.map(report => (
+                {visibleReports.map(report => (
                   <button
                     key={report.id}
                     onClick={() => {
@@ -108,9 +119,10 @@ export default function JkkReportsPage() {
                 ))}
               </div>
             )}
-          </div>
+            </div>
+          ) : null}
 
-          {renderReport()}
+          {canAccessJkkReports ? renderReport() : null}
         </main>
       </div>
     </div>

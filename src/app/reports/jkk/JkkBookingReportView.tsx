@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, GitBranchPlus, ScrollText } from 'lucide-react'
-import { JkkActionModal, JkkBookingDetailModal, JkkTrailModal } from './JkkBookingShared'
+import { Eye, ScrollText } from 'lucide-react'
+import { JkkBookingDetailModal, JkkTrailModal } from './JkkBookingShared'
 import {
   JkkFilterModal,
   PaginationControls,
@@ -16,8 +16,6 @@ import {
   getAny,
   toText,
   useJkkLookups,
-  useJkkUsers,
-  useSessionUser,
   type RecordRow,
 } from './shared'
 
@@ -35,11 +33,6 @@ export default function JkkBookingReportView() {
   const [selectedRow, setSelectedRow] = useState<RecordRow | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [trailOpen, setTrailOpen] = useState(false)
-  const [actionOpen, setActionOpen] = useState(false)
-  const [feedback, setFeedback] = useState('')
-
-  const user = useSessionUser()
-  const users = useJkkUsers()
   const { categories, subCategories, shifts } = useJkkLookups(
     filterOpen ? draftFilters.categoryId : appliedFilters.categoryId,
     filterOpen ? draftFilters.subCategoryId : appliedFilters.subCategoryId,
@@ -153,14 +146,13 @@ export default function JkkBookingReportView() {
           { label: 'Category Filter', value: appliedFilters.categoryId ? 'Selected' : 'All' },
           { label: 'Total Amount', value: formatMoney(totalAmount), solid: true },
         ]}
-        statusMessage={feedback || (search ? 'Search is applied on the current page results.' : undefined)}
-        statusTone={feedback ? 'success' : 'normal'}
+        statusMessage={search ? 'Search is applied on the current page results.' : undefined}
       >
         <div className="overflow-x-auto px-6 pb-6">
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1600 }}>
             <thead>
               <tr style={{ background: 'var(--cream-dark)', borderBottom: '2px solid var(--sand)' }}>
-                {['Sr.', 'Booking ID', 'Registration Date', 'Created By', 'Applicant', 'Mobile', 'Email', 'Category', 'Event Type', 'Shift', 'Transaction ID', 'Payment', 'Approval', 'Amount', 'Form', 'Trail', 'Action'].map(header => (
+                {['Sr.', 'Booking ID', 'Registration Date', 'Created By', 'Applicant', 'Mobile', 'Email', 'Category', 'Event Type', 'Shift', 'Transaction ID', 'Payment', 'Approval', 'Amount', 'Form', 'Trail'].map(header => (
                   <th key={header} style={{ padding: '11px 14px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.6px', textAlign: 'left', color: header === 'Sr.' ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)', background: header === 'Sr.' ? 'var(--maroon)' : undefined }}>
                     {header}
                   </th>
@@ -168,9 +160,9 @@ export default function JkkBookingReportView() {
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={17} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>Loading JKK booking report...</td></tr> : null}
-              {!loading && error ? <tr><td colSpan={17} style={{ padding: 48, textAlign: 'center', color: '#B42318' }}>{error}</td></tr> : null}
-              {!loading && !error && filteredRows.length === 0 ? <tr><td colSpan={17} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>No records match the current filters.</td></tr> : null}
+              {loading ? <tr><td colSpan={16} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>Loading JKK booking report...</td></tr> : null}
+              {!loading && error ? <tr><td colSpan={16} style={{ padding: 48, textAlign: 'center', color: '#B42318' }}>{error}</td></tr> : null}
+              {!loading && !error && filteredRows.length === 0 ? <tr><td colSpan={16} style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>No records match the current filters.</td></tr> : null}
               {!loading && !error && filteredRows.map((row, index) => (
                 <tr key={`${toText(row.bookingId)}-${index}`} style={{ borderBottom: '1px solid var(--cream-dark)' }}>
                   <td style={{ padding: '9px 12px', fontSize: 11 }}>{(page - 1) * pageSize + index + 1}</td>
@@ -213,19 +205,6 @@ export default function JkkBookingReportView() {
                       Trail
                     </button>
                   </td>
-                  <td style={{ padding: '9px 12px', fontSize: 11 }}>
-                    <button
-                      onClick={() => {
-                        setSelectedRow(row)
-                        setActionOpen(true)
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-white"
-                      style={{ background: 'var(--maroon)' }}
-                    >
-                      <GitBranchPlus size={13} />
-                      Action
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -261,19 +240,6 @@ export default function JkkBookingReportView() {
 
       <JkkBookingDetailModal row={selectedRow} open={detailOpen} onClose={() => setDetailOpen(false)} />
       <JkkTrailModal row={selectedRow} open={trailOpen} onClose={() => setTrailOpen(false)} />
-      <JkkActionModal
-        row={selectedRow}
-        open={actionOpen}
-        user={user}
-        users={users}
-        onClose={() => setActionOpen(false)}
-        onSuccess={message => {
-          setFeedback(message)
-          setActionOpen(false)
-          setPage(1)
-          setAppliedFilters(current => ({ ...current }))
-        }}
-      />
     </>
   )
 }

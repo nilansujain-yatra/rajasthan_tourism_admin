@@ -576,9 +576,9 @@ function BookingReportView({
         )}
       >
         <div className="grid gap-3 px-6 py-4 md:grid-cols-5" style={{ background: 'var(--cream)' }}>
-          {/* <StatCard label="Assigned Place" value={placeName || 'N/A'} />
-          <StatCard label="Department" value={departmentName} /> */}
-          <StatCard label="TotalBookings" value={rows.length.toLocaleString('en-IN')} />
+          <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+          <StatCard label="Department" value={departmentName} />
+          <StatCard label="Rows Loaded" value={rows.length.toLocaleString('en-IN')} />
           <StatCard label="Visitors" value={totalVisitors.toLocaleString('en-IN')} />
           <StatCard label={composite ? 'Total Amount' : 'Amount With Add On'} value={formatMoney(composite ? totalAmount : totalAmountWithAddOn)} solid />
         </div>
@@ -799,8 +799,8 @@ function PlaceSummaryReportView({
         )}
       >
         <div className="grid gap-3 px-6 py-4 md:grid-cols-5" style={{ background: 'var(--cream)' }}>
-          {/* <StatCard label="Assigned Place" value={placeName || 'N/A'} />
-          <StatCard label="Department" value={departmentName} /> */}
+          <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+          <StatCard label="Department" value={departmentName} />
           <StatCard label="Total Bookings" value={totals.bookings.toLocaleString('en-IN')} />
           <StatCard label="Visitors" value={totals.visitors.toLocaleString('en-IN')} />
           <StatCard label="Total Amount" value={formatMoney(composite ? totals.amount : (totals.amountWithAddOn || totals.amount))} solid />
@@ -978,8 +978,8 @@ function AddOnSummaryReportView({
         )}
       >
         <div className="grid gap-3 px-6 py-4 md:grid-cols-5" style={{ background: 'var(--cream)' }}>
-          {/* <StatCard label="Assigned Place" value={placeName || 'N/A'} />
-          <StatCard label="Department" value={departmentName} /> */}
+          <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+          <StatCard label="Department" value={departmentName} />
           <StatCard label="Places" value={rows.length.toLocaleString('en-IN')} />
           <StatCard label="Total Quantity" value={totalQuantity.toLocaleString('en-IN')} />
           <StatCard label="Total Amount" value={formatMoney(totalAmount)} solid />
@@ -1142,16 +1142,16 @@ export default function OperatorReportsPage() {
     if (!placeId) return null
 
     if (ticketTab === 'general') {
-      if (reportTab === 'general-report') return <BookingReportView placeName={placeName} departmentName={departmentName} />
+      if (reportTab === 'general-report') return <BookingReportView placeName={placeName} departmentName={departmentName}/>
       if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" start={todayInput()} />
       if (reportTab === 'month-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" start={monthStartInput()} />
-      return <AddOnSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} />
+      return <AddOnSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName}/>
     }
 
-    if (reportTab === 'general-report') return <BookingReportView placeName={placeName} departmentName={departmentName} composite />
+    if (reportTab === 'general-report') return <BookingReportView placeName={placeName} composite departmentName={departmentName} />
     if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" composite start={todayInput()} />
     return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" composite start={monthStartInput()} />
-  }, [placeId, placeName, departmentName, reportTab, ticketTab])
+  }, [placeId, placeName, reportTab, ticketTab])
 
   return (
     <div className="flex min-h-screen" style={{ background: 'var(--cream)' }}>

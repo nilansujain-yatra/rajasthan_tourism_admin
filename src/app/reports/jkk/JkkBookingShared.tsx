@@ -1,12 +1,13 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, ExternalLink, FileText, XCircle } from 'lucide-react'
+import { CheckCircle2, Download, FileText, Paperclip, Printer, XCircle } from 'lucide-react'
 import type { AuthUser } from '@/lib/auth/jwt'
-import { DetailGrid, ModalShell, formatDate, formatDateTime, formatMoney, getAny, toText, type JkkUser, type RecordRow } from './shared'
+import { DetailGrid, ModalShell, canUseJkkWorkflowAction, formatDate, formatDateTime, formatMoney, getAny, getPrimaryUserRole, toText, type JkkUser, type RecordRow } from './shared'
 
 function userLabel(user: JkkUser) {
-  return toText(user.fullName ?? user.userName ?? user.name ?? user.ssoId ?? user.ssoid, 'Unnamed User')
+  const fullName = [toText(user.firstName), toText(user.lastName)].filter(Boolean).join(' ')
+  return toText(user.displayName ?? user.fullName ?? fullName ?? user.userName ?? user.name ?? user.ssoId ?? user.ssoid, 'Unnamed User')
 }
 
 function userId(user: JkkUser) {
@@ -16,6 +17,365 @@ function userId(user: JkkUser) {
 function roleLabel(role: string) {
   if (!role) return 'Unknown'
   return role.replace(/^JKK_/, '').replace(/_/g, ' ')
+}
+
+type AttachmentItem = {
+  label: string
+  url: string
+}
+
+function isImageUrl(url: string) {
+  return /\.(jpg|jpeg|png|gif|bmp|tiff|tif|webp|svg|heic|heif|ico|raw|cr2|nef|orf|arw|psd)$/i.test(url)
+}
+
+function extractAttachments(row: RecordRow) {
+  const attachments: AttachmentItem[] = []
+  const societyUrl = toText(row.societyRegisteredDocUrl)
+
+  if (societyUrl) {
+    attachments.push({ label: 'Society Registration', url: societyUrl })
+  }
+
+  const detailSections = [
+    { key: 'detailsOfProgram', label: 'Program Details' },
+    { key: 'guestDetails', label: 'Guest Details' },
+    { key: 'organizationDetails', label: 'Organization Details' },
+    { key: 'previousDetails', label: 'Previous Details' },
+  ]
+
+  detailSections.forEach(section => {
+    const items = Array.isArray(row[section.key]) ? row[section.key] as RecordRow[] : []
+    const first = items[0] ?? {}
+    const imageList = Array.isArray(first.imageList) ? first.imageList as RecordRow[] : []
+
+    imageList.forEach((item, index) => {
+      const url = toText(getAny(item, ['imageUrl', 'url', 'fileUrl']))
+      if (url) {
+        attachments.push({ label: `${section.label} ${index + 1}`, url })
+      }
+    })
+  })
+
+  return attachments
+}
+
+function renderAttachmentPreview(url: string) {
+  if (isImageUrl(url)) {
+    return <img src={url} alt="attachment" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--sand)' }} />
+  }
+
+  return (
+    <div className="flex items-center justify-center rounded-lg border" style={{ width: 56, height: 56, borderColor: 'var(--sand)', color: 'var(--maroon)' }}>
+      <FileText size={20} />
+    </div>
+  )
+}
+
+function openPrintWindow(row: RecordRow) {
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=900')
+  if (!win) return
+
+  const sections = [
+    ['Applicant', toText(row.applicantName, 'N/A')],
+    ['Mobile', toText(row.mobileNo, 'N/A')],
+    ['Email', toText(row.email, 'N/A')],
+    ['Address', toText(row.address, 'N/A')],
+    ['GST', toText(row.gstNo, 'N/A')],
+    ['Applied For', `${toText(row.typeName, 'N/A')} - ${toText(row.subCategoryName, 'N/A')}`],
+    ['Category', toText(row.category, 'N/A')],
+    ['Projector Required', row.projector ? 'Yes' : 'No'],
+    ['Audience Entry', row.audienceEntryByInvitation ? 'By Invitation' : row.audienceEntryByTicket ? 'By Ticket' : 'N/A'],
+    ['Reservation For', `${formatDate(row.bookingStartDate)} - ${formatDate(row.bookingEndDate)}`],
+    ['Shift', toText(row.shiftName, 'N/A')],
+    ['Status', toText(row.approved ?? row.adminStatus, 'N/A')],
+    ['Payment Status', toText(row.paymentStatus, 'N/A')],
+    ['Transaction ID', toText(row.transactionId, 'N/A')],
+    ['Amount', formatMoney(row.totalAmount)],
+  ]
+
+  const ticketHeads = Array.isArray(row.ticketHeads) ? row.ticketHeads as RecordRow[] : []
+  const attachmentLinks = extractAttachments(row)
+
+  win.document.write(`<!doctype html>
+  <html>
+    <head>
+      <title>JKK Booking ${toText(row.bookingId, 'Form')}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }
+        h1, h2 { margin: 0 0 12px; }
+        .top { background: #fff1f2; border-left: 4px solid #be185d; padding: 16px; margin-bottom: 16px; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .card { border: 1px solid #e7d7bf; border-radius: 12px; padding: 12px; }
+        .label { font-size: 11px; color: #6b7280; text-transform: uppercase; }
+        .value { margin-top: 6px; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-size: 13px; }
+        th { background: #fdf2f8; }
+        a { color: #9f1239; text-decoration: none; }
+      </style>
+    </head>
+    <body>
+      <div class="top">
+        <h1>JKK Booking Form</h1>
+        <div>Booking ID: ${toText(row.bookingId, 'N/A')}</div>
+        <div>Registration Date: ${formatDateTime(getAny(row, ['createdDate', 'bookingDate']))}</div>
+      </div>
+      <div class="grid">
+        ${sections.map(([label, value]) => `<div class="card"><div class="label">${label}</div><div class="value">${value}</div></div>`).join('')}
+      </div>
+      <h2>Ticket Heads</h2>
+      <table>
+        <thead><tr><th>Head</th><th>Amount</th></tr></thead>
+        <tbody>
+          ${ticketHeads.length ? ticketHeads.map(item => `<tr><td>${toText(getAny(item, ['name', 'headName', 'label']), 'N/A')}</td><td>${formatMoney(getAny(item, ['amount', 'value']))}</td></tr>`).join('') : '<tr><td colspan="2">No ticket head details available.</td></tr>'}
+        </tbody>
+      </table>
+      <h2 style="margin-top:20px;">Attachments</h2>
+      <div>
+        ${attachmentLinks.length ? attachmentLinks.map(item => `<div><a href="${item.url}" target="_blank" rel="noreferrer">${item.label}</a></div>`).join('') : 'No attachments available.'}
+      </div>
+    </body>
+  </html>`)
+  win.document.close()
+  win.focus()
+  setTimeout(() => win.print(), 250)
+}
+
+function ProgramDetailsCard({
+  row,
+  showBankDetails = false,
+}: {
+  row: RecordRow
+  showBankDetails?: boolean
+}) {
+  const programDetails = Array.isArray(row.detailsOfProgram) ? row.detailsOfProgram[0] as RecordRow : null
+  const guestDetails = Array.isArray(row.guestDetails) ? row.guestDetails[0] as RecordRow : null
+  const organizationDetails = Array.isArray(row.organizationDetails) ? row.organizationDetails[0] as RecordRow : null
+  const previousDetails = Array.isArray(row.previousDetails) ? row.previousDetails[0] as RecordRow : null
+  const ticketHeads = Array.isArray(row.ticketHeads) ? row.ticketHeads as RecordRow[] : []
+  const attachments = extractAttachments(row)
+  const days = (() => {
+    const start = Number(row.bookingStartDate)
+    const end = Number(row.bookingEndDate)
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return 'N/A'
+    return `${Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1} Day(s)`
+  })()
+
+  function renderTextSection(title: string, value: unknown, imageSource?: RecordRow | null) {
+    const text = toText(value)
+    const imageList = Array.isArray(imageSource?.imageList) ? imageSource?.imageList as RecordRow[] : []
+    if (!text && imageList.length === 0) return null
+
+    return (
+      <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)' }}>{title}</div>
+        {text ? <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5 }}>{text}</div> : null}
+        {imageList.length ? (
+          <div className="mt-3 flex flex-wrap gap-3">
+            {imageList.map((item, index) => {
+              const url = toText(getAny(item, ['imageUrl', 'url', 'fileUrl']))
+              if (!url) return null
+              return (
+                <a key={`${title}-${index}`} href={url} target="_blank" rel="noreferrer">
+                  {renderAttachmentPreview(url)}
+                </a>
+              )
+            })}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+        <div className="px-5 py-4 text-white" style={{ background: 'linear-gradient(135deg, #be185d, #e11d48)' }}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="font-serif text-xl font-bold">JKK Booking Form</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
+                Booking ID {toText(row.bookingId, 'N/A')} · {formatDateTime(getAny(row, ['createdDate', 'bookingDate']))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => openPrintWindow(row)} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-white" style={{ background: 'rgba(255,255,255,0.18)', fontSize: 12 }}>
+                <Printer size={14} />
+                Download Form
+              </button>
+              <button
+                onClick={() => {
+                  attachments.forEach(item => {
+                    const link = document.createElement('a')
+                    link.href = item.url
+                    link.target = '_blank'
+                    link.rel = 'noreferrer'
+                    link.download = ''
+                    link.click()
+                  })
+                }}
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-white"
+                style={{ background: 'rgba(255,255,255,0.18)', fontSize: 12 }}
+              >
+                <Download size={14} />
+                Download Attachment
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-5 px-5 py-5 md:grid-cols-[2fr_1fr]" style={{ background: '#fffaf7' }}>
+          <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+            <div className="mb-4 font-semibold" style={{ color: 'var(--maroon)' }}>Organiser Details</div>
+            <DetailGrid
+              entries={[
+                { label: 'Full Name', value: toText(row.applicantName, 'N/A') },
+                { label: 'Mobile Number', value: toText(row.mobileNo, 'N/A') },
+                { label: 'Email Address', value: toText(row.email, 'N/A') },
+                { label: 'Address', value: toText(row.address, 'N/A') },
+                { label: 'GST Number', value: toText(row.gstNo, 'N/A') },
+                {
+                  label: 'Society Registered',
+                  value: toText(row.societyRegisteredDocUrl)
+                    ? <a href={toText(row.societyRegisteredDocUrl)} target="_blank" rel="noreferrer" style={{ color: 'var(--maroon)' }}>View</a>
+                    : 'N/A',
+                },
+              ]}
+            />
+          </div>
+
+          <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+            <div className="mb-4 font-semibold" style={{ color: 'var(--maroon)' }}>Booking</div>
+            <DetailGrid
+              entries={[
+                { label: 'Booking ID', value: toText(row.bookingId, 'N/A') },
+                { label: 'Status', value: toText(row.approved ?? row.adminStatus, 'N/A') },
+                { label: 'Payment Status', value: toText(row.paymentStatus, 'N/A') },
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="px-5 pb-5">
+          <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+            <div className="mb-4 font-semibold" style={{ color: 'var(--maroon)' }}>Event Details</div>
+            <DetailGrid
+              entries={[
+                { label: 'Applied For', value: `${toText(row.typeName, 'N/A')} - ${toText(row.subCategoryName, 'N/A')}` },
+                { label: 'Category', value: toText(row.category, 'N/A') },
+                { label: 'Projector Required', value: row.projector ? 'Yes' : 'No' },
+                { label: 'Audience Entry', value: row.audienceEntryByInvitation ? 'By Invitation' : row.audienceEntryByTicket ? 'By Ticket' : 'N/A' },
+                { label: 'Reservation For', value: `${formatDate(row.bookingStartDate)} - ${formatDate(row.bookingEndDate)}` },
+                { label: 'Duration', value: `${days}${toText(row.shiftName) ? ` - ${toText(row.shiftName)}` : ''}` },
+                { label: 'Preparation Days', value: toText(row.preDays, '0') },
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-5 px-5 pb-5 md:grid-cols-2">
+          {renderTextSection('Program Details', programDetails?.description, programDetails)}
+          {renderTextSection('Guest Details', guestDetails?.description, guestDetails)}
+          {renderTextSection('Organization Details', organizationDetails?.description, organizationDetails)}
+          {renderTextSection('Previous Details', previousDetails?.description, previousDetails)}
+        </div>
+
+        <div className={`grid gap-5 px-5 pb-5 ${showBankDetails ? 'md:grid-cols-[2fr_1fr]' : ''}`}>
+          <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="font-semibold" style={{ color: 'var(--maroon)' }}>Payment Details</div>
+              <div style={{ fontSize: 12, color: 'var(--text-mid)' }}>{toText(row.paymentStatus, 'Pending')}</div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {ticketHeads.map((ticket, index) => (
+                <div key={`ticket-${index}`} className="rounded-lg border px-3 py-3" style={{ borderColor: 'var(--sand)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{toText(ticket.name, `Head ${index + 1}`)}</div>
+                  <div className="mt-1 font-semibold">{formatMoney(ticket.amount)}</div>
+                </div>
+              ))}
+              <div className="rounded-lg border px-3 py-3" style={{ borderColor: 'var(--sand)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Total Amount</div>
+                <div className="mt-1 font-semibold">{formatMoney(row.totalAmount)}</div>
+              </div>
+            </div>
+          </div>
+
+          {toText(row.transactionId) ? (
+            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+              <div className="mb-4 font-semibold" style={{ color: 'var(--maroon)' }}>Transaction Details</div>
+              <DetailGrid
+                entries={[
+                  { label: 'Transaction ID', value: toText(row.transactionId, 'N/A') },
+                  { label: 'Transaction Date', value: formatDateTime(row.transactionDate) },
+                  { label: 'Emitra Transaction ID', value: toText(row.emitraTransactionId, 'N/A') },
+                ]}
+              />
+            </div>
+          ) : null}
+        </div>
+
+        {showBankDetails ? (
+          <div className="grid gap-5 px-5 pb-5 md:grid-cols-[2fr_1fr]">
+            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+              <div className="mb-4 font-semibold" style={{ color: 'var(--maroon)' }}>Bank Details</div>
+              <DetailGrid
+                entries={[
+                  { label: 'Bank Name', value: toText(row.bankName, 'N/A') },
+                  { label: 'Account Type', value: toText(row.accountType, 'N/A') },
+                  { label: 'Account Holder Name', value: toText(row.accountHolderName, 'N/A') },
+                  { label: 'Account Number', value: toText(row.accountNumber, 'N/A') },
+                  { label: 'IFSC', value: toText(row.bankIfsc, 'N/A') },
+                  { label: 'Refundable Amount', value: formatMoney(row.refundAmount) },
+                ]}
+              />
+            </div>
+            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+              <div className="mb-4 font-semibold" style={{ color: 'var(--maroon)' }}>Refund Details</div>
+              <DetailGrid
+                entries={[
+                  { label: 'Refund Status', value: toText(row.status, 'N/A') },
+                  { label: 'Reference ID', value: toText(row.refId, 'N/A') },
+                  { label: 'Payment Mode', value: toText(row.paymentMode, 'N/A') },
+                  { label: 'Refund Date', value: formatDateTime(row.refundDate) },
+                ]}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {attachments.length ? (
+          <div className="px-5 pb-5">
+            <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
+              <div className="mb-4 flex items-center gap-2 font-semibold" style={{ color: 'var(--maroon)' }}>
+                <Paperclip size={16} />
+                Attachments
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {attachments.map(item => (
+                  <a
+                    key={`${item.label}-${item.url}`}
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl border p-3"
+                    style={{ borderColor: 'var(--sand)', minWidth: 160, color: 'var(--text-dark)' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {renderAttachmentPreview(item.url)}
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>{item.label}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{isImageUrl(item.url) ? 'Image' : 'Document'}</div>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
 }
 
 function nextAssignmentTarget(row: RecordRow) {
@@ -37,7 +397,7 @@ function nextAssignmentTarget(row: RecordRow) {
 }
 
 function canApprove(user: AuthUser | null) {
-  return toText(user?.userType).toUpperCase() === 'JKK_APPROVER'
+  return getPrimaryUserRole(user) === 'JKK_APPROVER'
 }
 
 export function JkkBookingDetailModal({
@@ -51,57 +411,10 @@ export function JkkBookingDetailModal({
 }) {
   if (!row) return null
 
-  const ticketHeads = Array.isArray(row.ticketHeads) ? row.ticketHeads as RecordRow[] : []
-  const sections = [
-    { label: 'Booking ID', value: toText(row.bookingId, 'N/A') },
-    { label: 'Registration Date', value: formatDateTime(getAny(row, ['createdDate', 'bookingDate'])) },
-    { label: 'Applicant', value: toText(row.applicantName, 'N/A') },
-    { label: 'Mobile', value: toText(row.mobileNo, 'N/A') },
-    { label: 'Email', value: toText(row.email, 'N/A') },
-    { label: 'Address', value: toText(row.address, 'N/A') },
-    { label: 'GST Number', value: toText(row.gstNo, 'N/A') },
-    { label: 'Category', value: toText(row.category, 'N/A') },
-    { label: 'Applied For', value: `${toText(row.subCategoryName, 'N/A')} / ${toText(row.typeName, 'N/A')}` },
-    { label: 'Shift', value: toText(row.shiftName, 'N/A') },
-    { label: 'Booking Start', value: formatDate(row.bookingStartDate) },
-    { label: 'Booking End', value: formatDate(row.bookingEndDate) },
-    { label: 'Preparation Days', value: toText(row.preDays, '0') },
-    { label: 'Projector Required', value: row.projector ? 'Yes' : 'No' },
-    { label: 'Audience Entry', value: row.audienceEntryByInvitation ? 'By Invitation' : row.audienceEntryByTicket ? 'By Ticket' : 'N/A' },
-    { label: 'Approval Status', value: toText(getAny(row, ['approved', 'adminStatus']), 'N/A') },
-    { label: 'Payment Status', value: toText(row.paymentStatus, 'N/A') },
-    { label: 'Transaction ID', value: toText(row.transactionId, 'N/A') },
-    { label: 'Emitra Transaction ID', value: toText(row.emitraTransactionId, 'N/A') },
-    { label: 'Total Amount', value: formatMoney(row.totalAmount) },
-  ]
-
   return (
     <ModalShell open={open} title="JKK Booking Details" subtitle={toText(row.bookingId, 'Booking')} onClose={onClose}>
-      <div className="space-y-5 px-6 py-5" style={{ background: 'var(--cream)' }}>
-        <DetailGrid entries={sections} />
-
-        {toText(row.societyRegisteredDocUrl) ? (
-          <div className="rounded-xl border px-4 py-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)' }}>Documents</div>
-            <a href={toText(row.societyRegisteredDocUrl)} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-white" style={{ background: 'var(--maroon)', fontSize: 12 }}>
-              <ExternalLink size={14} />
-              View Society Registration Document
-            </a>
-          </div>
-        ) : null}
-
-        <div className="rounded-xl border" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
-          <div className="border-b px-4 py-3 font-semibold" style={{ borderColor: 'var(--sand)', color: 'var(--maroon)' }}>Ticket Heads</div>
-          <div className="space-y-3 px-4 py-4">
-            {ticketHeads.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No ticket head details available.</div> : null}
-            {ticketHeads.map((head, index) => (
-              <div key={`${toText(head.name)}-${index}`} className="flex items-center justify-between rounded-lg border px-3 py-3" style={{ borderColor: 'var(--sand)' }}>
-                <div>{toText(getAny(head, ['name', 'headName', 'label']), `Head ${index + 1}`)}</div>
-                <div className="font-semibold" style={{ color: 'var(--maroon)' }}>{formatMoney(getAny(head, ['amount', 'value']))}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="px-6 py-5" style={{ background: 'var(--cream)' }}>
+        <ProgramDetailsCard row={row} />
       </div>
     </ModalShell>
   )
@@ -185,11 +498,15 @@ export function JkkActionModal({
   const [error, setError] = useState('')
 
   const target = row ? nextAssignmentTarget(row) : null
-  const approvalMode = row ? canApprove(user) : false
+  const workflowAllowed = canUseJkkWorkflowAction(user, row)
+  const approvalMode = workflowAllowed && row ? canApprove(user) : false
   const approvalAllowed = approvalMode && toText(row?.paymentStatus).toUpperCase() === 'SUCCESS'
 
   const targetUsers = useMemo(
-    () => (target ? users.filter(item => toText(item.userType).toUpperCase() === target.role) : []),
+    () => (target ? users.filter(item => {
+      const userRole = toText(item.userType ?? item.role).toUpperCase()
+      return userRole === target.role || userRole.includes(target.role.replace('JKK_', ''))
+    }) : []),
     [target, users],
   )
 
@@ -201,6 +518,10 @@ export function JkkActionModal({
     setError('')
 
     try {
+      if (!workflowAllowed) {
+        throw new Error('No workflow action is available for your role on this booking.')
+      }
+
       if (approvalAllowed) {
         const response = await fetch('/api/jkk/actions/approve-booking', {
           method: 'POST',
@@ -285,7 +606,7 @@ export function JkkActionModal({
               ))}
             </div>
           </div>
-        ) : target ? (
+        ) : workflowAllowed && target ? (
           <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
             <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{target.label}</label>
             <select
@@ -297,14 +618,18 @@ export function JkkActionModal({
               <option value="">Select User</option>
               {targetUsers.map(item => (
                 <option key={userId(item)} value={userId(item)}>
-                  {userLabel(item)} ({roleLabel(toText(item.userType))})
+                  {userLabel(item)} ({roleLabel(toText(item.userType ?? item.role))})
                 </option>
               ))}
             </select>
           </div>
         ) : (
           <div className="rounded-xl border p-4" style={{ borderColor: 'var(--sand)', background: '#fff', color: 'var(--text-muted)', fontSize: 12 }}>
-            No workflow action is available for this booking in the current stage.
+            {!workflowAllowed
+              ? 'Your role does not have any pending workflow action on this booking.'
+              : approvalMode
+                ? 'Payment is still pending, so the approver action is not available yet.'
+                : 'No workflow action is available for this booking in the current stage.'}
           </div>
         )}
 
@@ -328,7 +653,7 @@ export function JkkActionModal({
           </button>
           <button
             onClick={submit}
-            disabled={loading || (!approvalAllowed && !!target && !assigneeId)}
+            disabled={loading || !workflowAllowed || (!approvalAllowed && !!target && !assigneeId)}
             className="rounded-xl px-4 py-2 text-white disabled:opacity-50"
             style={{ fontSize: 12, background: 'var(--maroon)' }}
           >

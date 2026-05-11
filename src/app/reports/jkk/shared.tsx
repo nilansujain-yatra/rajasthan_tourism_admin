@@ -22,9 +22,13 @@ export type JkkUser = {
   ssoId?: string
   ssoid?: string
   name?: string
+  firstName?: string
+  lastName?: string
+  displayName?: string
   userName?: string
   fullName?: string
   userType?: string
+  role?: string
   [key: string]: unknown
 }
 
@@ -44,6 +48,9 @@ export type JkkCategory = {
   name?: string
   jkkSubCategoryList?: JkkSubCategory[]
 }
+
+const JKK_WORKFLOW_ROLES = ['JKK_ASSIGNER', 'JKK_REVIEWER', 'JKK_MODERATOR', 'JKK_APPROVER'] as const
+const JKK_READONLY_BANK_ROLES = ['JKK_REVIEWER', 'JKK_MODERATOR', 'JKK_APPROVER'] as const
 
 export function todayInput() {
   const today = new Date()
@@ -173,6 +180,68 @@ export function defaultJkkFilters(): JkkFilterState {
     status: '',
     refundStatus: '',
   }
+}
+
+function normalizeRole(value: unknown) {
+  return toText(value).trim().toUpperCase().replace(/[\s-]+/g, '_')
+}
+
+export function getUserRoleValues(user: AuthUser | null | undefined) {
+  if (!user) return []
+
+  return [
+    user.userType,
+    user.userRole,
+    typeof user.role === 'string' ? user.role : undefined,
+    typeof user.designation === 'string' ? user.designation : undefined,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map(normalizeRole)
+}
+
+export function getPrimaryUserRole(user: AuthUser | null | undefined) {
+  return getUserRoleValues(user)[0] ?? ''
+}
+
+export function isJkkWorkflowUser(user: AuthUser | null | undefined) {
+  const roles = getUserRoleValues(user)
+  return JKK_WORKFLOW_ROLES.some(role => roles.includes(role))
+}
+
+export function isJkkAdminViewer(user: AuthUser | null | undefined) {
+  return user?.systemAdmin === true || getUserRoleValues(user).some(role => role === 'SUPER_ADMIN' || role === 'SITE_ADMIN')
+}
+
+export function canUseJkkWorkflowAction(user: AuthUser | null | undefined, row: RecordRow | null | undefined) {
+  if (!row) return false
+
+  const role = getPrimaryUserRole(user)
+
+  if (role === 'JKK_ASSIGNER') return !row.assignedDate
+  if (role === 'JKK_REVIEWER') return !row.reviewerDate
+  if (role === 'JKK_MODERATOR') return !row.moderatorDate
+  if (role === 'JKK_APPROVER') return true
+
+  return false
+}
+
+export function canManageJkkRefundDetails(user: AuthUser | null | undefined) {
+  return isJkkAdminViewer(user) || getPrimaryUserRole(user) === 'JKK_ASSIGNER'
+}
+
+export function shouldMaskJkkBankFields(user: AuthUser | null | undefined) {
+  const roles = getUserRoleValues(user)
+  return JKK_READONLY_BANK_ROLES.some(role => roles.includes(role))
+}
+
+export function maskSensitiveValue(value: unknown, visibleDigits = 4) {
+  const text = toText(value, 'N/A')
+
+  if (text === 'N/A' || text.length <= visibleDigits) {
+    return text
+  }
+
+  return `${'*'.repeat(Math.max(0, text.length - visibleDigits))}${text.slice(-visibleDigits)}`
 }
 
 export function useSessionUser() {

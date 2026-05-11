@@ -108,6 +108,29 @@ const OPERATOR_NAV_SECTIONS: NavSection[] = [
   },
 ]
 
+const JKK_NAV_SECTIONS: NavSection[] = [
+  {
+    label: 'JKK',
+    items: [
+      {
+        href: '/reports/jkk',
+        icon: '🏛️',
+        label: 'JKK Report',
+      },
+    ],
+  },
+]
+
 export function getSidebarSectionsForUser(user: AuthUser | null | undefined) {
-  return getAccessRole(user) === 'operator' ? OPERATOR_NAV_SECTIONS : SUPER_ADMIN_NAV_SECTIONS
+  const accessRole = getAccessRole(user)
+
+  if (accessRole === 'operator') {
+    return OPERATOR_NAV_SECTIONS
+  }
+
+  if (accessRole === 'jkk') {
+    return JKK_NAV_SECTIONS
+  }
+
+  return SUPER_ADMIN_NAV_SECTIONS
 }

@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Eye, Landmark, RefreshCw } from 'lucide-react'
 import { JkkBookingDetailModal } from './JkkBookingShared'
 import {
+  canManageJkkRefundDetails,
   DetailGrid,
   JkkFilterModal,
+  maskSensitiveValue,
   ModalShell,
   PaginationControls,
   ReportShell,
@@ -16,8 +18,10 @@ import {
   formatDateTime,
   formatMoney,
   refundStatusOptions,
+  shouldMaskJkkBankFields,
   startMs,
   toText,
+  useSessionUser,
   type RecordRow,
 } from './shared'
 
@@ -190,6 +194,7 @@ export default function JkkBankDetailsReportView() {
   const [refundInfoOpen, setRefundInfoOpen] = useState(false)
   const [refundUpdateOpen, setRefundUpdateOpen] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const user = useSessionUser()
 
   useEffect(() => {
     let active = true
@@ -252,6 +257,8 @@ export default function JkkBankDetailsReportView() {
   }, [rows, search])
 
   const filterCount = [appliedFilters.refundStatus].filter(Boolean).length
+  const maskBankData = shouldMaskJkkBankFields(user)
+  const canUpdateRefund = canManageJkkRefundDetails(user)
 
   return (
     <>
@@ -274,9 +281,9 @@ export default function JkkBankDetailsReportView() {
               toText(booking.mobileNo, 'N/A'),
               toText(booking.email, 'N/A'),
               toText(row.bankName, 'N/A'),
-              toText(row.accountNumber, 'N/A'),
-              toText(row.bankIfsc, 'N/A'),
-              toText(row.accountHolderName, 'N/A'),
+              maskBankData ? maskSensitiveValue(row.accountNumber) : toText(row.accountNumber, 'N/A'),
+              maskBankData ? maskSensitiveValue(row.bankIfsc) : toText(row.bankIfsc, 'N/A'),
+              maskBankData ? maskSensitiveValue(row.accountHolderName) : toText(row.accountHolderName, 'N/A'),
               toText(row.accountType, 'N/A'),
               toText(row.status, 'N/A'),
             ]
@@ -319,9 +326,9 @@ export default function JkkBankDetailsReportView() {
                     <td style={{ padding: '9px 12px', fontSize: 11 }}>{toText(booking.mobileNo, 'N/A')}</td>
                     <td style={{ padding: '9px 12px', fontSize: 11 }}>{toText(booking.email, 'N/A')}</td>
                     <td style={{ padding: '9px 12px', fontSize: 11 }}>{toText(row.bankName, 'N/A')}</td>
-                    <td style={{ padding: '9px 12px', fontSize: 11 }}>{toText(row.accountNumber, 'N/A')}</td>
-                    <td style={{ padding: '9px 12px', fontSize: 11 }}>{toText(row.bankIfsc, 'N/A')}</td>
-                    <td style={{ padding: '9px 12px', fontSize: 11 }}>{toText(row.accountHolderName, 'N/A')}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 11 }}>{maskBankData ? maskSensitiveValue(row.accountNumber) : toText(row.accountNumber, 'N/A')}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 11 }}>{maskBankData ? maskSensitiveValue(row.bankIfsc) : toText(row.bankIfsc, 'N/A')}</td>
+                    <td style={{ padding: '9px 12px', fontSize: 11 }}>{maskBankData ? maskSensitiveValue(row.accountHolderName) : toText(row.accountHolderName, 'N/A')}</td>
                     <td style={{ padding: '9px 12px', fontSize: 11 }}>{toText(row.accountType, 'N/A')}</td>
                     <td style={{ padding: '9px 12px', fontSize: 11 }}>
                       <button onClick={() => { setSelectedRow(row); setDetailOpen(true) }} className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5" style={{ borderColor: 'var(--sand)', fontSize: 12 }}>
@@ -341,13 +348,15 @@ export default function JkkBankDetailsReportView() {
                       </span>
                     </td>
                     <td style={{ padding: '9px 12px', fontSize: 11 }}>
-                      {toText(row.status).toUpperCase() !== 'REFUND_SUCCESS' ? (
+                      {canUpdateRefund && toText(row.status).toUpperCase() !== 'REFUND_SUCCESS' ? (
                         <button onClick={() => { setSelectedRow(row); setRefundUpdateOpen(true) }} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-white" style={{ background: 'var(--maroon)', fontSize: 12 }}>
                           <RefreshCw size={13} />
                           Update
                         </button>
-                      ) : (
+                      ) : canUpdateRefund ? (
                         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Completed</span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Read only</span>
                       )}
                     </td>
                   </tr>

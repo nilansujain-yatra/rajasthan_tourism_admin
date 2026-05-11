@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Eye, GitBranchPlus, ScrollText } from 'lucide-react'
 import { JkkActionModal, JkkBookingDetailModal, JkkTrailModal } from './JkkBookingShared'
 import {
+  canUseJkkWorkflowAction,
   JkkFilterModal,
   PaginationControls,
   ReportShell,
@@ -121,7 +122,7 @@ export default function JkkBookingStatusView() {
         onExport={() => csv(
           `jkk-booking-status-${Date.now()}.csv`,
           ['Booking ID', 'Applicant', 'Mobile', 'Event Type', 'Payment Status', 'Approval Status', 'Total Amount'],
-          filteredRows.rows.map(row => [
+          rows.map(row => [
             toText(row.bookingId, 'N/A'),
             toText(row.applicantName, 'N/A'),
             toText(row.mobileNo, 'N/A'),
@@ -144,7 +145,7 @@ export default function JkkBookingStatusView() {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
             <thead>
               <tr style={{ background: 'var(--cream-dark)', borderBottom: '2px solid var(--sand)' }}>
-                {['Sr.', 'Booking ID', 'Applicant', 'Mobile', 'Event Type', 'Payment Status', 'Approval Status', 'Amount', 'Form', 'Trail'].map(header => (
+                {['Sr.', 'Booking ID', 'Applicant', 'Mobile', 'Event Type', 'Payment Status', 'Approval Status', 'Amount', 'Form', 'Trail', 'Action'].map(header => (
                   <th key={header} style={{ padding: '11px 14px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.6px', textAlign: 'left', color: header === 'Sr.' ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)', background: header === 'Sr.' ? 'var(--maroon)' : undefined }}>
                     {header}
                   </th>
@@ -171,9 +172,16 @@ export default function JkkBookingStatusView() {
                   <td style={{ padding: '9px 12px', fontSize: 11 }}>
                     <button onClick={() => { setSelectedRow(row); setTrailOpen(true) }} className="rounded-lg border px-3 py-1.5" style={{ borderColor: 'var(--sand)', fontSize: 12 }}>Trail</button>
                   </td>
-                  {/* <td style={{ padding: '9px 12px', fontSize: 11 }}>
-                    <button onClick={() => { setSelectedRow(row); setActionOpen(true) }} className="rounded-lg px-3 py-1.5 text-white" style={{ background: 'var(--maroon)', fontSize: 12 }}>Action</button>
-                  </td> */}
+                  <td style={{ padding: '9px 12px', fontSize: 11 }}>
+                    {canUseJkkWorkflowAction(user, row) ? (
+                      <button onClick={() => { setSelectedRow(row); setActionOpen(true) }} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-white" style={{ background: 'var(--maroon)', fontSize: 12 }}>
+                        <GitBranchPlus size={13} />
+                        Action
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>N/A</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
