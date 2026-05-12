@@ -393,7 +393,14 @@ export default function JkkBankDetailsReportView() {
         onClose={() => setFilterOpen(false)}
       />
 
-      <JkkBookingDetailModal row={selectedRow?.jkkReportList?.[0] ?? null} open={detailOpen} onClose={() => setDetailOpen(false)} />
+      <JkkBookingDetailModal
+        row={selectedRow?.jkkReportList?.[0] ?? null}
+        bankDetails={selectedRow}
+        showBankDetails
+        maskBankFields={maskBankData}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+      />
       <RefundInfoModal row={selectedRow} open={refundInfoOpen} onClose={() => setRefundInfoOpen(false)} />
       <RefundUpdateModal
         row={selectedRow}
