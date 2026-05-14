@@ -2,6 +2,8 @@
 
 import { useMemo, useState, type ReactNode } from 'react'
 import { CheckCircle2, Download, FileText, Paperclip, Printer, XCircle } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import type { AuthUser } from '@/lib/auth/jwt'
 import { DetailGrid, ModalShell, canUseJkkWorkflowAction, formatDate, formatDateTime, formatMoney, getAny, getPrimaryUserRole, maskSensitiveValue, toText, type JkkUser, type RecordRow } from './shared'
 
@@ -160,189 +162,165 @@ function downloadAttachment(url: string) {
   link.click()
 }
 
-function downloadAllAttachments(attachments: AttachmentItem[]) {
-  attachments.forEach(item => downloadAttachment(item.url))
-}
-
-function openPrintWindow(row: RecordRow, bankDetails?: RecordRow | null, maskBankFields = false) {
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=900')
-  if (!win) return
-
+function downloadJkkFormPdf(row: RecordRow, bankDetails?: RecordRow | null, maskBankFields = false) {
+  const doc = new jsPDF()
+  const bookingId = toText(row.bookingId, 'Booking')
   const ticketHeads = Array.isArray(row.ticketHeads) ? row.ticketHeads as RecordRow[] : []
-  const qrImageUrl = buildQrImageUrl(toText(row.bookingId))
-  const status = bookingStatusValue(row)
-  const statusTone = statusBadgeTone(status)
-  const paymentTone = statusBadgeTone(row.paymentStatus)
+  const status = formatStatusLabel(bookingStatusValue(row))
+  const regDate = formatDateTime(getAny(row, ['createdDate', 'bookingDate']))
 
-  function card(label: string, value: string) {
-    return `<div class="card"><div class="label">${label}</div><div class="value">${value}</div></div>`
+  // Title
+  doc.setFontSize(18)
+  doc.setTextColor(190, 24, 93) // var(--maroon)
+  doc.text('JKK Booking Form', 14, 20)
+  doc.setFontSize(10)
+  doc.setTextColor(100)
+  doc.text('Jawahar Kala Kendra application details', 14, 26)
+
+  // Header Info
+  autoTable(doc, {
+    startY: 32,
+    theme: 'plain',
+    styles: { fontSize: 9, cellPadding: 2 },
+    body: [
+      ['Registration Date:', regDate, 'Booking ID:', bookingId, 'Status:', status],
+    ],
+    columnStyles: {
+      0: { fontStyle: 'bold', textColor: [100, 100, 100] },
+      2: { fontStyle: 'bold', textColor: [100, 100, 100] },
+      4: { fontStyle: 'bold', textColor: [100, 100, 100] },
+    },
+  })
+
+  // Organiser Details
+  doc.setFontSize(12)
+  doc.setTextColor(30, 58, 138) // blue-900
+  doc.text('Organiser Details', 14, (doc as any).lastAutoTable.finalY + 12)
+  
+  autoTable(doc, {
+    startY: (doc as any).lastAutoTable.finalY + 16,
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [239, 246, 255], textColor: [30, 58, 138], fontStyle: 'bold' },
+    body: [
+      ['Full Name', toText(row.applicantName, 'N/A')],
+      ['Mobile Number', toText(row.mobileNo, 'N/A')],
+      ['Email Address', toText(row.email, 'N/A')],
+      ['Address', toText(row.address, 'N/A')],
+      ['GST Number', toText(row.gstNo, 'N/A')],
+    ],
+  })
+
+  // Event Details
+  doc.setFontSize(12)
+  doc.setTextColor(131, 24, 67) // pink-900
+  doc.text('Event Details', 14, (doc as any).lastAutoTable.finalY + 12)
+
+  autoTable(doc, {
+    startY: (doc as any).lastAutoTable.finalY + 16,
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [255, 241, 242], textColor: [131, 24, 67], fontStyle: 'bold' },
+    body: [
+      ['Applied For', `${toText(row.typeName, 'N/A')} - ${toText(row.subCategoryName, 'N/A')}`],
+      ['Category', toText(row.category, 'N/A')],
+      ['Projector Required', row.projector ? 'Yes' : 'No'],
+      ['Audience Entry', audienceLabel(row)],
+      ['Reservation For', reservationLabel(row)],
+      ['Duration', durationLabel(row)],
+      ['Preparation Days', preparationLabel(row)],
+    ],
+  })
+
+  // Payment Details
+  doc.setFontSize(12)
+  doc.setTextColor(131, 24, 67) // pink-900
+  doc.text('Payment Details', 14, (doc as any).lastAutoTable.finalY + 12)
+
+  const paymentRows = ticketHeads.map((item, index) => [ticketHeadLabel(item, index), formatMoney(getAny(item, ['amount', 'value']))])
+  paymentRows.push([{ content: 'Total Amount', styles: { fontStyle: 'bold' } }, { content: formatMoney(row.totalAmount), styles: { fontStyle: 'bold' } }])
+
+  autoTable(doc, {
+    startY: (doc as any).lastAutoTable.finalY + 16,
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [255, 241, 242], textColor: [131, 24, 67], fontStyle: 'bold' },
+    body: paymentRows,
+  })
+
+  // Transaction Details
+  if (toText(row.transactionId)) {
+    doc.setFontSize(12)
+    doc.setTextColor(131, 24, 67)
+    doc.text('Transaction Details', 14, (doc as any).lastAutoTable.finalY + 12)
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 16,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3 },
+      body: [
+        ['Transaction ID', toText(row.transactionId, 'N/A')],
+        ['Transaction Date', formatDateTime(row.transactionDate)],
+        ['Emitra Transaction ID', toText(row.emitraTransactionId, 'N/A')],
+      ],
+    })
   }
 
-  win.document.write(`<!doctype html>
-  <html>
-    <head>
-      <title>JKK Booking ${toText(row.bookingId, 'Form')}</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #fff7fb; color: #1f2937; }
-        .wrap { max-width: 1040px; margin: 0 auto; border: 1px solid #f0d4df; border-radius: 20px; overflow: hidden; background: #fff; }
-        .hero { background: linear-gradient(135deg, #db2777, #f43f5e); color: #fff; padding: 22px 24px; }
-        .hero-row { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
-        .hero-title { font-size: 28px; font-weight: 700; }
-        .hero-sub { font-size: 13px; opacity: .88; margin-top: 6px; }
-        .logo { border: 1px solid rgba(255,255,255,.35); border-radius: 12px; padding: 10px 14px; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
-        .strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; background: #fff1f6; border-left: 4px solid #be185d; padding: 14px 20px; }
-        .strip small { font-size: 12px; display: block; color: #6b7280; }
-        .strip strong { font-size: 14px; }
-        .badge { display: inline-block; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-        .section-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); }
-        .section { padding: 24px; }
-        .panel-blue { background: #eff6ff; border-left: 4px solid #1d4ed8; }
-        .panel-pink { background: #fff1f2; border-left: 4px solid #be185d; }
-        .section-title { font-size: 20px; font-weight: 700; color: #1e3a8a; border-bottom: 2px solid rgba(30,58,138,.12); padding-bottom: 10px; margin-bottom: 18px; }
-        .section-title.pink { color: #831843; border-bottom-color: rgba(131,24,67,.12); }
-        .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 22px; }
-        .detail-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; }
-        .value { margin-top: 6px; font-size: 14px; line-height: 1.45; word-break: break-word; }
-        .qr-box { border: 1px solid #dbeafe; background: #fff; border-radius: 16px; padding: 16px; text-align: center; }
-        .qr-box img { display: block; margin: 0 auto; width: 140px; height: 140px; }
-        .attachments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-        .attachment-card { border: 1px solid #dbeafe; border-radius: 16px; background: #fff; padding: 16px; }
-        .thumbs a { display: inline-block; margin-right: 10px; margin-top: 10px; }
-        .thumbs img, .thumbs span { width: 48px; height: 48px; border-radius: 10px; border: 1px solid #d1d5db; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: #831843; background: #fff; text-decoration: none; }
-        .payments { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-        .card { border: 1px solid #f3d1de; border-radius: 14px; background: #fff; padding: 12px 14px; }
-        .note { margin-top: 14px; font-size: 12px; color: #475569; }
-        .footer { background: linear-gradient(135deg, #db2777, #f43f5e); color: #fff; text-align: center; padding: 18px 24px; }
-        @media print { body { padding: 0; background: #fff; } .wrap { border: 0; border-radius: 0; } }
-      </style>
-    </head>
-    <body>
-      <div class="wrap">
-        <div class="hero">
-          <div class="hero-row">
-            <div>
-              <div class="hero-title">JKK Booking Form</div>
-              <div class="hero-sub">Jawahar Kala Kendra application details</div>
-            </div>
-            <div class="logo">Rajasthan Tourism</div>
-          </div>
-        </div>
-        <div class="strip">
-          <div><small>Reg Date</small><strong>${formatDateTime(getAny(row, ['createdDate', 'bookingDate']))}</strong></div>
-          <div><small>Booking ID</small><strong>${toText(row.bookingId, 'N/A')}</strong></div>
-          <div><small>Booking Status</small><span class="badge" style="background:${statusTone.background};color:${statusTone.color};">${formatStatusLabel(status)}</span></div>
-        </div>
-        <div class="section-grid">
-          <div class="section panel-blue">
-            <div class="section-title">Organiser Details</div>
-            <div class="detail-grid">
-              ${card('Full Name', toText(row.applicantName, 'N/A'))}
-              ${card('Mobile Number', toText(row.mobileNo, 'N/A'))}
-              ${card('Email Address', toText(row.email, 'N/A'))}
-              ${card('Address', toText(row.address, 'N/A'))}
-              ${toText(row.gstNo) ? card('GST Number', toText(row.gstNo, 'N/A')) : ''}
-              ${card('Society Registered', toText(row.societyRegisteredDocUrl) ? `<a href="${toText(row.societyRegisteredDocUrl)}" target="_blank" rel="noreferrer">View</a>` : 'N/A')}
-            </div>
-          </div>
-          <div class="section panel-blue" style="border-left-color:#cbd5e1;">
-            <div class="section-title">Booking</div>
-            <div class="qr-box">
-              ${qrImageUrl ? `<img src="${qrImageUrl}" alt="QR code" />` : ''}
-              <div class="value" style="margin-top:12px;">${toText(row.bookingId, 'N/A')}</div>
-            </div>
-          </div>
-        </div>
-        <div class="section panel-pink">
-          <div class="section-title pink">Event Details</div>
-          <div class="detail-grid three">
-            ${card('Applied For', `${toText(row.typeName, 'N/A')} - ${toText(row.subCategoryName, 'N/A')}`)}
-            ${card('Category', toText(row.category, 'N/A'))}
-            ${card('Projector Required', row.projector ? 'Yes' : 'No')}
-            ${card('Audience Entry', audienceLabel(row))}
-            ${card('Reservation For', reservationLabel(row))}
-            ${card('Duration', durationLabel(row))}
-            ${card('Preparation Days', preparationLabel(row))}
-          </div>
-        </div>
-        <div class="section panel-blue">
-          <div class="section-title">More Details & Attachments</div>
-          <div class="attachments">
-            ${[
-              { title: 'Program Details', section: Array.isArray(row.detailsOfProgram) ? row.detailsOfProgram[0] as RecordRow : null },
-              { title: 'Guest Details', section: Array.isArray(row.guestDetails) ? row.guestDetails[0] as RecordRow : null },
-              { title: 'Organization Details', section: Array.isArray(row.organizationDetails) ? row.organizationDetails[0] as RecordRow : null },
-              { title: 'Previous Details', section: Array.isArray(row.previousDetails) ? row.previousDetails[0] as RecordRow : null },
-            ].map(({ title, section }) => {
-              const text = toText(section?.description)
-              const imageList = Array.isArray(section?.imageList) ? section?.imageList as RecordRow[] : []
-              if (!text && imageList.length === 0) return ''
-              return `<div class="attachment-card"><div class="label">${title}</div><div class="value">${text || 'N/A'}</div><div class="thumbs">${imageList.map((item, index) => {
-                const url = toText(getAny(item, ['imageUrl', 'url', 'fileUrl']))
-                if (!url) return ''
-                return isImageUrl(url)
-                  ? `<a href="${url}" target="_blank" rel="noreferrer"><img src="${url}" alt="${title} ${index + 1}" /></a>`
-                  : `<a href="${url}" target="_blank" rel="noreferrer"><span>DOC</span></a>`
-              }).join('')}</div></div>`
-            }).join('')}
-          </div>
-        </div>
-        <div class="section-grid">
-          <div class="section panel-pink">
-            <div class="section-title pink">Payment Details</div>
-            <div style="margin-bottom:16px;"><span class="badge" style="background:${paymentTone.background};color:${paymentTone.color};">${formatStatusLabel(toText(row.paymentStatus, 'Pending'))}</span></div>
-            <div class="payments">
-              ${ticketHeads.map((item, index) => card(ticketHeadLabel(item, index), formatMoney(getAny(item, ['amount', 'value'])))).join('')}
-              ${card('Total Amount', formatMoney(row.totalAmount))}
-            </div>
-            <div class="note">GST is not applicable on the Security Charges.</div>
-          </div>
-          ${toText(row.transactionId) ? `
-            <div class="section panel-pink" style="border-left-color:#e5e7eb;">
-              <div class="section-title pink">Transaction Details</div>
-              <div class="detail-grid">
-                ${card('Transaction ID', toText(row.transactionId, 'N/A'))}
-                ${card('Transaction Date & Time', formatDateTime(row.transactionDate))}
-                ${toText(row.emitraTransactionId) ? card('Emitra Transaction ID', toText(row.emitraTransactionId, 'N/A')) : ''}
-              </div>
-            </div>
-          ` : ''}
-        </div>
-        ${bankDetails ? `
-          <div class="section-grid">
-            <div class="section panel-blue">
-              <div class="section-title">Bank Details</div>
-              <div class="detail-grid">
-                ${card('Bank Name', toText(bankDetails.bankName, 'N/A'))}
-                ${card('Account Type', toText(bankDetails.accountType, 'N/A'))}
-                ${card('Account Holder Name', maskBankFields ? maskSensitiveValue(bankDetails.accountHolderName) : toText(bankDetails.accountHolderName, 'N/A'))}
-                ${card('Account Number', maskBankFields ? maskSensitiveValue(bankDetails.accountNumber) : toText(bankDetails.accountNumber, 'N/A'))}
-                ${card('IFSC', maskBankFields ? maskSensitiveValue(bankDetails.bankIfsc) : toText(bankDetails.bankIfsc, 'N/A'))}
-                ${card('Remark', toText(bankDetails.remark, 'N/A'))}
-                ${card('Refundable Amount', formatMoney(bankDetails.refundAmount))}
-              </div>
-            </div>
-            <div class="section panel-blue" style="border-left-color:#cbd5e1;">
-              <div class="section-title">Refund Details</div>
-              <div class="detail-grid">
-                ${card('Refund Status', formatStatusLabel(bankDetails.status))}
-                ${card('Reference ID', toText(bankDetails.refId, 'N/A'))}
-                ${card('Payment Mode', toText(bankDetails.paymentMode, 'N/A'))}
-                ${card('Refund Date', formatDateTime(bankDetails.refundDate))}
-              </div>
-            </div>
-          </div>
-        ` : ''}
-        <div class="footer">
-          <div>For any queries, please contact</div>
-          <div style="margin-top:8px;">Phone: 01412820384 | Email: helpdesk[dot]tourist[at]rajasthan[dot]gov[dot]in</div>
-        </div>
-      </div>
-    </body>
-  </html>`)
-  win.document.close()
-  win.focus()
-  setTimeout(() => win.print(), 250)
+  // Bank Details
+  if (bankDetails) {
+    doc.addPage()
+    doc.setFontSize(12)
+    doc.setTextColor(30, 58, 138)
+    doc.text('Bank & Refund Details', 14, 20)
+
+    autoTable(doc, {
+      startY: 26,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3 },
+      body: [
+        ['Bank Name', toText(bankDetails.bankName, 'N/A')],
+        ['Account Type', toText(bankDetails.accountType, 'N/A')],
+        ['Account Holder Name', maskBankFields ? maskSensitiveValue(bankDetails.accountHolderName) : toText(bankDetails.accountHolderName, 'N/A')],
+        ['Account Number', maskBankFields ? maskSensitiveValue(bankDetails.accountNumber) : toText(bankDetails.accountNumber, 'N/A')],
+        ['IFSC', maskBankFields ? maskSensitiveValue(bankDetails.bankIfsc) : toText(bankDetails.bankIfsc, 'N/A')],
+        ['Refund Status', formatStatusLabel(bankDetails.status)],
+        ['Refundable Amount', formatMoney(bankDetails.refundAmount)],
+      ],
+    })
+  }
+
+  doc.save(`jkk_form_${bookingId}.pdf`)
+}
+
+async function downloadJkkAttachmentsPdf(attachments: AttachmentItem[], bookingId: string) {
+  const doc = new jsPDF()
+  
+  doc.setFontSize(18)
+  doc.setTextColor(190, 24, 93)
+  doc.text('JKK Booking Attachments', 14, 20)
+  doc.setFontSize(10)
+  doc.setTextColor(100)
+  doc.text(`Booking ID: ${bookingId}`, 14, 26)
+
+  let y = 40
+  for (const item of attachments) {
+    if (y > 250) {
+      doc.addPage()
+      y = 20
+    }
+
+    doc.setFontSize(12)
+    doc.setTextColor(0)
+    doc.text(item.label, 14, y)
+    
+    doc.setFontSize(10)
+    doc.setTextColor(30, 58, 138)
+    doc.textWithLink('View Document', 14, y + 6, { url: item.url })
+    
+    y += 20
+  }
+
+  doc.save(`jkk_attachments_${bookingId}.pdf`)
 }
 
 function ProgramDetailsCard({
@@ -589,12 +567,12 @@ function ProgramDetailsCard({
         ) : null}
 
         <div className="px-5 py-6 text-center" style={{ background: '#f8fafc' }}>
-          <button onClick={() => openPrintWindow(row, bankDetails, maskBankFields)} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-white" style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)', fontSize: 13 }}>
+          <button onClick={() => downloadJkkFormPdf(row, bankDetails, maskBankFields)} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-white" style={{ background: 'linear-gradient(135deg, #ec4899, #be185d)', fontSize: 13 }}>
             <Printer size={16} />
             Download Form
           </button>
           <button
-            onClick={() => downloadAllAttachments(attachments)}
+            onClick={() => downloadJkkAttachmentsPdf(attachments, toText(row.bookingId))}
             className="ml-3 inline-flex items-center gap-2 rounded-full border px-6 py-3"
             style={{ borderColor: 'var(--maroon)', fontSize: 13, color: 'var(--maroon)', background: '#fff' }}
           >

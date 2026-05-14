@@ -59,13 +59,18 @@ export default function Sidebar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
-  const initials = useMemo(() => getInitials(user), [user])
-  const navSections = useMemo(() => getSidebarSectionsForUser(user), [user])
+const [user, setUser] = useState<AuthUser | null>(null)
+const [mounted, setMounted] = useState(false)
+const initials = useMemo(() => getInitials(user), [user])
+const navSections = useMemo(() => getSidebarSectionsForUser(user), [user])
 
   const toggleSection = (label: string) => {
     setCollapsed(prev => ({ ...prev, [label]: !prev[label] }))
   }
+
+  useEffect(() => {
+  setMounted(true)
+}, [])
 
   useEffect(() => {
     let isMounted = true
@@ -112,6 +117,9 @@ export default function Sidebar() {
     }
   }, [])
 
+  if (!mounted) {
+  return null
+}
   return (
     <aside
       className="sidebar-pattern flex flex-col flex-shrink-0 relative overflow-hidden"

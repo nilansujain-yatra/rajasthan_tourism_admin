@@ -81,7 +81,13 @@ export default function Topbar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const dateStr = getNowString()
-  const [user, setUser] = useState<AuthUser | null>(() => readCachedAuthUser())
+const [user, setUser] = useState<AuthUser | null>(null)
+const [mounted, setMounted] = useState(false)
+
+ useEffect(() => {
+  setMounted(true)
+}, [])
+
   const initials = useMemo(() => getInitials(user), [user])
   const title = useMemo(() => {
     if (pathname === '/bookings') {
@@ -184,6 +190,10 @@ export default function Topbar() {
     clearCachedAuthUser()
     window.location.assign('/sso/logout')
   }
+
+  if (!mounted) {
+  return null
+}
 
   return (
     <header

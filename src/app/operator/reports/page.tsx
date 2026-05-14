@@ -575,9 +575,9 @@ function BookingReportView({
           </div>
         )}
       >
-        <div className="grid gap-3 px-6 py-4 md:grid-cols-5" style={{ background: 'var(--cream)' }}>
-          <StatCard label="Assigned Place" value={placeName || 'N/A'} />
-          <StatCard label="Department" value={departmentName} />
+        <div className="grid gap-3 px-6 py-4 md:grid-cols-3" style={{ background: 'var(--cream)' }}>
+          {/* <StatCard label="Assigned Place" value={placeName || 'N/A'} />
+          <StatCard label="Department" value={departmentName} /> */}
           <StatCard label="Rows Loaded" value={rows.length.toLocaleString('en-IN')} />
           <StatCard label="Visitors" value={totalVisitors.toLocaleString('en-IN')} />
           <StatCard label={composite ? 'Total Amount' : 'Amount With Add On'} value={formatMoney(composite ? totalAmount : totalAmountWithAddOn)} solid />
@@ -1169,10 +1169,10 @@ export default function OperatorReportsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-px md:grid-cols-4" style={{ background: 'rgba(255,255,255,0.14)' }}>
+              <div className="grid gap-px md:grid-cols-3" style={{ background: 'rgba(255,255,255,0.14)' }}>
                 {[
                   { label: 'Assigned Place', value: placeName || 'Not mapped' },
-                  { label: 'Department', value: departmentName },
+                  // { label: 'Department', value: departmentName },
                   { label: 'Ticket Module', value: ticketTab === 'general' ? 'General Ticket' : 'Composite Ticket' },
                   { label: 'Report Type', value: tabs.find(tab => tab.id === reportTab)?.label ?? 'Report' },
                 ].map(card => (

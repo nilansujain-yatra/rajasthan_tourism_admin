@@ -189,87 +189,408 @@ function normalizeCompositeInvoice(payload: unknown, packageDetail: PackageDetai
 }
 
 function printCompositeInvoice(invoice: CompositeInvoice) {
-  const popup = window.open('', '_blank', 'width=900,height=900')
+  const popup = window.open('', '_blank', 'width=420,height=900')
+
   if (!popup) return
+
   const qrImageUrl = buildQrImageUrl(invoice.qrDetail)
-  const placeMarkup = invoice.placeNames.map(place => `<p style="color:#000;font-size:18px;font-weight:600;text-align:left;margin:0;">${place}</p>`).join('')
-  const ticketMarkup = invoice.ticketSummary.map(line => `
-    <tr>
-      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;width:170px;">${line.ticketName}</td>
-      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;text-align:right;">${line.quantity}</td>
-    </tr>
-  `).join('')
-  const addonMarkup = invoice.addonSummary.map(line => `
-    <tr>
-      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;width:170px;">${line.ticketName} - ${line.name}</td>
-      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;text-align:right;">${line.quantity}</td>
-    </tr>
-  `).join('')
+
+  const ticketMarkup = invoice.ticketSummary
+    .map(
+      line => `
+      <tr>
+        <td style="padding:1px 0;color:#000;font-size:11px;font-weight:600;width:110px;">
+          ${line.ticketName}
+        </td>
+
+        <td style="padding:1px 0;color:#000;font-size:11px;font-weight:600;text-align:right;">
+          ${line.quantity}
+        </td>
+      </tr>
+    `,
+    )
+    .join('')
+
+  const addonMarkup = invoice.addonSummary
+    .map(
+      line => `
+      <tr>
+        <td style="padding:1px 0;color:#000;font-size:11px;font-weight:600;width:110px;">
+          ${line.ticketName} - ${line.name}
+        </td>
+
+        <td style="padding:1px 0;color:#000;font-size:11px;font-weight:600;text-align:right;">
+          ${line.quantity}
+        </td>
+      </tr>
+    `,
+    )
+    .join('')
 
   popup.document.write(`
     <html>
       <head>
         <title>Composite Ticket ${invoice.bookingId}</title>
+
         <style>
-          body { font-family: Arial, sans-serif; padding: 24px; color: #000; background: #fff; }
-          .ticket { width: 400px; margin: 0 auto; background: #fff; padding: 0 25px 25px; }
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+
+          html,
+          body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            width: 78mm;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: #000;
+          }
+
+          body {
+            display: flex;
+            justify-content: center;
+          }
+
+          .ticket {
+            width: 76mm;
+            padding: 2mm 3mm;
+            box-sizing: border-box;
+            background: #fff;
+            page-break-inside: avoid;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          tr,
+          td,
+          p,
+          div,
+          img {
+            page-break-inside: avoid !important;
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          a {
+            color: #000;
+            text-decoration: none;
+            word-break: break-word;
+          }
         </style>
       </head>
+
       <body>
         <div class="ticket">
-          <h5 style="color:#0F172B;text-align:center;font-size:20px;font-style:normal;font-weight:900;line-height:normal;text-transform:uppercase;font-family:'Arial Black';margin-bottom:10px;">${invoice.purchasePlaceName || 'Composite Booking'}</h5>
-          <h1 style="color:#000;font-size:13px;text-transform:uppercase;font-weight:800;text-align:center;margin-bottom:10px;">Government of Rajasthan</h1>
-          <h5 style="color:#0F172B;text-align:center;font-size:20px;font-style:normal;font-weight:900;line-height:normal;text-transform:uppercase;font-family:'Arial Black';margin:0;">${invoice.packageName}<br/>${invoice.districtName || ''}</h5>
-          ${invoice.purchasePlaceName === 'Amber Fort' ? '<h1 style="color:#000;font-size:13px;text-transform:uppercase;font-weight:800;text-align:center;margin-top:10px;margin-bottom:10px;">( A UNESCO WORLD HERITAGE SITE )</h1>' : ''}
-          ${qrImageUrl ? `<div><img src="${qrImageUrl}" alt="QR code" style="height:100px;width:100px;display:block;margin:0 auto;" /></div>` : ''}
-          <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;">
+
+          <h5
+            style="
+              color:#0F172B;
+              text-align:center;
+              font-size:14px;
+              font-weight:900;
+              text-transform:uppercase;
+              font-family:'Arial Black';
+              margin:0 0 6px;
+              line-height:1.3;
+            "
+          >
+            ${invoice.purchasePlaceName || 'Composite Booking'}
+          </h5>
+
+          <h1
+            style="
+              color:#000;
+              font-size:10px;
+              text-transform:uppercase;
+              font-weight:800;
+              text-align:center;
+              margin:0 0 6px;
+            "
+          >
+            Government of Rajasthan
+          </h1>
+
+          <h5
+            style="
+              color:#0F172B;
+              text-align:center;
+              font-size:14px;
+              font-weight:900;
+              text-transform:uppercase;
+              font-family:'Arial Black';
+              margin:0;
+              line-height:1.3;
+            "
+          >
+            ${invoice.packageName}
+            <br/>
+            ${invoice.districtName || ''}
+          </h5>
+
+          ${
+            invoice.purchasePlaceName === 'Amber Fort'
+              ? `
+            <h1
+              style="
+                color:#000;
+                font-size:9px;
+                text-transform:uppercase;
+                font-weight:800;
+                text-align:center;
+                margin:6px 0;
+              "
+            >
+              ( A UNESCO WORLD HERITAGE SITE )
+            </h1>
+          `
+              : ''
+          }
+
+          ${
+            qrImageUrl
+              ? `
             <div>
-              <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Visit Date</p>
-              <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Booking ID</p>
+              <img
+                src="${qrImageUrl}"
+                alt="QR code"
+                style="
+                  height:65px;
+                  width:65px;
+                  display:block;
+                  margin:6px auto;
+                "
+              />
             </div>
+          `
+              : ''
+          }
+
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              border-top:1px dotted #676767;
+              margin-top:4px;
+              margin-bottom:4px;
+              padding-top:4px;
+              padding-bottom:4px;
+            "
+          >
             <div>
-              <p style="color:#000;font-size:18px;font-weight:500;text-align:right;margin:0;">${formatTicketDate(invoice.bookingDate)}</p>
-              <p style="color:#000;font-size:18px;font-weight:500;margin:0;">${invoice.bookingId}</p>
+              <p style="color:#000;font-size:11px;font-weight:600;margin:0;">
+                Visit Date
+              </p>
+
+              <p style="color:#000;font-size:11px;font-weight:600;margin:0;">
+                Booking ID
+              </p>
+            </div>
+
+            <div>
+              <p
+                style="
+                  color:#000;
+                  font-size:11px;
+                  font-weight:500;
+                  text-align:right;
+                  margin:0;
+                "
+              >
+                ${formatTicketDate(invoice.bookingDate)}
+              </p>
+
+              <p
+                style="
+                  color:#000;
+                  font-size:11px;
+                  font-weight:500;
+                  text-align:right;
+                  margin:0;
+                "
+              >
+                ${invoice.bookingId}
+              </p>
             </div>
           </div>
-          <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;">${placeMarkup}</div>
-          <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;"></div>
-          <table style="width:100%;">
+
+          <table>
             <thead>
               <tr>
-                <th style="text-align:left;color:#000;font-size:18px;font-weight:600;padding:0 0 4px;">Visitor Type</th>
-                <th style="text-align:right;color:#000;font-size:18px;font-weight:600;padding:0 0 4px;">Qty</th>
+                <th
+                  style="
+                    text-align:left;
+                    color:#000;
+                    font-size:11px;
+                    font-weight:700;
+                    padding-bottom:3px;
+                  "
+                >
+                  Visitor Type
+                </th>
+
+                <th
+                  style="
+                    text-align:right;
+                    color:#000;
+                    font-size:11px;
+                    font-weight:700;
+                    padding-bottom:3px;
+                  "
+                >
+                  Qty
+                </th>
               </tr>
             </thead>
-            <tbody>${ticketMarkup}</tbody>
+
+            <tbody>
+              ${ticketMarkup}
+            </tbody>
           </table>
-          ${invoice.addonSummary.length ? '<div style="color:#000;font-size:20px;font-weight:750;margin-top:8px;">Add On Charges :-</div>' : ''}
-          ${invoice.addonSummary.length ? `<table style="width:100%;"><tbody>${addonMarkup}</tbody></table>` : ''}
-          <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;margin-top:2px;padding-top:2px;">
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Total Vistors</p>
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">${invoice.totalUsers}</p>
+
+          ${
+            invoice.addonSummary.length
+              ? `
+            <div
+              style="
+                color:#000;
+                font-size:12px;
+                font-weight:700;
+                margin-top:6px;
+              "
+            >
+              Add On Charges :-
+            </div>
+
+            <table>
+              <tbody>
+                ${addonMarkup}
+              </tbody>
+            </table>
+          `
+              : ''
+          }
+
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              border-top:1px dotted #676767;
+              margin-top:4px;
+              padding-top:4px;
+            "
+          >
+            <p style="color:#000;font-size:11px;font-weight:700;margin:0;">
+              Total Visitors
+            </p>
+
+            <p style="color:#000;font-size:11px;font-weight:700;margin:0;">
+              ${invoice.totalUsers}
+            </p>
           </div>
-          <div style="display:flex;justify-content:space-between;margin-top:2px;padding-top:2px;">
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Total Amount</p>
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">${formatCurrency(invoice.totalAmount)}</p>
+
+          <div
+            style="
+              display:flex;
+              justify-content:space-between;
+              margin-top:2px;
+              padding-top:2px;
+            "
+          >
+            <p style="color:#000;font-size:11px;font-weight:700;margin:0;">
+              Total Amount
+            </p>
+
+            <p style="color:#000;font-size:11px;font-weight:700;margin:0;">
+              ${formatCurrency(invoice.totalAmount)}
+            </p>
           </div>
-          <div style="border-top:2px dotted #676767;margin-top:5px;padding-top:5px;text-align:left;">
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">T &amp; C apply</p>
-            <p style="color:#000;font-size:16px;font-weight:500;text-align:left;margin:8px 0 0;">1. Composite Tickets Valid For ${invoice.validityDays || 0} Days Only.</p>
+
+          <div
+            style="
+              border-top:1px dotted #676767;
+              margin-top:5px;
+              padding-top:5px;
+              text-align:center;
+            "
+          >
+            <p
+              style="
+                color:#000;
+                font-size:11px;
+                font-weight:700;
+                margin:0;
+              "
+            >
+              T &amp; C Apply
+            </p>
+
+            <p
+              style="
+                color:#000;
+                font-size:10px;
+                font-weight:500;
+                line-height:1.5;
+                margin:4px 0 0;
+              "
+            >
+              Composite Tickets Valid For ${
+                invoice.validityDays || 0
+              } Days Only.
+            </p>
           </div>
-          <div style="border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;">
-            <p style="color:#000;font-size:16px;font-weight:500;text-align:left;margin:0 0 8px;">1. For your next visit, book ticket at <br/><a href="https://obms-tourist.rajasthan.gov.in">obms-tourist.rajasthan.gov.in</a></p>
-            <p style="color:#000;font-size:16px;font-weight:500;text-align:left;margin:0;">2. Explore and purchase various products at <br/><a href="https://ebazaar.rajasthan.gov.in">ebazaar.rajasthan.gov.in</a></p>
+
+          <div
+            style="
+              border-top:1px dotted #676767;
+              margin-top:5px;
+              padding-top:5px;
+              text-align:center;
+            "
+          >
+            <p
+              style="
+                color:#000;
+                font-size:11px;
+                font-weight:700;
+                margin:0;
+              "
+            >
+              Thanks For Visit
+            </p>
+
+            <p
+              style="
+                color:#000;
+                font-size:10px;
+                font-weight:400;
+                margin-top:5px;
+                margin-bottom:0;
+              "
+            >
+              ${formatTicketDate(invoice.bookingDate)}
+              ${formatTicketTime(invoice.bookingDate)}
+            </p>
           </div>
-          <div style="border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;text-align:center;">
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Thanks For Visit</p>
-            <p style="color:#000;font-size:18px;font-weight:400;margin-top:10px;margin-bottom:10px;">${formatTicketDate(invoice.bookingDate)} ${formatTicketTime(invoice.bookingDate)}</p>
-          </div>
+
         </div>
-        <script>window.onload = () => window.print();</script>
+
+        <script>
+          window.onload = () => {
+            window.print()
+          }
+        </script>
       </body>
     </html>
   `)
+
   popup.document.close()
 }
 
@@ -277,104 +598,339 @@ function CompositeTicketSlipPreview({ invoice }: { invoice: CompositeInvoice }) 
   const qrImageUrl = buildQrImageUrl(invoice.qrDetail)
 
   return (
-    <div className="mx-auto w-full max-w-[400px] rounded-[28px] bg-white px-6 pb-6 pt-1 shadow-sm" style={{ border: '1px solid #eadfd8' }}>
-      <h5 style={{ color: '#0F172B', textAlign: 'center', fontSize: 20, fontStyle: 'normal', fontWeight: 900, lineHeight: 'normal', textTransform: 'uppercase', fontFamily: '"Arial Black"', marginBottom: 10 }}>
+    <div
+      className="mx-auto w-full max-w-[320px] rounded-[22px] bg-white px-4 pb-4 pt-2 shadow-sm"
+      style={{
+        border: '1px solid #eadfd8',
+      }}
+    >
+      <h5
+        style={{
+          color: '#0F172B',
+          textAlign: 'center',
+          fontSize: 15,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          fontFamily: '"Arial Black"',
+          marginBottom: 6,
+          lineHeight: 1.2,
+        }}
+      >
         {invoice.purchasePlaceName || 'Composite Booking'}
       </h5>
-      <h1 style={{ color: '#000', fontSize: 13, textTransform: 'uppercase', fontWeight: 800, textAlign: 'center', marginBottom: 10 }}>Government of Rajasthan</h1>
-      <h5 style={{ color: '#0F172B', textAlign: 'center', fontSize: 20, fontStyle: 'normal', fontWeight: 900, lineHeight: 'normal', textTransform: 'uppercase', fontFamily: '"Arial Black"', margin: 0 }}>
+
+      <h1
+        style={{
+          color: '#000',
+          fontSize: 10,
+          textTransform: 'uppercase',
+          fontWeight: 800,
+          textAlign: 'center',
+          marginBottom: 6,
+        }}
+      >
+        Government of Rajasthan
+      </h1>
+
+      <h5
+        style={{
+          color: '#0F172B',
+          textAlign: 'center',
+          fontSize: 15,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          fontFamily: '"Arial Black"',
+          margin: 0,
+          lineHeight: 1.2,
+        }}
+      >
         {invoice.packageName}
         <br />
         {invoice.districtName || ''}
       </h5>
+
       {invoice.purchasePlaceName === 'Amber Fort' ? (
-        <h1 style={{ color: '#000', fontSize: 13, textTransform: 'uppercase', fontWeight: 800, textAlign: 'center', marginTop: 10, marginBottom: 10 }}>
+        <h1
+          style={{
+            color: '#000',
+            fontSize: 9,
+            textTransform: 'uppercase',
+            fontWeight: 800,
+            textAlign: 'center',
+            marginTop: 6,
+            marginBottom: 6,
+          }}
+        >
           ( A UNESCO WORLD HERITAGE SITE )
         </h1>
       ) : null}
-      {qrImageUrl ? <img src={qrImageUrl} alt="QR code" style={{ height: 100, width: 100, display: 'block', margin: '0 auto' }} /> : null}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5 }}>
-        <div>
-          <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Visit Date</p>
-          <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Booking ID</p>
-        </div>
-        <div>
-          <p style={{ color: '#000', fontSize: 18, fontWeight: 500, textAlign: 'right', margin: 0 }}>{formatTicketDate(invoice.bookingDate)}</p>
-          <p style={{ color: '#000', fontSize: 18, fontWeight: 500, margin: 0 }}>{invoice.bookingId}</p>
-        </div>
-      </div>
+      {qrImageUrl ? (
+        <img
+          src={qrImageUrl}
+          alt="QR code"
+          style={{
+            height: 62,
+            width: 62,
+            display: 'block',
+            margin: '6px auto',
+          }}
+        />
+      ) : null}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          borderTop: '1px dotted #676767',
+          marginTop: 4,
+          marginBottom: 4,
+          paddingTop: 4,
+          paddingBottom: 4,
+        }}
+      >
         <div>
-          {invoice.placeNames.map(place => (
-            <p key={place} style={{ color: '#000', fontSize: 18, fontWeight: 600, textAlign: 'left', margin: 0 }}>{place}</p>
-          ))}
+          <p style={{ color: '#000', fontSize: 12, fontWeight: 600, margin: 0 }}>
+            Visit Date
+          </p>
+
+          <p style={{ color: '#000', fontSize: 12, fontWeight: 600, margin: 0 }}>
+            Booking ID
+          </p>
+        </div>
+
+        <div>
+          <p
+            style={{
+              color: '#000',
+              fontSize: 12,
+              fontWeight: 500,
+              textAlign: 'right',
+              margin: 0,
+            }}
+          >
+            {formatTicketDate(invoice.bookingDate)}
+          </p>
+
+          <p
+            style={{
+              color: '#000',
+              fontSize: 12,
+              fontWeight: 500,
+              margin: 0,
+              textAlign: 'right',
+            }}
+          >
+            {invoice.bookingId}
+          </p>
         </div>
       </div>
 
       <table style={{ width: '100%' }}>
         <thead>
           <tr>
-            <th style={{ textAlign: 'left', color: '#000', fontSize: 18, fontWeight: 600, paddingBottom: 4 }}>Visitor Type</th>
-            <th style={{ textAlign: 'right', color: '#000', fontSize: 18, fontWeight: 600, paddingBottom: 4 }}>Qty</th>
+            <th
+              style={{
+                textAlign: 'left',
+                color: '#000',
+                fontSize: 12,
+                fontWeight: 700,
+                paddingBottom: 3,
+              }}
+            >
+              Visitor Type
+            </th>
+
+            <th
+              style={{
+                textAlign: 'right',
+                color: '#000',
+                fontSize: 12,
+                fontWeight: 700,
+                paddingBottom: 3,
+              }}
+            >
+              Qty
+            </th>
           </tr>
         </thead>
+
         <tbody>
           {invoice.ticketSummary.map(item => (
             <tr key={item.ticketName}>
-              <td style={{ paddingBottom: 1, color: '#000', fontSize: 18, fontWeight: 600, width: 170 }}>{item.ticketName}</td>
-              <td style={{ color: '#000', fontSize: 18, fontWeight: 600, textAlign: 'right' }}>{item.quantity}</td>
+              <td
+                style={{
+                  paddingBottom: 1,
+                  color: '#000',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  width: 120,
+                }}
+              >
+                {item.ticketName}
+              </td>
+
+              <td
+                style={{
+                  color: '#000',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textAlign: 'right',
+                }}
+              >
+                {item.quantity}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {invoice.addonSummary.length ? <div style={{ color: '#000', fontSize: 20, fontWeight: 750, marginTop: 8 }}>Add On Charges :-</div> : null}
+      {invoice.addonSummary.length ? (
+        <div
+          style={{
+            color: '#000',
+            fontSize: 13,
+            fontWeight: 700,
+            marginTop: 6,
+          }}
+        >
+          Add On Charges :-
+        </div>
+      ) : null}
+
       {invoice.addonSummary.length ? (
         <table style={{ width: '100%' }}>
           <tbody>
             {invoice.addonSummary.map(item => (
               <tr key={`${item.ticketName}-${item.name}`}>
-                <td style={{ paddingBottom: 1, color: '#000', fontSize: 18, fontWeight: 600, width: 170 }}>{item.ticketName} - {item.name}</td>
-                <td style={{ color: '#000', fontSize: 18, fontWeight: 600, textAlign: 'right' }}>{item.quantity}</td>
+                <td
+                  style={{
+                    paddingBottom: 1,
+                    color: '#000',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    width: 120,
+                  }}
+                >
+                  {item.ticketName} - {item.name}
+                </td>
+
+                <td
+                  style={{
+                    color: '#000',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textAlign: 'right',
+                  }}
+                >
+                  {item.quantity}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : null}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px dotted #676767', marginTop: 2, paddingTop: 2 }}>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Total Vistors</p>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>{invoice.totalUsers}</p>
-      </div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          borderTop: '1px dotted #676767',
+          marginTop: 4,
+          paddingTop: 4,
+        }}
+      >
+        <p style={{ color: '#000', fontSize: 12, fontWeight: 700, margin: 0 }}>
+          Total Visitors
+        </p>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, paddingTop: 2 }}>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Total Amount</p>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>{formatCurrency(invoice.totalAmount)}</p>
-      </div>
-
-      <div style={{ borderTop: '2px dotted #676767', marginTop: 5, paddingTop: 5, textAlign: 'left' }}>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>T &amp; C apply</p>
-        <p style={{ color: '#000', fontSize: 16, fontWeight: 500, textAlign: 'left', margin: '8px 0 0' }}>
-          1. Composite Tickets Valid For {invoice.validityDays || 0} Days Only.
+        <p style={{ color: '#000', fontSize: 12, fontWeight: 700, margin: 0 }}>
+          {invoice.totalUsers}
         </p>
       </div>
 
-      <div style={{ borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5 }}>
-        <p style={{ color: '#000', fontSize: 16, fontWeight: 500, textAlign: 'left', margin: '0 0 8px' }}>
-          1. For your next visit, book ticket at <br />
-          <a href="https://obms-tourist.rajasthan.gov.in" target="_blank" rel="noreferrer">obms-tourist.rajasthan.gov.in</a>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: 2,
+          paddingTop: 2,
+        }}
+      >
+        <p style={{ color: '#000', fontSize: 12, fontWeight: 700, margin: 0 }}>
+          Total Amount
         </p>
-        <p style={{ color: '#000', fontSize: 16, fontWeight: 500, textAlign: 'left', margin: 0 }}>
-          2. Explore and purchase various products at <br />
-          <a href="https://ebazaar.rajasthan.gov.in" target="_blank" rel="noreferrer">ebazaar.rajasthan.gov.in</a>
+
+        <p style={{ color: '#000', fontSize: 12, fontWeight: 700, margin: 0 }}>
+          {formatCurrency(invoice.totalAmount)}
         </p>
       </div>
 
-      <div style={{ borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5, textAlign: 'center' }}>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Thanks For Visit</p>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 400, marginTop: 10, marginBottom: 10 }}>{formatTicketDate(invoice.bookingDate)} {formatTicketTime(invoice.bookingDate)}</p>
+      <div
+        style={{
+          borderTop: '1px dotted #676767',
+          marginTop: 5,
+          paddingTop: 5,
+          textAlign: 'center',
+        }}
+      >
+        <p
+          style={{
+            color: '#000',
+            fontSize: 12,
+            fontWeight: 700,
+            margin: 0,
+          }}
+        >
+          T &amp; C Apply
+        </p>
+
+        <p
+          style={{
+            color: '#000',
+            fontSize: 10,
+            fontWeight: 500,
+            marginTop: 4,
+            marginBottom: 0,
+            lineHeight: 1.5,
+            textAlign: 'center',
+          }}
+        >
+          Composite Tickets Valid For {invoice.validityDays || 0} Days Only.
+        </p>
+      </div>
+
+      <div
+        style={{
+          borderTop: '1px dotted #676767',
+          marginTop: 5,
+          paddingTop: 5,
+          textAlign: 'center',
+        }}
+      >
+        <p
+          style={{
+            color: '#000',
+            fontSize: 12,
+            fontWeight: 700,
+            margin: 0,
+          }}
+        >
+          Thanks For Visit
+        </p>
+
+        <p
+          style={{
+            color: '#000',
+            fontSize: 10,
+            fontWeight: 400,
+            marginTop: 5,
+            marginBottom: 0,
+          }}
+        >
+          {formatTicketDate(invoice.bookingDate)}{' '}
+          {formatTicketTime(invoice.bookingDate)}
+        </p>
       </div>
     </div>
   )
@@ -683,10 +1239,10 @@ export default function CompositeBookingPage() {
           </div>
           <button onClick={reloadBookingSetup} disabled={!selectedPackageId || loading} className="rounded-2xl px-4 py-3 font-medium text-white disabled:opacity-50" style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.18)', fontSize: 13 }}><span className="inline-flex items-center gap-2"><RefreshCw size={14} />Reload</span></button>
         </div>
-        <div className="grid gap-px md:grid-cols-6" style={{ background: 'rgba(255,255,255,0.14)' }}>
+        <div className="grid gap-px md:grid-cols-5" style={{ background: 'rgba(255,255,255,0.14)' }}>
           {[
             { label: 'Assigned Place', value: extraDetails?.assignedPlaces?.join(', ') || 'Not mapped' },
-            { label: 'Department', value: extraDetails?.departmentName || 'N/A' },
+            // { label: 'Department', value: extraDetails?.departmentName || 'N/A' },
             { label: 'Packages', value: String(filteredPackages.length) },
             { label: 'Selected Package', value: selectedPackage?.packageName || 'Choose package' },
             { label: 'Included Places', value: String(selectedPackage?.placeNames.length ?? 0) },
@@ -780,7 +1336,232 @@ export default function CompositeBookingPage() {
 
       {paymentModalOpen ? <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4 sm:p-6" style={{ background: 'rgba(28,16,8,0.48)', backdropFilter: 'blur(6px)' }} onClick={event => { if (event.target === event.currentTarget) setPaymentModalOpen(false) }}><div className="my-auto w-full max-w-lg overflow-hidden rounded-[28px] bg-white" style={{ boxShadow: '0 32px 90px rgba(107,18,18,0.24)' }}><div className="flex items-center justify-between px-6 py-5" style={{ background: 'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #D3A64A 100%)' }}><div><div className="font-serif font-bold text-white" style={{ fontSize: 24 }}>Payment Method</div><div style={{ fontSize: 12, color: 'rgba(255,255,255,0.76)' }}>Choose the booking mode before continuing.</div></div><button onClick={() => setPaymentModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: 'rgba(255,255,255,0.14)' }}><X size={16} /></button></div><div className="p-6 space-y-4"><button type="button" onClick={() => setBookingFlags({ isDepartmentAdmin: true, onSite: false })} className="w-full rounded-2xl border px-5 py-4 text-left" style={{ borderColor: bookingFlags.isDepartmentAdmin && !bookingFlags.onSite ? 'rgba(139,26,26,0.24)' : 'var(--sand)', background: bookingFlags.isDepartmentAdmin && !bookingFlags.onSite ? 'rgba(139,26,26,0.06)' : '#fff' }}><div className="inline-flex items-center gap-3"><Wallet size={18} style={{ color: 'var(--maroon)' }} /><div><div className="font-semibold" style={{ color: 'var(--text-dark)' }}>Cash / Department</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Books as department-admin composite flow.</div></div></div></button><button type="button" onClick={() => setBookingFlags({ isDepartmentAdmin: false, onSite: true })} className="w-full rounded-2xl border px-5 py-4 text-left" style={{ borderColor: !bookingFlags.isDepartmentAdmin && bookingFlags.onSite ? 'rgba(139,26,26,0.24)' : 'var(--sand)', background: !bookingFlags.isDepartmentAdmin && bookingFlags.onSite ? 'rgba(139,26,26,0.06)' : '#fff' }}><div className="inline-flex items-center gap-3"><CreditCard size={18} style={{ color: '#1A7A6E' }} /><div><div className="font-semibold" style={{ color: 'var(--text-dark)' }}>E-Mitra Wallet</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Books as on-site operator composite flow.</div></div></div></button></div><div className="flex justify-end gap-3 px-6 py-5" style={{ borderTop: '1px solid var(--sand)', background: '#FCF7F0' }}><button onClick={() => setPaymentModalOpen(false)} className="rounded-2xl px-4 py-2.5 font-medium" style={{ background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-mid)' }}>Cancel</button><button onClick={() => void createCompositeBooking()} className="rounded-2xl px-5 py-2.5 font-semibold text-white" style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)' }}>Continue</button></div></div></div> : null}
 
-      {showSuccess && invoice ? <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4 sm:p-6" style={{ background: 'rgba(28,16,8,0.48)', backdropFilter: 'blur(6px)' }} onClick={event => { if (event.target === event.currentTarget) setShowSuccess(false) }}><div className="my-auto w-full max-w-4xl overflow-hidden rounded-[30px] bg-white" style={{ boxShadow: '0 40px 96px rgba(107,18,18,0.24)' }}><div className="flex items-center justify-between px-6 py-5" style={{ background: 'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #C8922A 100%)' }}><div><div className="font-serif font-bold text-white" style={{ fontSize: 26 }}>Composite Booking Successful</div><div style={{ fontSize: 12, color: 'rgba(255,255,255,0.76)' }}>Booking ID {invoice.bookingId}</div></div><button onClick={() => setShowSuccess(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-white" style={{ background: 'rgba(255,255,255,0.14)' }}><X size={16} /></button></div><div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.3fr_0.7fr]"><div className="space-y-4"><div className="rounded-[28px] border p-5" style={{ borderColor: 'var(--sand)', background: '#FCF7F0' }}><div className="font-serif font-bold mb-4" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Ticket Preview</div><CompositeTicketSlipPreview invoice={invoice} /></div></div><div className="space-y-4"><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#fff' }}><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Grand Total</div><div className="font-serif font-bold mt-2" style={{ fontSize: 30, color: 'var(--maroon)' }}>{formatCurrency(invoice.totalAmount)}</div></div><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#FCF7F0' }}><div className="font-semibold mb-2" style={{ color: 'var(--text-dark)' }}>Composite Conditions</div><div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.8 }}>1. Ticket layout and print match the composite operator ticket format.<br />2. Composite ticket valid for {invoice.validityDays || 0} day(s) only.<br />3. Verify included places and add-ons before printing.</div></div><div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#fff' }}><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Included Places</div><div className="space-y-2">{invoice.placeNames.map(place => <div key={place} className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mr-2 mb-2" style={{ background: '#F8F4EE', color: 'var(--text-dark)', fontSize: 12 }}><Building2 size={13} style={{ color: 'var(--maroon)' }} />{place}</div>)}</div></div><button onClick={() => printCompositeInvoice(invoice)} className="w-full rounded-2xl px-4 py-3 font-semibold text-white" style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)' }}><span className="inline-flex items-center gap-2"><Printer size={15} />Print Ticket</span></button><button onClick={() => { setShowSuccess(false); reloadBookingSetup() }} className="w-full rounded-2xl px-4 py-3 font-medium" style={{ background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-mid)' }}>Continue Booking</button></div></div></div></div> : null}
+{showSuccess && invoice ? (
+  <div
+    className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5"
+    style={{
+      background: 'rgba(28,16,8,0.48)',
+      backdropFilter: 'blur(6px)',
+    }}
+    onClick={event => {
+      if (event.target === event.currentTarget) {
+        setShowSuccess(false)
+      }
+    }}
+  >
+    <div
+      className="flex w-full max-w-6xl flex-col overflow-hidden rounded-[30px] bg-white"
+      style={{
+        height: '92vh',
+        maxHeight: '92vh',
+        boxShadow: '0 40px 96px rgba(107,18,18,0.24)',
+      }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-6 py-5 flex-shrink-0"
+        style={{
+          background:
+            'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #C8922A 100%)',
+        }}
+      >
+        <div>
+          <div
+            className="font-serif font-bold text-white"
+            style={{ fontSize: 26 }}
+          >
+            Composite Booking Successful
+          </div>
+
+          <div
+            style={{
+              fontSize: 12,
+              color: 'rgba(255,255,255,0.76)',
+            }}
+          >
+            Booking ID {invoice.bookingId}
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowSuccess(false)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-white"
+          style={{ background: 'rgba(255,255,255,0.14)' }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="grid flex-1 gap-6 overflow-hidden px-6 py-6 lg:grid-cols-[1.3fr_0.7fr]">
+        
+        {/* LEFT SIDE */}
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className="flex h-full flex-col overflow-hidden rounded-[28px] border p-5"
+            style={{
+              borderColor: 'var(--sand)',
+              background: '#FCF7F0',
+            }}
+          >
+            <div
+              className="mb-4 flex-shrink-0 font-serif font-bold"
+              style={{
+                fontSize: 22,
+                color: 'var(--text-dark)',
+              }}
+            >
+              Ticket Preview
+            </div>
+
+            <div className="flex flex-1 items-center justify-center overflow-hidden">
+              <div
+                style={{
+                  transform: 'scale(0.72)',
+                  transformOrigin: 'center center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CompositeTicketSlipPreview invoice={invoice} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT SIDE */}
+        <div className="flex flex-col gap-4 overflow-auto pr-1">
+          
+          <div
+            className="rounded-2xl border p-5"
+            style={{
+              borderColor: 'var(--sand)',
+              background: '#fff',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+              }}
+            >
+              Grand Total
+            </div>
+
+            <div
+              className="font-serif font-bold mt-2"
+              style={{
+                fontSize: 30,
+                color: 'var(--maroon)',
+              }}
+            >
+              {formatCurrency(invoice.totalAmount)}
+            </div>
+          </div>
+
+          <div
+            className="rounded-2xl border p-5"
+            style={{
+              borderColor: 'var(--sand)',
+              background: '#FCF7F0',
+            }}
+          >
+            <div
+              className="font-semibold mb-2"
+              style={{ color: 'var(--text-dark)' }}
+            >
+              Composite Conditions
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                lineHeight: 1.8,
+              }}
+            >
+              1. Ticket layout and print match the composite operator ticket format.
+              <br />
+              2. Composite ticket valid for {invoice.validityDays || 0} day(s) only.
+              <br />
+              3. Verify included places and add-ons before printing.
+            </div>
+          </div>
+
+          {/* <div
+            className="rounded-2xl border p-5"
+            style={{
+              borderColor: 'var(--sand)',
+              background: '#fff',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}
+            >
+              Included Places
+            </div>
+
+            <div className="space-y-2">
+              {invoice.placeNames.map(place => (
+                <div
+                  key={place}
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mr-2 mb-2"
+                  style={{
+                    background: '#F8F4EE',
+                    color: 'var(--text-dark)',
+                    fontSize: 12,
+                  }}
+                >
+                  <Building2
+                    size={13}
+                    style={{ color: 'var(--maroon)' }}
+                  />
+
+                  {place}
+                </div>
+              ))}
+            </div>
+          </div> */}
+
+          <button
+            onClick={() => printCompositeInvoice(invoice)}
+            className="w-full rounded-2xl px-4 py-3 font-semibold text-white flex-shrink-0"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)',
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Printer size={15} />
+              Print Ticket
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setShowSuccess(false)
+              reloadBookingSetup()
+            }}
+            className="w-full rounded-2xl px-4 py-3 font-medium flex-shrink-0"
+            style={{
+              background: '#fff',
+              border: '1px solid var(--sand)',
+              color: 'var(--text-mid)',
+            }}
+          >
+            Continue Booking
+          </button>
+        </div>
+      </div>
     </div>
+  </div>
+) : null}    </div>
   )
 }

@@ -347,14 +347,14 @@ function printInvoice(invoice: InvoiceData) {
   const qrImageUrl = buildQrImageUrl(invoice.qrDetail)
   const addOnMarkup = invoice.addonSummary.map(item => `
     <tr>
-      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;width:170px;">${item.ticketName} - ${item.name}</td>
-      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;text-align:right;">${item.quantity}</td>
+      <td style="padding:1px 0;color:#000;font-size:12px;font-weight:600;width:110px;">${item.ticketName} - ${item.name}</td>
+      <td style="padding:1px 0;color:#000;font-size:12px;font-weight:600;text-align:right;">${item.quantity}</td>
     </tr>
   `).join('')
   const ticketMarkup = invoice.ticketSummary.map(item => `
     <tr>
-      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;width:170px;">${item.ticketName}</td>
-      <td style="padding:1px 0;color:#000;font-size:18px;font-weight:600;text-align:right;">${item.quantity}</td>
+      <td style="padding:1px 0;color:#000;font-size:12px;font-weight:600;width:110px;">${item.ticketName}</td>
+      <td style="padding:1px 0;color:#000;font-size:12px;font-weight:600;text-align:right;">${item.quantity}</td>
     </tr>
   `).join('')
 
@@ -363,59 +363,105 @@ function printInvoice(invoice: InvoiceData) {
       <head>
         <title>Booking Ticket ${invoice.bookingId}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 24px; color: #000; background: #fff; }
-          .ticket { width: 400px; margin: 0 auto; background: #fff; padding: 0 25px 25px; }
-          table { width: 100%; border-collapse: collapse; }
-          a { color: #000; text-decoration: none; }
-        </style>
+        @page {
+          size: 80mm auto;
+          margin: 0;
+        }
+
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          background: #fff;
+          font-family: Arial, sans-serif;
+          color: #000;
+          width: 78mm;
+          overflow: hidden;
+        }
+
+        body {
+          display: flex;
+          justify-content: center;
+        }
+
+        .ticket {
+          width: 76mm;
+          padding: 2mm 3mm;
+          box-sizing: border-box;
+          background: #fff;
+          page-break-inside: avoid;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        tr,
+        td,
+        p,
+        div {
+          page-break-inside: avoid !important;
+        }
+
+        a {
+          color: #000;
+          text-decoration: none;
+          word-break: break-word;
+        }
+
+        img {
+          page-break-inside: avoid;
+        }
+      </style>
       </head>
       <body>
         <div class="ticket">
-          <h1 style="color:#000;font-size:13px;text-transform:uppercase;font-weight:800;text-align:center;margin-bottom:10px;">Government of Rajasthan</h1>
-          <h5 style="color:#000;font-size:20px;text-transform:uppercase;font-weight:800;text-align:center;margin:0;">${invoice.placeName}<br/>${invoice.districtName || ''}</h5>
-          ${invoice.purchasePlaceName === 'Amber Fort' ? '<h1 style="color:#000;font-size:13px;text-transform:uppercase;font-weight:800;text-align:center;margin-top:10px;margin-bottom:10px;">( A UNESCO WORLD HERITAGE SITE )</h1>' : ''}
-          ${qrImageUrl ? `<div><img src="${qrImageUrl}" alt="QR code" style="height:100px;width:100px;display:block;margin:0 auto;" /></div>` : ''}
+          <h1 style="color:#000;font-size:10px;text-transform:uppercase;font-weight:800;text-align:center;margin-bottom:10px;">Government of Rajasthan</h1>
+          <h5 style="color:#000;font-size:14px;text-transform:uppercase;font-weight:800;text-align:center;margin:0;">${invoice.placeName}<br/>${invoice.districtName || ''}</h5>
+          ${invoice.purchasePlaceName === 'Amber Fort' ? '<h1 style="color:#000;font-size:10px;text-transform:uppercase;font-weight:800;text-align:center;margin-top:10px;margin-bottom:10px;">( A UNESCO WORLD HERITAGE SITE )</h1>' : ''}
+          ${qrImageUrl ? `<div><img src="${qrImageUrl}" alt="QR code" style="height:65px;width:65px;display:block;margin:4px auto;" /></div>` : ''}
           <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;">
             <div>
-              <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Visit Date</p>
-              <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Booking ID</p>
+              <p style="color:#000;font-size:12px;font-weight:600;margin:0;">Visit Date</p>
+              <p style="color:#000;font-size:12px;font-weight:600;margin:0;">Booking ID</p>
             </div>
             <div>
-              <p style="color:#000;font-size:18px;font-weight:500;text-align:right;margin:0;">${formatTicketDate(invoice.bookingDate)}</p>
-              <p style="color:#000;font-size:18px;font-weight:500;margin:0;">${invoice.bookingId}</p>
+              <p style="color:#000;font-size:12px;font-weight:500;text-align:right;margin:0;">${formatTicketDate(invoice.bookingDate)}</p>
+              <p style="color:#000;font-size:12px;font-weight:500;margin:0;">${invoice.bookingId}</p>
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;"></div>
           <table>
             <thead>
               <tr>
-                <th style="text-align:left;color:#000;font-size:18px;font-weight:600;padding:0 0 4px;">Visitor Type</th>
-                <th style="text-align:right;color:#000;font-size:18px;font-weight:600;padding:0 0 4px;">Qty</th>
+                <th style="text-align:left;color:#000;font-size:12px;font-weight:600;padding:0 0 4px;">Visitor Type</th>
+                <th style="text-align:right;color:#000;font-size:12px;font-weight:600;padding:0 0 4px;">Qty</th>
               </tr>
             </thead>
             <tbody>${ticketMarkup}</tbody>
           </table>
-          ${invoice.addonSummary.length ? '<div style="color:#000;font-size:20px;font-weight:750;margin-top:8px;">Add On Charges :-</div>' : ''}
+          ${invoice.addonSummary.length ? '<div style="color:#000;font-size:14px;font-weight:750;margin-top:8px;">Add On Charges :-</div>' : ''}
           ${invoice.addonSummary.length ? `<table><tbody>${addOnMarkup}</tbody></table>` : ''}
           <div style="display:flex;justify-content:space-between;border-top:2px dotted #676767;margin-top:2px;padding-top:2px;">
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Total Visitors</p>
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">${invoice.totalUsers || invoice.ticketSummary.reduce((sum, item) => sum + item.quantity, 0)}</p>
+            <p style="color:#000;font-size:12px;font-weight:600;margin:0;">Total Visitors</p>
+            <p style="color:#000;font-size:12px;font-weight:600;margin:0;">${invoice.totalUsers || invoice.ticketSummary.reduce((sum, item) => sum + item.quantity, 0)}</p>
           </div>
           <div style="display:flex;justify-content:space-between;margin-top:2px;padding-top:2px;">
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Total Amount</p>
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">${formatCurrency(invoice.totalAmount)}</p>
+            <p style="color:#000;font-size:12px;font-weight:600;margin:0;">Total Amount</p>
+            <p style="color:#000;font-size:12px;font-weight:600;margin:0;">${formatCurrency(invoice.totalAmount)}</p>
           </div>
           <div style="border-top:2px dotted #676767;margin-top:5px;padding-top:5px;text-align:left;">
-            <p style="color:#000;font-size:18px;font-weight:600;text-align:left;margin:0;">T &amp; C apply</p>
+            <p style="color:#000;font-size:12px;font-weight:600;text-align:left;margin:0;">T &amp; C apply</p>
           </div>
           <div style="border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;">
-            <p style="color:#000;font-size:16px;font-weight:500;text-align:left;margin:0 0 8px;">1. For your next visit, book ticket at <br/><a href="https://obms-tourist.rajasthan.gov.in">obms-tourist.rajasthan.gov.in</a></p>
-            <p style="color:#000;font-size:16px;font-weight:500;text-align:left;margin:0;">2. Explore and purchase various products at <br/><a href="https://ebazaar.rajasthan.gov.in">ebazaar.rajasthan.gov.in</a></p>
+            <p style="color:#000;font-size:11px;font-weight:500;text-align:left;margin:0 0 8px;">1. For your next visit, book ticket at <br/><a href="https://obms-tourist.rajasthan.gov.in">obms-tourist.rajasthan.gov.in</a></p>
+            <p style="color:#000;font-size:11px;font-weight:500;text-align:left;margin:0;">2. Explore and purchase various products at <br/><a href="https://ebazaar.rajasthan.gov.in">ebazaar.rajasthan.gov.in</a></p>
           </div>
           <div style="border-top:2px dotted #676767;margin-top:5px;margin-bottom:5px;padding-top:5px;padding-bottom:5px;text-align:center;">
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">Thanks For Visit</p>
-            <p style="color:#000;font-size:18px;font-weight:600;margin:0;">${invoice.kioskId || 'Kiosk'}</p>
-            <p style="color:#000;font-size:18px;font-weight:400;margin-top:10px;margin-bottom:10px;">${formatTicketDate(invoice.bookingDate)} ${formatTicketTime(invoice.bookingDate)}</p>
+            <p style="color:#000;font-size:12px;font-weight:600;margin:0;">Thanks For Visit</p>
+            <p style="color:#000;font-size:12px;font-weight:600;margin:0;">${invoice.kioskId || 'Kiosk'}</p>
+            <p style="color:#000;font-size:11px;font-weight:400;margin-top:4px;margin-bottom:4px;">${formatTicketDate(invoice.bookingDate)} ${formatTicketTime(invoice.bookingDate)}</p>
           </div>
         </div>
         <script>window.onload = () => window.print();</script>
@@ -430,9 +476,14 @@ function TicketSlipPreview({ invoice }: { invoice: InvoiceData }) {
   const totalVisitors = invoice.totalUsers || invoice.ticketSummary.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
-    <div className="mx-auto w-full max-w-[400px] rounded-[28px] bg-white px-6 pb-6 pt-1 shadow-sm" style={{ border: '1px solid #eadfd8' }}>
-      <h1 style={{ color: '#000', fontSize: 13, textTransform: 'uppercase', fontWeight: 800, textAlign: 'center', marginBottom: 10 }}>Government of Rajasthan</h1>
-      <h5 style={{ color: '#000', fontSize: 20, textTransform: 'uppercase', fontWeight: 800, textAlign: 'center', margin: 0 }}>
+        <div
+          className="mx-auto w-full max-w-[340px] rounded-[24px] bg-white px-4 pb-4 pt-1 shadow-sm"
+          style={{
+            border: '1px solid #eadfd8',
+          }}
+        >    
+          <h1 style={{ color: '#000', fontSize: 13, textTransform: 'uppercase', fontWeight: 800, textAlign: 'center', marginBottom: 10 }}>Government of Rajasthan</h1>
+      <h5 style={{ color: '#000', fontSize: 12, textTransform: 'uppercase', fontWeight: 800, textAlign: 'center', margin: 0 }}>
         {invoice.placeName}
         <br />
         {invoice.districtName || ''}
@@ -442,44 +493,44 @@ function TicketSlipPreview({ invoice }: { invoice: InvoiceData }) {
           ( A UNESCO WORLD HERITAGE SITE )
         </h1>
       ) : null}
-      {qrImageUrl ? <img src={qrImageUrl} alt="QR code" style={{ height: 100, width: 100, display: 'block', margin: '0 auto' }} /> : null}
+      {qrImageUrl ? <img src={qrImageUrl} alt="QR code" style={{ height: 72, width: 72, display: 'block', margin: '0 auto' }} /> : null}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5 }}>
         <div>
-          <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Visit Date</p>
-          <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Booking ID</p>
+          <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>Visit Date</p>
+          <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>Booking ID</p>
         </div>
         <div>
-          <p style={{ color: '#000', fontSize: 18, fontWeight: 500, textAlign: 'right', margin: 0 }}>{formatTicketDate(invoice.bookingDate)}</p>
-          <p style={{ color: '#000', fontSize: 18, fontWeight: 500, margin: 0 }}>{invoice.bookingId}</p>
+          <p style={{ color: '#000', fontSize: 14, fontWeight: 500, textAlign: 'right', margin: 0 }}>{formatTicketDate(invoice.bookingDate)}</p>
+          <p style={{ color: '#000', fontSize: 14, fontWeight: 500, margin: 0 }}>{invoice.bookingId}</p>
         </div>
       </div>
 
       <table style={{ width: '100%' }}>
         <thead>
           <tr>
-            <th style={{ textAlign: 'left', color: '#000', fontSize: 18, fontWeight: 600, paddingBottom: 4 }}>Visitor Type</th>
-            <th style={{ textAlign: 'right', color: '#000', fontSize: 18, fontWeight: 600, paddingBottom: 4 }}>Qty</th>
+            <th style={{ textAlign: 'left', color: '#000', fontSize: 14, fontWeight: 600, paddingBottom: 4 }}>Visitor Type</th>
+            <th style={{ textAlign: 'right', color: '#000', fontSize: 14, fontWeight: 600, paddingBottom: 4 }}>Qty</th>
           </tr>
         </thead>
         <tbody>
           {invoice.ticketSummary.map(item => (
             <tr key={item.ticketName}>
-              <td style={{ paddingBottom: 1, color: '#000', fontSize: 18, fontWeight: 600, width: 170 }}>{item.ticketName}</td>
-              <td style={{ color: '#000', fontSize: 18, fontWeight: 600, textAlign: 'right' }}>{item.quantity}</td>
+              <td style={{ paddingBottom: 1, color: '#000', fontSize: 14, fontWeight: 600, width: 170 }}>{item.ticketName}</td>
+              <td style={{ color: '#000', fontSize: 14, fontWeight: 600, textAlign: 'right' }}>{item.quantity}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {invoice.addonSummary.length ? <div style={{ color: '#000', fontSize: 20, fontWeight: 750, marginTop: 8 }}>Add On Charges :-</div> : null}
+      {invoice.addonSummary.length ? <div style={{ color: '#000', fontSize: 12, fontWeight: 750, marginTop: 8 }}>Add On Charges :-</div> : null}
       {invoice.addonSummary.length ? (
         <table style={{ width: '100%' }}>
           <tbody>
             {invoice.addonSummary.map(item => (
               <tr key={`${item.ticketName}-${item.name}`}>
-                <td style={{ paddingBottom: 1, color: '#000', fontSize: 18, fontWeight: 600, width: 170 }}>{item.ticketName} - {item.name}</td>
-                <td style={{ color: '#000', fontSize: 18, fontWeight: 600, textAlign: 'right' }}>{item.quantity}</td>
+                <td style={{ paddingBottom: 1, color: '#000', fontSize: 14, fontWeight: 600, width: 170 }}>{item.ticketName} - {item.name}</td>
+                <td style={{ color: '#000', fontSize: 14, fontWeight: 600, textAlign: 'right' }}>{item.quantity}</td>
               </tr>
             ))}
           </tbody>
@@ -487,34 +538,34 @@ function TicketSlipPreview({ invoice }: { invoice: InvoiceData }) {
       ) : null}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px dotted #676767', marginTop: 2, paddingTop: 2 }}>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Total Visitors</p>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>{totalVisitors}</p>
+        <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>Total Visitors</p>
+        <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>{totalVisitors}</p>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, paddingTop: 2 }}>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Total Amount</p>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>{formatCurrency(invoice.totalAmount)}</p>
+        <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>Total Amount</p>
+        <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>{formatCurrency(invoice.totalAmount)}</p>
       </div>
 
       <div style={{ borderTop: '2px dotted #676767', marginTop: 5, paddingTop: 5, textAlign: 'left' }}>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>T &amp; C apply</p>
+        <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>T &amp; C apply</p>
       </div>
 
       <div style={{ borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5 }}>
-        <p style={{ color: '#000', fontSize: 16, fontWeight: 500, textAlign: 'left', margin: '0 0 8px' }}>
+        <p style={{ color: '#000', fontSize: 12, fontWeight: 500, textAlign: 'left', margin: '0 0 8px' }}>
           1. For your next visit, book ticket at <br />
           <a href="https://obms-tourist.rajasthan.gov.in" target="_blank" rel="noreferrer">obms-tourist.rajasthan.gov.in</a>
         </p>
-        <p style={{ color: '#000', fontSize: 16, fontWeight: 500, textAlign: 'left', margin: 0 }}>
+        <p style={{ color: '#000', fontSize: 12, fontWeight: 500, textAlign: 'left', margin: 0 }}>
           2. Explore and purchase various products at <br />
           <a href="https://ebazaar.rajasthan.gov.in" target="_blank" rel="noreferrer">ebazaar.rajasthan.gov.in</a>
         </p>
       </div>
 
       <div style={{ borderTop: '2px dotted #676767', marginTop: 5, marginBottom: 5, paddingTop: 5, paddingBottom: 5, textAlign: 'center' }}>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>Thanks For Visit</p>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 600, margin: 0 }}>{invoice.kioskId || 'Kiosk'}</p>
-        <p style={{ color: '#000', fontSize: 18, fontWeight: 400, marginTop: 10, marginBottom: 10 }}>{formatTicketDate(invoice.bookingDate)} {formatTicketTime(invoice.bookingDate)}</p>
+        <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>Thanks For Visit</p>
+        <p style={{ color: '#000', fontSize: 14, fontWeight: 600, margin: 0 }}>{invoice.kioskId || 'Kiosk'}</p>
+        <p style={{ color: '#000', fontSize: 14, fontWeight: 400, marginTop: 10, marginBottom: 10 }}>{formatTicketDate(invoice.bookingDate)} {formatTicketTime(invoice.bookingDate)}</p>
       </div>
     </div>
   )
@@ -998,17 +1049,17 @@ export default function OperatorTicketBookingPage() {
           </div>
         </div>
 
-        <div className="grid gap-px md:grid-cols-5" style={{ background: 'rgba(255,255,255,0.14)' }}>
+        <div className="grid gap-px md:grid-cols-4" style={{ background: 'rgba(255,255,255,0.14)' }}>
           {[
             { label: 'Assigned Place', value: extraDetails?.assignedPlaces?.join(', ') || placeName || placeId || 'Not mapped' },
-            { label: 'Department', value: extraDetails?.departmentName || 'N/A' },
+            // { label: 'Department', value: extraDetails?.departmentName || 'N/A' },
             { label: 'Ticket Types', value: String(ticketOptions.length) },
             { label: 'Visible Shifts', value: String(visibleShifts.length) },
             { label: 'Booking Mode', value: bookingFlags.onSite ? 'On-site' : 'Department' },
           ].map(card => (
             <div key={card.label} className="px-6 py-4" style={{ background: 'rgba(255,255,255,0.08)' }}>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.74)', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{card.label}</div>
-              <div className="mt-1 font-semibold" style={{ fontSize: 18, color: '#fff' }}>{card.value}</div>
+              <div className="mt-1 font-semibold" style={{ fontSize: 14, color: '#fff' }}>{card.value}</div>
             </div>
           ))}
         </div>
@@ -1282,14 +1333,21 @@ export default function OperatorTicketBookingPage() {
 
       {showSuccess && invoice ? (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto p-4 sm:p-6"
+          className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-5"
           style={{ background: 'rgba(28,16,8,0.48)', backdropFilter: 'blur(6px)' }}
           onClick={event => {
             if (event.target === event.currentTarget) setShowSuccess(false)
           }}
         >
-          <div className="my-auto w-full max-w-4xl overflow-hidden rounded-[30px] bg-white" style={{ boxShadow: '0 40px 96px rgba(107,18,18,0.24)' }}>
-            <div className="flex items-center justify-between px-6 py-5" style={{ background: 'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #C8922A 100%)' }}>
+              <div
+                className="flex w-full max-w-6xl flex-col overflow-hidden rounded-[30px] bg-white"
+                style={{
+                  height: '92vh',
+                  maxHeight: '92vh',
+                  boxShadow: '0 40px 96px rgba(107,18,18,0.24)',
+                }}
+              >        
+              <div className="flex items-center justify-between px-6 py-5" style={{ background: 'linear-gradient(135deg, #6B1212 0%, #A83030 58%, #C8922A 100%)' }}>
               <div>
                 <div className="font-serif font-bold text-white" style={{ fontSize: 26 }}>Booking Successful</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.76)' }}>Booking ID {invoice.bookingId}</div>
@@ -1299,15 +1357,39 @@ export default function OperatorTicketBookingPage() {
               </button>
             </div>
 
-            <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.3fr_0.7fr]">
-              <div className="space-y-4">
-                <div className="rounded-[28px] border p-5" style={{ borderColor: 'var(--sand)', background: '#FCF7F0' }}>
-                  <div className="font-serif font-bold mb-4" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Ticket Preview</div>
+            <div
+              className="grid flex-1 gap-6 overflow-hidden px-6 py-6 lg:grid-cols-[1.3fr_0.7fr]"
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                className="flex h-full flex-col overflow-hidden rounded-[28px] border p-5"
+                style={{ borderColor: 'var(--sand)', background: '#FCF7F0' }}
+              >
+                <div
+                  className="mb-4 font-serif font-bold flex-shrink-0"
+                  style={{ fontSize: 22, color: 'var(--text-dark)' }}
+                >
+                  Ticket Preview
+                </div>
+
+              <div className="flex flex-1 items-center justify-center overflow-hidden">
+                <div
+                  style={{
+                    transform: 'scale(0.72)',
+                    transformOrigin: 'center center',
+                    maxHeight: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   <TicketSlipPreview invoice={invoice} />
                 </div>
               </div>
+              </div>
+              </div>
 
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4 overflow-auto pr-1">
                 <div className="rounded-2xl border p-5" style={{ borderColor: 'var(--sand)', background: '#fff' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Grand Total</div>
                   <div className="font-serif font-bold mt-2" style={{ fontSize: 30, color: 'var(--maroon)' }}>{formatCurrency(invoice.totalAmount)}</div>
