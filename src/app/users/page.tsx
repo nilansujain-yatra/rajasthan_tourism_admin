@@ -735,10 +735,10 @@ export default function UsersPage() {
 
         const params = new URLSearchParams()
         params.set('searchKey', searchKey)
-        params.set('size', String(pageSize))
-        params.set('offSet', String((page - 1) * pageSize))
+        params.set('size', '288270')
+        params.set('offSet', '')
         params.set('block', 'false')
-        params.set('pagination', 'true')
+        params.set('pagination', 'false')
         params.set('isFilter', 'true')
         if (appliedFilters.userType) {
           params.set('userType', getUserTypeApiValue(appliedFilters.userType))
@@ -769,7 +769,8 @@ export default function UsersPage() {
         }
 
         const list = payload.result?.userDetailDtos ?? []
-        setTotalRecords(typeof payload.result?.totalRecords === 'number' ? payload.result.totalRecords : null)
+        const total = typeof payload.result?.totalRecords === 'number' ? payload.result.totalRecords : list.length
+        setTotalRecords(total)
         setUsers(list.map(mapApiUserToUiUser))
       } catch (loadError) {
         if (loadError instanceof Error && loadError.name === 'AbortError') {
@@ -790,7 +791,7 @@ export default function UsersPage() {
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [searchKey, page, pageSize, appliedFilters])
+  }, [searchKey, appliedFilters])
 
   const handleStatusChange = (userId: string, newStatus: UserStatus) => {
     setUsers(prev => prev.map(u => u.id === userId ? {
@@ -824,10 +825,15 @@ export default function UsersPage() {
     })
   }, [users, appliedFilters])
 
-  const displayTotal = totalRecords ?? filteredUsers.length
+  const displayTotal = filteredUsers.length
   const totalPages = Math.max(1, Math.ceil(displayTotal / pageSize))
   const visiblePages = getVisiblePages(page, totalPages)
   const activeFilterCount = [appliedFilters.userType, appliedFilters.status].filter(Boolean).length
+
+  const pagedUsers = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return filteredUsers.slice(start, start + pageSize)
+  }, [filteredUsers, page, pageSize])
 
   const activeCount = useMemo(() => users.filter(u => u.status === 'Active').length, [users])
   const inactiveCount = useMemo(() => users.filter(u => u.status === 'Inactive').length, [users])
@@ -951,11 +957,11 @@ export default function UsersPage() {
                           </td>
                         </tr>
                       ) : (
-                        filteredUsers.map((u, i) => (
+                        pagedUsers.map((u, i) => (
                           <tr
                             key={u.id}
                             style={{
-                              borderBottom: i < filteredUsers.length-1 ? '1px solid var(--cream-dark)' : 'none',
+                              borderBottom: i < pagedUsers.length-1 ? '1px solid var(--cream-dark)' : 'none',
                               transition: 'background-color 0.2s',
                             }}
                             className="hover:bg-opacity-50 hover:[background-color:var(--cream)]"

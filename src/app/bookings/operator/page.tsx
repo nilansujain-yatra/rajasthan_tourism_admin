@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, CheckCircle2, ChevronDown, Minus, Phone, Plus, Printer, RefreshCw, Ticket, User, X } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Info, Minus, Phone, Plus, Printer, RefreshCw, Ticket, User, X } from 'lucide-react'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
 
@@ -100,6 +100,17 @@ const SPECIAL_ADDON_ONLY_PLACES = new Set([
   'NAHARGARH BIOLOGICAL PARK',
   'NAHARGARH FORT',
 ])
+
+const TOURIST_PRIORITY: Record<string, number> = {
+  'CHILD': 1,
+  'DIVYANG': 2,
+  'INDIAN STUDENT': 3,
+  'STUDENT': 3,
+  'INDIAN CITIZEN': 4,
+  'ADULT': 4,
+  'FOREIGN STUDENT': 5,
+  'FOREIGN CITIZEN': 6,
+}
 
 function toNumber(value: unknown, fallback = 0) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -586,6 +597,11 @@ export default function OperatorTicketBookingPage() {
   const [mobile, setMobile] = useState('')
   const [email, setEmail] = useState('')
   const [addonOnly, setAddonOnly] = useState(false)
+  const [globalAddons, setGlobalAddons] = useState<AddOnState[]>([])
+  const [primaryTicketTypeId, setPrimaryTicketTypeId] = useState('')
+  const [loadingAddons, setLoadingAddons] = useState(false)
+  const [lastAddonTypeId, setLastAddonTypeId] = useState('')
+  const [showAddons, setShowAddons] = useState(false)
   const [loadingSession, setLoadingSession] = useState(true)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -623,6 +639,12 @@ export default function OperatorTicketBookingPage() {
         if (active) {
           setUser(nextUser)
           writeCachedAuthUser(nextUser)
+
+          if (nextUser?.mobile) {
+            setMobile(toText(nextUser.mobile))
+          } else if ((nextUser as any)?.mobileNo) {
+            setMobile(toText((nextUser as any).mobileNo))
+          }
 
           if (nextUser?.sub) {
             void loadExtraDetails(nextUser.sub)
@@ -682,8 +704,8 @@ export default function OperatorTicketBookingPage() {
   }, [addonOnly])
 
   useEffect(() => {
-    if (!placeId) {
-      if (!loadingSession) {
+    if (loadingSession || !placeId) {
+      if (!loadingSession && !placeId) {
         setLoading(false)
         setError('No place is mapped to this operator. Please check the assigned place in SSO/user mapping.')
       }
@@ -729,36 +751,14 @@ export default function OperatorTicketBookingPage() {
         }
 
         const ticketTypes = detailPayload?.result?.ticketTypeDtos ?? []
-        const addOnResponses = await Promise.all(ticketTypes.map(ticketType => {
-          return fetch(`/api/operator-booking/ticket-addons?ticketTypeId=${encodeURIComponent(toText(ticketType.id))}&date=${bookingDate}`, {
-            headers: { Accept: 'application/json' },
-            cache: 'no-store',
-          }).then(async response => {
-            const payload = await response.json().catch(() => null)
-            if (!response.ok) {
-              return []
-            }
-            return Array.isArray((payload as Record<string, unknown> | null)?.result)
-              ? (payload as Record<string, unknown>).result as Array<Record<string, unknown>>
-              : []
-          })
-        }))
 
-        const normalizedTicketOptions = ticketTypes.map((ticketType, index) => ({
+        const normalizedTicketOptions = ticketTypes.map((ticketType) => ({
           id: toText(ticketType.id),
           masterTicketTypeName: toText(ticketType.masterTicketTypeName || ticketType.ticketTypeName, 'Ticket'),
           amount: toNumber(ticketType.amount),
           quantity: 0,
           specificCharges: Array.isArray(ticketType.specificCharges) ? ticketType.specificCharges : [],
-          addOnList: addOnResponses[index].map(addon => ({
-            id: toText(addon.id),
-            name: toText(addon.name, 'Add-on'),
-            amount: toNumber(addon.totalAmount),
-            qty: 0,
-            remarkable: Boolean(addon.remarkable),
-            remarkFieldValue: toText(addon.remarkFieldValue, 'Remark'),
-            remarkValue: [],
-          })),
+          addOnList: [],
         }))
 
         if (!active) return
@@ -783,21 +783,92 @@ export default function OperatorTicketBookingPage() {
     return () => { active = false }
   }, [bookingFlags.onSite, loadingSession, placeId])
 
+  useEffect(() => {
+    const selectedTypes = ticketOptions.filter(t => t.quantity > 0)
+    if (selectedTypes.length === 0) {
+      setGlobalAddons([])
+      setPrimaryTicketTypeId('')
+      setLastAddonTypeId('')
+      return
+    }
+
+    // Find highest priority ticket type
+    let highestPriority = -1
+    let bestType: TicketTypeState | null = null
+
+    selectedTypes.forEach(t => {
+      const typeName = t.masterTicketTypeName.toUpperCase()
+      const priority = TOURIST_PRIORITY[typeName] || 0
+      if (priority > highestPriority) {
+        highestPriority = priority
+        bestType = t
+      }
+    })
+
+    if (!bestType) {
+      // If no recognized priority, just take the first one
+      bestType = selectedTypes[0]
+    }
+
+    const typeId = (bestType as TicketTypeState).id
+    setPrimaryTicketTypeId(typeId)
+
+    if (typeId === lastAddonTypeId) return
+
+    let active = true
+    async function fetchAddons() {
+      try {
+        setLoadingAddons(true)
+        const bookingDate = startOfTodayMs()
+        const response = await fetch(`/api/operator-booking/ticket-addons?ticketTypeId=${encodeURIComponent(typeId)}&date=${bookingDate}`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        })
+        const payload = await response.json().catch(() => null)
+        if (!active) return
+
+        if (response.ok && Array.isArray(payload?.result)) {
+          const addons = (payload.result as Array<Record<string, unknown>>).map(addon => ({
+            id: toText(addon.id),
+            name: toText(addon.name, 'Add-on'),
+            amount: toNumber(addon.totalAmount),
+            qty: 0,
+            remarkable: Boolean(addon.remarkable),
+            remarkFieldValue: toText(addon.remarkFieldValue, 'Remark'),
+            remarkValue: [],
+          }))
+          setGlobalAddons(addons)
+          setLastAddonTypeId(typeId)
+        } else {
+          setGlobalAddons([])
+        }
+      } catch (err) {
+        console.error('Addon fetch error:', err)
+        if (active) setGlobalAddons([])
+      } finally {
+        if (active) setLoadingAddons(false)
+      }
+    }
+
+    fetchAddons()
+    return () => { active = false }
+  }, [ticketOptions, lastAddonTypeId])
+
   const subtotal = useMemo(() => {
     return ticketOptions.reduce((sum, ticket) => {
       return addonOnly ? sum : sum + (ticket.quantity * ticket.amount)
     }, 0)
   }, [addonOnly, ticketOptions])
 
-  const addonTotal = useMemo(() => {
-    return ticketOptions.reduce((sum, ticket) => {
-      return sum + ticket.addOnList.reduce((inner, addon) => inner + (addon.qty * addon.amount), 0)
-    }, 0)
-  }, [ticketOptions])
-
-  const totalTickets = useMemo(() => {
+    const totalTickets = useMemo(() => {
     return ticketOptions.reduce((sum, ticket) => sum + ticket.quantity, 0)
   }, [ticketOptions])
+  
+  const addonTotal = useMemo(() => {
+    return globalAddons.reduce((sum, addon) => sum + (addon.qty * addon.amount), 0)
+  }, [globalAddons])
+
+
 
   const grandTotal = useMemo(() => {
     return getRoundedTotal(subtotal + addonTotal, Boolean(availability?.roundOff))
@@ -809,39 +880,17 @@ export default function OperatorTicketBookingPage() {
       return {
         ...ticket,
         quantity: Math.max(0, nextValue),
-        addOnList: nextValue > 0 ? ticket.addOnList : ticket.addOnList.map(addon => ({ ...addon, qty: 0, remarkValue: [] })),
+        addOnList: [], // Always empty now
       }
     }))
   }
 
-  function updateAddonQuantity(ticketId: string, addonId: string, nextValue: number) {
-    setTicketOptions(current => current.map(ticket => {
-      if (ticket.id !== ticketId) return ticket
+  function updateGlobalAddonQuantity(addonId: string, nextValue: number) {
+    setGlobalAddons(current => current.map(addon => {
+      if (addon.id !== addonId) return addon
       return {
-        ...ticket,
-        addOnList: ticket.addOnList.map(addon => {
-          if (addon.id !== addonId) return addon
-          return {
-            ...addon,
-            qty: Math.max(0, nextValue),
-            remarkValue: nextValue > 0 ? addon.remarkValue.slice(0, Math.max(0, nextValue)) : [],
-          }
-        }),
-      }
-    }))
-  }
-
-  function updateAddonRemark(ticketId: string, addonId: string, index: number, value: string) {
-    setTicketOptions(current => current.map(ticket => {
-      if (ticket.id !== ticketId) return ticket
-      return {
-        ...ticket,
-        addOnList: ticket.addOnList.map(addon => {
-          if (addon.id !== addonId) return addon
-          const nextRemarks = [...addon.remarkValue]
-          nextRemarks[index] = value
-          return { ...addon, remarkValue: nextRemarks }
-        }),
+        ...addon,
+        qty: Math.max(0, nextValue),
       }
     }))
   }
@@ -883,34 +932,21 @@ export default function OperatorTicketBookingPage() {
       const detailPayload = await detailResponse.json().catch(() => null) as TicketAvailabilityResponse | null
       if (!detailResponse.ok) throw new Error(toText(detailPayload?.message, 'Unable to fetch ticket availability.'))
       const ticketTypes = detailPayload?.result?.ticketTypeDtos ?? []
-      const addOnResponses = await Promise.all(ticketTypes.map(ticketType =>
-        fetch(`/api/operator-booking/ticket-addons?ticketTypeId=${encodeURIComponent(toText(ticketType.id))}&date=${bookingDate}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
-          .then(async response => {
-            const payload = await response.json().catch(() => null)
-            return response.ok && Array.isArray((payload as Record<string, unknown> | null)?.result)
-              ? (payload as Record<string, unknown>).result as Array<Record<string, unknown>>
-              : []
-          }),
-      ))
+
       setSpecificCharges(normalizedCharges)
       setSelectedSpecificChargeId(offlineCharge.id)
       setAvailability(detailPayload?.result ?? null)
-      setTicketOptions(ticketTypes.map((ticketType, index) => ({
+      setTicketOptions(ticketTypes.map((ticketType) => ({
         id: toText(ticketType.id),
         masterTicketTypeName: toText(ticketType.masterTicketTypeName || ticketType.ticketTypeName, 'Ticket'),
         amount: toNumber(ticketType.amount),
         quantity: 0,
         specificCharges: Array.isArray(ticketType.specificCharges) ? ticketType.specificCharges : [],
-        addOnList: addOnResponses[index].map(addon => ({
-          id: toText(addon.id),
-          name: toText(addon.name, 'Add-on'),
-          amount: toNumber(addon.totalAmount),
-          qty: 0,
-          remarkable: Boolean(addon.remarkable),
-          remarkFieldValue: toText(addon.remarkFieldValue, 'Remark'),
-          remarkValue: [],
-        })),
+        addOnList: [],
       })))
+      setGlobalAddons([])
+      setPrimaryTicketTypeId('')
+      setLastAddonTypeId('')
       setSelectedShiftId(getVisibleShifts(detailPayload?.result?.shiftDtos ?? [])[0]?.id ?? '')
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to reload booking setup.')
@@ -947,6 +983,8 @@ export default function OperatorTicketBookingPage() {
     setError('')
 
     try {
+      const selectedAddons = globalAddons.filter(a => a.qty > 0)
+      
       const payload = {
         ipAddress: '164.100.222.44',
         bookingDate: startOfTodayMs(),
@@ -957,21 +995,19 @@ export default function OperatorTicketBookingPage() {
         seasonId: availability?.id,
         mobileNo: mobile.trim(),
         userName: name.trim(),
-        ticketUserDtoClone: selectedTickets.map(ticket => ({
+        ticketUserDtoClone: selectedTickets.map((ticket) => ({
           ticketTypeId: ticket.id,
           qty: addonOnly ? 0 : ticket.quantity,
           ...(ticket.specificCharges.length ? { specificChargeId: selectedSpecificChargeId } : {}),
-          addOnList: ticket.addOnList
-            .filter(addon => addon.qty > 0)
-            .map(addon => ({
-              id: addon.id,
-              qty: addon.qty,
-              amount: addon.amount,
-              name: addon.name,
-              remarkable: addon.remarkable,
-              remarkFieldValue: addon.remarkFieldValue,
-              remarkValue: addon.remarkValue.filter(Boolean).join(','),
-            })),
+          addOnList: (ticket.id === primaryTicketTypeId && selectedAddons.length > 0) ? selectedAddons.map(addon => ({
+            id: addon.id,
+            qty: addon.qty,
+            amount: addon.amount,
+            name: addon.name,
+            remarkable: addon.remarkable,
+            remarkFieldValue: addon.remarkFieldValue,
+            remarkValue: '', 
+          })) : [],
         })),
       }
 
@@ -1018,31 +1054,30 @@ export default function OperatorTicketBookingPage() {
   }
 
   return (
-    <div className="px-6 py-6 space-y-6">
+    <div className="px-4 py-4 space-y-4">
       <div
-        className="rounded-[28px] overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #6B1212 0%, #8B1A1A 55%, #C8922A 100%)', boxShadow: '0 24px 60px rgba(107,18,18,0.18)' }}
+        className="rounded-[24px] overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #6B1212 0%, #8B1A1A 55%, #C8922A 100%)', boxShadow: '0 12px 30px rgba(107,18,18,0.12)' }}
       >
-        <div className="px-6 py-6 lg:px-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="px-5 py-4 lg:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 mb-3" style={{ background: 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 11 }}>
-                <Ticket size={12} />
+              <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 mb-2" style={{ background: 'rgba(255,255,255,0.14)', color: '#fff', fontSize: 10 }}>
+                <Ticket size={10} />
                 Live Operator Booking
               </div>
-              <h1 className="font-serif font-bold" style={{ fontSize: 30, lineHeight: 1.05, color: '#fff' }}>
+              <h1 className="font-serif font-bold" style={{ fontSize: 24, lineHeight: 1.05, color: '#fff' }}>
                 Ticket Booking
               </h1>
-             
             </div>
 
             <button
               onClick={reloadBookingSetup}
-              className="rounded-2xl px-4 py-3 font-medium text-white"
-              style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.18)', fontSize: 13 }}
+              className="rounded-xl px-3 py-2 font-medium text-white"
+              style={{ background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.18)', fontSize: 12 }}
             >
               <span className="inline-flex items-center gap-2">
-                <RefreshCw size={14} />
+                <RefreshCw size={12} />
                 Reload
               </span>
             </button>
@@ -1052,14 +1087,13 @@ export default function OperatorTicketBookingPage() {
         <div className="grid gap-px md:grid-cols-4" style={{ background: 'rgba(255,255,255,0.14)' }}>
           {[
             { label: 'Assigned Place', value: extraDetails?.assignedPlaces?.join(', ') || placeName || placeId || 'Not mapped' },
-            // { label: 'Department', value: extraDetails?.departmentName || 'N/A' },
             { label: 'Ticket Types', value: String(ticketOptions.length) },
             { label: 'Visible Shifts', value: String(visibleShifts.length) },
             { label: 'Booking Mode', value: bookingFlags.onSite ? 'On-site' : 'Department' },
           ].map(card => (
-            <div key={card.label} className="px-6 py-4" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.74)', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{card.label}</div>
-              <div className="mt-1 font-semibold" style={{ fontSize: 14, color: '#fff' }}>{card.value}</div>
+            <div key={card.label} className="px-5 py-3" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.74)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{card.label}</div>
+              <div className="mt-0.5 font-semibold" style={{ fontSize: 13, color: '#fff' }}>{card.value}</div>
             </div>
           ))}
         </div>
@@ -1078,101 +1112,97 @@ export default function OperatorTicketBookingPage() {
       ) : null}
 
       {loading ? (
-        <div className="rounded-[28px] border bg-white px-6 py-16 text-center" style={{ borderColor: 'var(--sand)' }}>
-          <div className="font-serif font-bold" style={{ fontSize: 24, color: 'var(--text-dark)' }}>Loading booking setup...</div>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Fetching configured ticket types, shifts and add-ons.</p>
+        <div className="rounded-[24px] border bg-white px-6 py-12 text-center" style={{ borderColor: 'var(--sand)' }}>
+          <div className="font-serif font-bold" style={{ fontSize: 20, color: 'var(--text-dark)' }}>Loading booking setup...</div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Fetching configured ticket types, shifts and add-ons.</p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
-          <div className="space-y-6">
-            <section className="rounded-[28px] border bg-white p-6" style={{ borderColor: 'var(--sand)' }}>
-              <div className="flex items-center gap-3 mb-5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: 'rgba(26,122,110,0.08)', color: '#1A7A6E' }}>
-                  <User size={18} />
+        <form onSubmit={handleSubmit} className="grid gap-4 xl:grid-cols-[1.6fr_0.9fr]">
+          <div className="space-y-4">
+            <section className="rounded-[24px] border bg-white p-4" style={{ borderColor: 'var(--sand)' }}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: 'rgba(26,122,110,0.08)', color: '#1A7A6E' }}>
+                  <User size={16} />
                 </div>
-                <div>
-                  <div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Visitor Details</div>
-                </div>
+                <div className="font-serif font-bold" style={{ fontSize: 18, color: 'var(--text-dark)' }}>Visitor Details</div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label className="mb-1 block" style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Mobile Number
                   </label>
-                  <div className="flex items-center rounded-2xl px-4 py-3" style={{ background: '#F8F4EE', border: '1px solid var(--sand)' }}>
-                    <Phone size={14} style={{ color: 'var(--maroon)', marginRight: 10 }} />
+                  <div className="flex items-center rounded-xl px-3 py-2" style={{ background: '#F8F4EE', border: '1px solid var(--sand)' }}>
+                    <Phone size={12} style={{ color: 'var(--maroon)', marginRight: 8 }} />
                     <input
                       value={mobile}
                       onChange={event => setMobile(event.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="Enter mobile number"
+                      placeholder="Mobile number"
                       className="w-full bg-transparent outline-none"
-                      style={{ fontSize: 14 }}
+                      style={{ fontSize: 13 }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label className="mb-1 block" style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Email Address
                   </label>
                   <input
                     value={email}
                     onChange={event => setEmail(event.target.value.trim())}
-                    placeholder="Enter email address"
-                    className="w-full rounded-2xl px-4 py-3 outline-none"
-                    style={{ background: '#F8F4EE', border: '1px solid var(--sand)', fontSize: 14 }}
+                    placeholder="Email address"
+                    className="w-full rounded-xl px-3 py-2 outline-none"
+                    style={{ background: '#F8F4EE', border: '1px solid var(--sand)', fontSize: 13 }}
                   />
                 </div>
 
                 {requiresName ? (
                   <div className="md:col-span-2">
-                    <label className="mb-2 block" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <label className="mb-1 block" style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       Visitor Name
                     </label>
                     <input
                       value={name}
                       onChange={event => setName(event.target.value)}
-                      placeholder="Enter visitor name"
-                      className="w-full rounded-2xl px-4 py-3 outline-none"
-                      style={{ background: '#F8F4EE', border: '1px solid var(--sand)', fontSize: 14 }}
+                      placeholder="Visitor name"
+                      className="w-full rounded-xl px-3 py-2 outline-none"
+                      style={{ background: '#F8F4EE', border: '1px solid var(--sand)', fontSize: 13 }}
                     />
                   </div>
                 ) : null}
               </div>
             </section>
 
-            <section className="rounded-[28px] border bg-white p-6" style={{ borderColor: 'var(--sand)' }}>
-              <div className="flex items-center gap-3 mb-5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: 'rgba(200,146,42,0.10)', color: '#C8922A' }}>
-                  <CalendarDays size={18} />
+            <section className="rounded-[24px] border bg-white p-4" style={{ borderColor: 'var(--sand)' }}>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: 'rgba(200,146,42,0.10)', color: '#C8922A' }}>
+                  <CalendarDays size={16} />
                 </div>
-                <div>
-                  <div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Shift Selection</div>
-                </div>
+                <div className="font-serif font-bold" style={{ fontSize: 18, color: 'var(--text-dark)' }}>Shift Selection</div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-2 md:grid-cols-2">
                 {visibleShifts.map(shift => (
                   <button
                     key={shift.id}
                     type="button"
                     onClick={() => setSelectedShiftId(shift.id)}
-                    className="rounded-2xl px-4 py-4 text-left transition"
+                    className="rounded-xl px-3 py-3 text-left transition"
                     style={{
                       background: selectedShiftId === shift.id ? 'rgba(139,26,26,0.08)' : '#F8F4EE',
                       border: `1px solid ${selectedShiftId === shift.id ? 'rgba(139,26,26,0.24)' : 'var(--sand)'}`,
                     }}
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-2">
                       <div>
-                        <div className="font-semibold" style={{ fontSize: 14, color: 'var(--text-dark)' }}>{shift.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        <div className="font-semibold" style={{ fontSize: 13, color: 'var(--text-dark)' }}>{shift.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
                           {shift.endTime ? `Ends ${formatDate(shift.endTime)}` : 'Shift available'}
                         </div>
                       </div>
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full" style={{ background: selectedShiftId === shift.id ? 'var(--maroon)' : '#fff', border: '1px solid var(--sand)' }}>
-                        {selectedShiftId === shift.id ? <CheckCircle2 size={14} color="#fff" /> : null}
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full" style={{ background: selectedShiftId === shift.id ? 'var(--maroon)' : '#fff', border: '1px solid var(--sand)' }}>
+                        {selectedShiftId === shift.id ? <CheckCircle2 size={12} color="#fff" /> : null}
                       </div>
                     </div>
                   </button>
@@ -1180,130 +1210,167 @@ export default function OperatorTicketBookingPage() {
               </div>
             </section>
 
-            <section className="rounded-[28px] border bg-white p-6" style={{ borderColor: 'var(--sand)' }}>
-              <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
-                <div>
-                  <div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Ticket Options</div>
-                </div>
+            <section className="rounded-[24px] border bg-white p-4" style={{ borderColor: 'var(--sand)' }}>
+              <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+                <div className="font-serif font-bold" style={{ fontSize: 18, color: 'var(--text-dark)' }}>Tourist Options</div>
 
                 {allowAddonOnly ? (
-                  <label className="inline-flex items-center gap-2 rounded-full px-3 py-2" style={{ background: '#F8F4EE', border: '1px solid var(--sand)', fontSize: 12, color: 'var(--text-dark)' }}>
+                  <label className="inline-flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#F8F4EE', border: '1px solid var(--sand)', fontSize: 11, color: 'var(--text-dark)' }}>
                     <input type="checkbox" checked={addonOnly} onChange={() => setAddonOnly(value => !value)} />
-                    Book this place with add-ons only
+                    Add-ons only
                   </label>
                 ) : null}
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {ticketOptions.map(ticket => (
-                  <div key={ticket.id} className="rounded-[22px] border overflow-hidden" style={{ borderColor: 'var(--sand)' }}>
-                    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4" style={{ background: '#FCF7F0' }}>
+                  <div key={ticket.id} className="rounded-[18px] border overflow-hidden" style={{ borderColor: 'var(--sand)' }}>
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3" style={{ background: '#FCF7F0' }}>
                       <div>
-                        <div className="font-semibold" style={{ fontSize: 15, color: 'var(--text-dark)' }}>{ticket.masterTicketTypeName}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                          {formatCurrency(ticket.amount)} per ticket
+                        <div className="font-semibold" style={{ fontSize: 14, color: 'var(--text-dark)' }}>{ticket.masterTicketTypeName}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {formatCurrency(ticket.amount)}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => updateTicketQuantity(ticket.id, ticket.quantity - 1)}
                           disabled={ticket.quantity <= 0 || addonOnly}
-                          className="flex h-10 w-10 items-center justify-center rounded-xl disabled:opacity-40"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40"
                           style={{ background: '#fff', border: '1px solid var(--sand)' }}
                         >
-                          <Minus size={14} />
+                          <Minus size={12} />
                         </button>
                         <input
-                          value={ticket.quantity === 0 ? '' : ticket.quantity}
+                          value={ticket.quantity}
                           onChange={event => updateTicketQuantity(ticket.id, toNumber(event.target.value))}
-                          className="w-20 rounded-xl px-3 py-2 text-center outline-none"
-                          style={{ background: '#fff', border: '1px solid var(--sand)', fontSize: 14 }}
+                          className="w-14 rounded-lg px-2 py-1 text-center outline-none"
+                          style={{ background: '#fff', border: '1px solid var(--sand)', fontSize: 13 }}
                           disabled={addonOnly}
                         />
                         <button
                           type="button"
                           onClick={() => updateTicketQuantity(ticket.id, ticket.quantity + 1)}
                           disabled={addonOnly}
-                          className="flex h-10 w-10 items-center justify-center rounded-xl disabled:opacity-40"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40"
                           style={{ background: '#fff', border: '1px solid var(--sand)' }}
                         >
-                          <Plus size={14} />
+                          <Plus size={12} />
                         </button>
                       </div>
                     </div>
-
-                    {ticket.addOnList.length > 0 ? (
-                      <div className="px-5 py-4 space-y-4">
-                        {ticket.addOnList.map(addon => (
-                          <div key={addon.id} className="rounded-2xl px-4 py-4" style={{ background: '#fffaf5', border: '1px solid #f0dfc7' }}>
-                            <div className="flex flex-wrap items-center justify-between gap-4">
-                              <div>
-                                <div className="font-medium" style={{ fontSize: 14, color: 'var(--text-dark)' }}>{addon.name}</div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                                  {formatCurrency(addon.amount)} per add-on
-                                </div>
-                              </div>
-
-                              <input
-                                value={addon.qty === 0 ? '' : addon.qty}
-                                onChange={event => updateAddonQuantity(ticket.id, addon.id, toNumber(event.target.value))}
-                                className="w-24 rounded-xl px-3 py-2 text-center outline-none"
-                                style={{ background: '#fff', border: '1px solid var(--sand)', fontSize: 14 }}
-                              />
-                            </div>
-
-                            {addon.remarkable && addon.qty > 0 ? (
-                              <div className="grid gap-3 md:grid-cols-2 mt-4">
-                                {Array.from({ length: addon.qty }, (_, index) => (
-                                  <input
-                                    key={`${addon.id}-${index}`}
-                                    value={addon.remarkValue[index] ?? ''}
-                                    onChange={event => updateAddonRemark(ticket.id, addon.id, index, event.target.value)}
-                                    placeholder={`Enter ${addon.remarkFieldValue || 'remark'} ${index + 1}`}
-                                    className="rounded-xl px-3 py-2 outline-none"
-                                    style={{ background: '#fff', border: '1px solid var(--sand)', fontSize: 13 }}
-                                  />
-                                ))}
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
                 ))}
               </div>
             </section>
+
+            {globalAddons.length > 0 ? (
+              <section className="rounded-[24px] border bg-white" style={{ borderColor: 'var(--sand)' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddons(!showAddons)}
+                  className="flex w-full items-center justify-between p-4 transition hover:bg-black/[0.02] rounded-t-[24px]"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: 'rgba(219,39,119,0.08)', color: '#DB2777' }}>
+                      <Plus size={16} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-serif font-bold" style={{ fontSize: 18, color: 'var(--text-dark)' }}>Available Add-ons Fees</div>
+                      <div className="group relative z-20">
+                        <Info size={14} className="cursor-help text-muted transition hover:text-maroon" />
+                        <div className="invisible absolute bottom-full left-1/2 mb-2 w-64 -translate-x-1/2 rounded-lg bg-gray-900 p-2 text-[14px] leading-relaxed text-white opacity-0 transition group-hover:visible group-hover:opacity-100 shadow-xl border border-white/10 z-[100]">
+                          These add-ons includes entry Fees and charges of tourist vehicles, camera and video camera etc.
+                          <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {showAddons ? <ChevronUp size={18} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={18} style={{ color: 'var(--text-muted)' }} />}
+                </button>
+
+                {showAddons && (
+                  <div className="border-t p-4" style={{ borderColor: 'var(--sand)' }}>
+                    {loadingAddons ? (
+                      <div className="py-4 text-center text-xs text-muted">Updating add-ons...</div>
+                    ) : (
+                      <div className="grid gap-3">
+                        {globalAddons.map(addon => (
+                          <div
+                            key={addon.id}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 transition"
+                            style={{
+                              background: addon.qty > 0 ? 'rgba(219,39,119,0.08)' : '#F8F4EE',
+                              border: `1px solid ${addon.qty > 0 ? 'rgba(219,39,119,0.24)' : 'var(--sand)'}`,
+                            }}
+                          >
+                            <div>
+                              <div className="font-semibold" style={{ fontSize: 14, color: 'var(--text-dark)' }}>{addon.name}</div>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                {formatCurrency(addon.amount)}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => updateGlobalAddonQuantity(addon.id, addon.qty - 1)}
+                                disabled={addon.qty <= 0}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40"
+                                style={{ background: '#fff', border: '1px solid var(--sand)' }}
+                              >
+                                <Minus size={12} />
+                              </button>
+                              <input
+                                value={addon.qty}
+                                onChange={event => updateGlobalAddonQuantity(addon.id, toNumber(event.target.value))}
+                                className="w-14 rounded-lg px-2 py-1 text-center outline-none"
+                                style={{ background: '#fff', border: '1px solid var(--sand)', fontSize: 13 }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => updateGlobalAddonQuantity(addon.id, addon.qty + 1)}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                                style={{ background: '#fff', border: '1px solid var(--sand)' }}
+                              >
+                                <Plus size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            ) : null}
           </div>
 
-          <aside className="space-y-6">
-            <section className="rounded-[28px] border bg-white p-6 sticky top-6" style={{ borderColor: 'var(--sand)' }}>
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Payment Summary</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Review totals before creating the booking.</div>
-                </div>
-                <ChevronDown size={18} style={{ color: 'var(--text-muted)' }} />
+          <aside className="space-y-4">
+            <section className="rounded-[24px] border bg-white p-4 sticky top-4" style={{ borderColor: 'var(--sand)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="font-serif font-bold" style={{ fontSize: 18, color: 'var(--text-dark)' }}>Summary</div>
+                <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: '#F8F4EE' }}>
-                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Total Tickets</span>
-                  <strong style={{ color: 'var(--text-dark)' }}>{totalTickets}</strong>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-xl px-3 py-2" style={{ background: '#F8F4EE' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Tickets</span>
+                  <strong style={{ color: 'var(--text-dark)', fontSize: 13 }}>{totalTickets}</strong>
                 </div>
 
                 {ticketOptions.filter(ticket => ticket.quantity > 0 && !addonOnly).map(ticket => (
-                  <div key={`summary-${ticket.id}`} className="flex items-center justify-between" style={{ fontSize: 13 }}>
+                  <div key={`summary-${ticket.id}`} className="flex items-center justify-between" style={{ fontSize: 12 }}>
                     <span style={{ color: 'var(--text-mid)' }}>{ticket.masterTicketTypeName} x {ticket.quantity}</span>
                     <span style={{ color: 'var(--text-dark)', fontWeight: 600 }}>{formatCurrency(ticket.quantity * ticket.amount)}</span>
                   </div>
                 ))}
 
                 {addonTotal > 0 ? (
-                  <div className="flex items-center justify-between" style={{ fontSize: 13 }}>
-                    <span style={{ color: 'var(--text-mid)' }}>Add-on Charges</span>
+                  <div className="flex items-center justify-between" style={{ fontSize: 12 }}>
+                    <span style={{ color: 'var(--text-mid)' }}>Add-ons</span>
                     <span style={{ color: 'var(--text-dark)', fontWeight: 600 }}>{formatCurrency(addonTotal)}</span>
                   </div>
                 ) : null}
@@ -1311,20 +1378,18 @@ export default function OperatorTicketBookingPage() {
                 <div className="h-px my-2" style={{ background: 'var(--sand)' }} />
 
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold" style={{ color: 'var(--text-dark)' }}>Grand Total</span>
-                  <span className="font-serif font-bold" style={{ fontSize: 28, color: 'var(--maroon)' }}>{formatCurrency(grandTotal)}</span>
+                  <span className="font-semibold" style={{ color: 'var(--text-dark)', fontSize: 13 }}>Grand Total</span>
+                  <span className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--maroon)' }}>{formatCurrency(grandTotal)}</span>
                 </div>
-
-               
               </div>
 
               <button
                 type="submit"
                 disabled={submitting || loading}
-                className="mt-6 w-full rounded-2xl px-5 py-3.5 font-semibold text-white disabled:opacity-70"
-                style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)', fontSize: 15 }}
+                className="mt-4 w-full rounded-xl px-4 py-3 font-semibold text-white disabled:opacity-70"
+                style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)', fontSize: 14 }}
               >
-                {submitting ? 'Booking Ticket...' : 'Book Ticket'}
+                {submitting ? 'Booking...' : 'Book Ticket'}
               </button>
             </section>
           </aside>

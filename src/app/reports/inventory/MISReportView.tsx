@@ -1286,7 +1286,7 @@ export default function MISReportView({
                     const modeSt = modeStyle[r.bookingMode] ?? modeStyle.ONLINE
 
                     return (
-                      <>
+                      
                           <React.Fragment key={r.bookingId}>
 
                         <tr
@@ -1373,7 +1373,7 @@ export default function MISReportView({
                         {isExpanded && <ExpandedRow key={r.bookingId + '-exp'} row={r} />}
                             </React.Fragment>
 
-                      </>
+                      
                     )
                   })
                 )}

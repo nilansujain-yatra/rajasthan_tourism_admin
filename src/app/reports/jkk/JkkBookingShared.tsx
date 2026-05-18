@@ -237,7 +237,7 @@ function downloadJkkFormPdf(row: RecordRow, bankDetails?: RecordRow | null, mask
   doc.setTextColor(131, 24, 67) // pink-900
   doc.text('Payment Details', 14, (doc as any).lastAutoTable.finalY + 12)
 
-  const paymentRows = ticketHeads.map((item, index) => [ticketHeadLabel(item, index), formatMoney(getAny(item, ['amount', 'value']))])
+  const paymentRows: any[] = ticketHeads.map((item, index) => [ticketHeadLabel(item, index), formatMoney(getAny(item, ['amount', 'value']))])
   paymentRows.push([{ content: 'Total Amount', styles: { fontStyle: 'bold' } }, { content: formatMoney(row.totalAmount), styles: { fontStyle: 'bold' } }])
 
   autoTable(doc, {

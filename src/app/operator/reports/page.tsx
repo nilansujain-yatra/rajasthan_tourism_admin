@@ -5,14 +5,18 @@ import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import {
   Building2,
   Calendar,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
   FileBarChart2,
   MapPin,
+  Printer,
   Search,
   SlidersHorizontal,
   Ticket,
@@ -151,15 +155,94 @@ function extractTotal(payload: unknown, fallback = 0) {
   return typeof total === 'number' && Number.isFinite(total) ? total : fallback
 }
 
-function csv(filename: string, headers: string[], rows: Array<Array<string | number>>) {
-  const content = [headers.join(','), ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n')
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
+function pdf(filename: string, title: string, headers: string[], rows: Array<Array<string | number>>) {
+  const doc = new jsPDF('landscape')
+  doc.setFontSize(16)
+  doc.text(title, 14, 15)
+  doc.setFontSize(10)
+  doc.text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 14, 22)
+
+  autoTable(doc, {
+    startY: 28,
+    head: [headers],
+    body: rows,
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [107, 18, 18], textColor: [255, 255, 255] },
+  })
+
+  doc.save(filename)
+}
+
+function BookingDetailsDialog({
+  data,
+  onClose,
+}: {
+  data: BookingRow | null
+  onClose: () => void
+}) {
+  if (!data) return null
+
+  const downloadDetails = () => {
+    const doc = new jsPDF()
+    doc.setFontSize(18)
+    doc.text('Booking Details', 14, 20)
+    
+    const rows = Object.entries(data)
+      .filter(([key]) => key !== 'srNo')
+      .map(([k, v]) => [k.replace(/([A-Z])/g, ' $1').trim(), String(v)])
+
+    autoTable(doc, {
+      startY: 30,
+      body: rows,
+      theme: 'grid',
+      styles: { fontSize: 10 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 60 } }
+    })
+    
+    doc.save(`booking-${data.bookingId}.pdf`)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b px-6 py-4" style={{ background: '#F8F4EE' }}>
+          <div>
+            <div className="font-serif text-xl font-bold" style={{ color: 'var(--text-dark)' }}>Booking Details</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{data.bookingId}</div>
+          </div>
+          <button onClick={onClose} className="rounded-full p-2 hover:bg-black/5">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Object.entries(data)
+              .filter(([key]) => key !== 'srNo')
+              .map(([key, value]) => (
+                <div key={key} className="rounded-xl border p-3" style={{ background: '#fcfaf7', borderColor: 'var(--sand)' }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{key.replace(/([A-Z])/g, ' $1').trim()}</div>
+                  <div className="mt-1 font-medium" style={{ fontSize: 13, color: 'var(--text-dark)' }}>{String(value)}</div>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t px-6 py-4" style={{ background: '#f8fafc' }}>
+          <button onClick={onClose} className="rounded-xl border px-4 py-2" style={{ borderColor: 'var(--sand)', fontSize: 13 }}>Close</button>
+          <button
+            onClick={downloadDetails}
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-white"
+            style={{ background: 'var(--maroon)', fontSize: 13 }}
+          >
+            <Download size={14} />
+            Download PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function getPlaceId(user: AuthUser | null) {
@@ -447,6 +530,7 @@ function BookingReportView({
   const [draftFilters, setDraftFilters] = useState<FilterState>(base)
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(base)
   const [filterOpen, setFilterOpen] = useState(false)
+  const [selectedRow, setSelectedRow] = useState<BookingRow | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [search, setSearch] = useState('')
@@ -555,8 +639,9 @@ function BookingReportView({
               </span>
             </button>
             <button
-              onClick={() => csv(
-                `${composite ? 'composite' : 'general'}-ticket-report-${Date.now()}.csv`,
+              onClick={() => pdf(
+                `${composite ? 'composite' : 'general'}-ticket-report-${Date.now()}.pdf`,
+                `${composite ? 'Composite' : 'General'} Ticket Booking Report`,
                 composite
                   ? ['Booking ID', 'Mobile', 'Members', 'Amount', 'Date', 'Time', 'Print Count', 'Status', 'Transaction ID', 'Package']
                   : ['Booking ID', 'Mobile', 'Members', 'Amount', 'Amount With Add On', 'Date', 'Time', 'Print Count', 'Status', 'Transaction ID'],
@@ -625,7 +710,15 @@ function BookingReportView({
               {!loading && !error && rows.map(row => (
                 <tr key={`${row.bookingId}-${row.srNo}`} style={{ borderBottom: '1px solid var(--cream-dark)' }}>
                   <td style={{ padding: '9px 12px', fontSize: 11 }}>{(page - 1) * pageSize + row.srNo}</td>
-                  <td style={{ padding: '9px 12px', fontSize: 11 }}>{row.bookingId}</td>
+                  <td style={{ padding: '9px 12px', fontSize: 11 }}>
+                    <button
+                      onClick={() => setSelectedRow(row)}
+                      className="font-semibold transition hover:opacity-70"
+                      style={{ color: 'var(--maroon)', textDecoration: 'underline' }}
+                    >
+                      {row.bookingId}
+                    </button>
+                  </td>
                   <td style={{ padding: '9px 12px', fontSize: 11 }}>{row.mobile}</td>
                   <td style={{ padding: '9px 12px', fontSize: 11, textAlign: 'right' }}>{row.members}</td>
                   <td style={{ padding: '9px 12px', fontSize: 11, textAlign: 'right' }}>{formatMoney(row.amount)}</td>
@@ -666,6 +759,13 @@ function BookingReportView({
         }}
         onClose={() => setFilterOpen(false)}
       />
+
+      {selectedRow ? (
+        <BookingDetailsDialog
+          data={selectedRow}
+          onClose={() => setSelectedRow(null)}
+        />
+      ) : null}
     </>
   )
 }
@@ -782,8 +882,9 @@ function PlaceSummaryReportView({
               </span>
             </button>
             <button
-              onClick={() => csv(
-                `${title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.csv`,
+              onClick={() => pdf(
+                `${title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.pdf`,
+                title,
                 ['Place', 'Total Booking', 'Amount With Add On', 'Total Amount', 'Total Visitors'],
                 rows.map(row => [row.placeName, row.totalBooking, row.totalAmountWithAddOn, row.totalAmount, row.totalVisitors]),
               )}
@@ -965,7 +1066,12 @@ function AddOnSummaryReportView({
               </span>
             </button>
             <button
-              onClick={() => csv('add-on-summary-report.csv', ['Place', 'Add On', 'Quantity', 'Amount'], rows.flatMap(row => row.addOnDetails.map(item => [row.placeName, item.name, item.quantity, item.totalAmount])))}
+              onClick={() => pdf(
+                `add-on-summary-report-${Date.now()}.pdf`,
+                'Add On Summary Report',
+                ['Place', 'Add On', 'Quantity', 'Amount'],
+                rows.flatMap(row => row.addOnDetails.map(item => [row.placeName, item.name, item.quantity, item.totalAmount])),
+              )}
               className="rounded-2xl px-4 py-2 text-white"
               style={{ fontSize: 12, background: 'linear-gradient(135deg, var(--maroon), var(--maroon-light))' }}
             >

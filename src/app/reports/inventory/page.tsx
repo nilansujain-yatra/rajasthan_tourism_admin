@@ -20,6 +20,7 @@ import DayWiseReportView from './DayWiseReportView'
 import VehicleAvailabilityReportView from './VehicleAvailabilityReportView'
 import VehicleTripAmountReportView from './VehicleTripAmountReportView'
 import DifferenceReportView from './DifferenceReportView'
+import BoardingPassReport from './BoardingPassReport'
 
 type ReportType = 'mis' | 'country' | 'daywise' | 'headwise' | 'headdetail' | 'headsummary' | 'addon' | 'vehicleavail' | 'vehicletrip' | 'vehicleguide' | 'boarding' | 'failed' | 'choiceaddon' | 'diff' | 'entryexit' | 'guidetrip' | 'msgwise' | 'blockunblock' | 'blockuser' | 'checkstatus' | 'ticketgst' | 'choicegst' | 'headwisegst' | 'choicendiffreport' | 'vehicletrip2' | 'guidetrip2' | 'transaction' | 'cancelled'
 
@@ -179,6 +180,9 @@ export default function InventoryReportsPage() {
 
       case 'diff':
           return <DifferenceReportView/>
+
+      case 'boarding':
+          return <BoardingPassReport />
 
   
 

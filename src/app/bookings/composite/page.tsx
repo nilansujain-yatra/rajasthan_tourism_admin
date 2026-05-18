@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Building2, CheckCircle2, CreditCard, Mail, MapPin, Minus, Package2, Phone, Plus, Printer, RefreshCw, Search, Ticket, User, Wallet, X } from 'lucide-react'
+import { Building2, CheckCircle2, CreditCard, Mail, MapPin, Minus, Package2, PersonStanding, Phone, Plus, Printer, RefreshCw, Search, Ticket, User, Wallet, X } from 'lucide-react'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
 
@@ -1279,25 +1279,34 @@ export default function CompositeBookingPage() {
           {selectedPackageId && !loading && selectedPackage ? (
             <form onSubmit={handleSubmit} className="grid gap-6">
               <div className="space-y-6">
-                <section className="rounded-[28px] border bg-white p-6" style={{ borderColor: 'var(--sand)' }}>
+                {/* <section className="rounded-[28px] border bg-white p-6" style={{ borderColor: 'var(--sand)' }}>
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div><div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>{selectedPackage.packageName}</div><div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>Valid for {selectedPackage.days} day(s) across {selectedPackage.placeNames.length} place(s)</div></div>
                     <div className="rounded-2xl px-4 py-3" style={{ background: '#FCF7F0', border: '1px solid var(--sand)' }}><div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Specific Charge</div><div style={{ fontSize: 14, color: 'var(--text-dark)', fontWeight: 600 }}>{specificCharges.find(item => item.id === selectedSpecificChargeId)?.name || 'N/A'}</div></div>
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">{selectedPackage.placeNames.map(place => <div key={place} className="rounded-2xl px-4 py-3" style={{ background: '#F8F4EE', border: '1px solid var(--sand)' }}><div className="inline-flex items-center gap-2" style={{ fontSize: 13, color: 'var(--text-dark)', fontWeight: 600 }}><MapPin size={14} style={{ color: 'var(--maroon)' }} />{place}</div></div>)}</div>
-                </section>
+                </section> */}
 
                 <section className="rounded-[28px] border bg-white p-6" style={{ borderColor: 'var(--sand)' }}>
                   <div className="flex items-center gap-3 mb-5"><div className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: 'rgba(26,122,110,0.08)', color: '#1A7A6E' }}><User size={18} /></div><div><div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Visitor Details</div></div></div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div><label className="mb-2 block" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Mobile Number</label><div className="flex items-center rounded-2xl px-4 py-3" style={{ background: '#F8F4EE', border: '1px solid var(--sand)' }}><Phone size={14} style={{ color: 'var(--maroon)', marginRight: 10 }} /><input value={mobile} onChange={event => setMobile(event.target.value.replace(/[^0-9]/g, '').slice(0, 10))} placeholder="Enter mobile number" className="w-full bg-transparent outline-none" style={{ fontSize: 14 }} /></div></div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div><label className="mb-2 block"
+                     style={{ fontSize: 11, color: 'var(--text-muted)',
+                      fontWeight: 700, textTransform: 'uppercase',
+                       letterSpacing: '0.5px' }}>Mobile Number</label>
+                       <div className="flex items-center rounded-2xl px-4 py-3" 
+                       style={{ background: '#F8F4EE', border: '1px solid var(--sand)' }}>
+                        <Phone size={14} style={{ color: 'var(--maroon)', marginRight: 10 }} />
+                        <input value={mobile} onChange={event => setMobile(event.target.value.replace(/[^0-9]/g, '').slice(0, 10))} placeholder="Enter mobile number" className="w-full bg-transparent outline-none" style={{ fontSize: 14 }} /></div></div>
                     <div><label className="mb-2 block" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Email Address</label><div className="flex items-center rounded-2xl px-4 py-3" style={{ background: '#F8F4EE', border: '1px solid var(--sand)' }}><Mail size={14} style={{ color: 'var(--maroon)', marginRight: 10 }} /><input value={email} onChange={event => setEmail(event.target.value.trim())} placeholder="Enter email address" className="w-full bg-transparent outline-none" style={{ fontSize: 14 }} /></div></div>
-                    <div className="md:col-span-2"><label className="mb-2 block" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visitor Name</label><input value={visitorName} onChange={event => setVisitorName(event.target.value)} placeholder="Enter visitor name" className="w-full rounded-2xl px-4 py-3 outline-none" style={{ background: '#F8F4EE', border: '1px solid var(--sand)', fontSize: 14 }} /></div>
+                    <div><label className="mb-2 block" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visitor Name</label><div className="flex items-center rounded-2xl px-4 py-3" style={{ background: '#F8F4EE', border: '1px solid var(--sand)' }}><User size={14} style={{ color: 'var(--maroon)', marginRight: 10 }} /><input value={visitorName} onChange={event => setVisitorName(event.target.value)} placeholder="Enter Visitor Name" className="w-full bg-transparent outline-none" style={{ fontSize: 14 }} /></div></div>
+                    {/* <div className="md:col-span-2"><label className="mb-2 block" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visitor Name</label><input value={visitorName}
+                     onChange={event => setVisitorName(event.target.value)} placeholder="Enter visitor name" className="w-full rounded-2xl px-4 py-3 outline-none" style={{ background: '#F8F4EE', border: '1px solid var(--sand)', fontSize: 14 }} /></div> */}
                   </div>
                 </section>
 
                 <section className="rounded-[28px] border bg-white p-6" style={{ borderColor: 'var(--sand)' }}>
-                  <div className="flex items-center justify-between gap-4 flex-wrap mb-5"><div><div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Ticket Options</div></div></div>
+                  <div className="flex items-center justify-between gap-4 flex-wrap mb-5"><div><div className="font-serif font-bold" style={{ fontSize: 22, color: 'var(--text-dark)' }}>Tourist Options</div></div></div>
                   <div className="space-y-4">
                     {ticketOptions.map(ticket => (
                       <div key={ticket.id} className="rounded-[22px] border overflow-hidden" style={{ borderColor: 'var(--sand)' }}>

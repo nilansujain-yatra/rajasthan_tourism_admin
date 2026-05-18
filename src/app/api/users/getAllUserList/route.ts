@@ -12,10 +12,10 @@ function getUsersUrl(request: NextRequest) {
 
   const defaults: Record<string, string> = {
     searchKey: '',
-    size: '50',
-    offSet: '0',
+    size: '288270',
+    offSet: '',
     block: 'false',
-    pagination: 'true',
+    pagination: 'false',
     isFilter: 'true',
   }
 

@@ -4,9 +4,9 @@ import { AUTHENTICATION_TOKEN } from '@/lib/auth/constants'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
+  const { id } = await context.params
   const cookieStore = await cookies()
   const authToken = cookieStore.get(AUTHENTICATION_TOKEN)?.value
 
@@ -31,7 +31,6 @@ export async function GET(
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error('User API proxy error:', error)
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 })
   }
 }
