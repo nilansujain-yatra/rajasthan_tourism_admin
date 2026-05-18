@@ -2,10 +2,21 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Building2, IndianRupee, RefreshCw, Search, Ticket, Users, X } from 'lucide-react'
+import { AlertCircle, Building2, ChevronDown, ChevronLeft, ChevronRight, IndianRupee, RefreshCw, Search, Ticket, Users, X } from 'lucide-react'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import SectionHeader from '@/components/ui/SectionHeader'
-import type { HomeDetailsResponse, HomeDetailsReport, PlaceWiseReport } from '@/lib/api/services'
+import { usePlaceStore } from '@/lib/store/use-place-store'
+
+type PlaceSummary = {
+  placeId: string
+  placeCode: string
+  placeName: string
+  totalVisitors: number
+  totalAmount: number
+  totalBooking: number
+  totalBookingsOnline: number
+  totalBookingsOffline: number
+}
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('en-IN', {
@@ -21,15 +32,59 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
-function getPlaceKey(place: PlaceWiseReport) {
+function toText(value: unknown, fallback = '') {
+  return typeof value === 'string' ? value : typeof value === 'number' ? String(value) : fallback
+}
+
+function findFirstArray(value: unknown): unknown[] | null {
+  if (Array.isArray(value)) return value
+  if (!value || typeof value !== 'object') return null
+  for (const candidate of Object.values(value as Record<string, unknown>)) {
+    const found = findFirstArray(candidate)
+    if (found) return found
+  }
+  return null
+}
+
+function extractPlaces(payload: unknown): unknown[] {
+  const list = findFirstArray(payload)
+  return Array.isArray(list) ? list : []
+}
+
+function mapPlaceItem(item: unknown): PlaceSummary | null {
+  if (!item || typeof item !== 'object') return null
+  const obj = item as Record<string, unknown>
+
+  const placeId = toText(obj.placeId ?? obj.id ?? obj.place_id ?? obj.placeID, '')
+  const placeCode = toText(obj.placeCode ?? obj.place_code ?? obj.placecode ?? obj.code, '')
+  const placeName = toText(obj.placeName ?? obj.name ?? obj.place_name ?? obj.placename, '')
+
+  if (!placeId && !placeCode && !placeName) return null
+
+  return {
+    ...obj,
+    placeId,
+    placeCode,
+    placeName,
+    totalVisitors: Number(obj.totalVisitors ?? 0),
+    totalAmount: Number(obj.totalAmount ?? 0),
+    totalBooking: Number(obj.totalBooking ?? 0),
+    totalBookingsOnline: Number(obj.totalBookingsOnline ?? 0),
+    totalBookingsOffline: Number(obj.totalBookingsOffline ?? 0),
+    // Ensure nested objects are preserved correctly if needed, 
+    // though ...obj already does this.
+  } as any
+}
+
+function getPlaceKey(place: PlaceSummary) {
   return place.placeId || place.placeCode || place.placeName
 }
 
-function getTotalBookings(place: PlaceWiseReport) {
+function getTotalBookings(place: PlaceSummary) {
   return place.totalBooking || place.totalBookingsOnline + place.totalBookingsOffline
 }
 
-function getFilteredPlaces(places: PlaceWiseReport[], searchTerm: string) {
+function getFilteredPlaces(places: PlaceSummary[], searchTerm: string) {
   const normalizedSearch = searchTerm.trim().toLowerCase()
 
   return places.filter(place => {
@@ -109,10 +164,11 @@ function SummaryCard({
   )
 }
 
-function PlaceCard({ place }: { place: PlaceWiseReport }) {
+function PlaceCard({ place }: { place: PlaceSummary }) {
   const detailHref = `/places/${encodeURIComponent(getPlaceKey(place))}`
   const hasOnlineBookings = place.totalBookingsOnline > 0
   const hasOfflineBookings = place.totalBookingsOffline > 0
+  const setSelectedPlace = usePlaceStore((state) => state.setSelectedPlace)
 
   return (
     <div
@@ -120,6 +176,9 @@ function PlaceCard({ place }: { place: PlaceWiseReport }) {
       style={{
         background: '#fff',
         border: '1px solid var(--sand)',
+      }}
+      onClick={() => {
+        setSelectedPlace(place)
       }}
     >
       <div className="px-4 py-3">
@@ -206,11 +265,14 @@ function PlaceCard({ place }: { place: PlaceWiseReport }) {
 }
 
 export default function PlacesManagementView() {
-  const [report, setReport] = useState<HomeDetailsReport | null>(null)
+  const [places, setPlaces] = useState<PlaceSummary[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalRecords, setTotalRecords] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -220,7 +282,19 @@ export default function PlacesManagementView() {
         setIsLoading(true)
         setError(null)
 
-        const response = await fetch('/api/dashboard/home-details?isFilter=true', {
+        const params = new URLSearchParams({
+          offSet: String(page - 1),
+          size: String(pageSize),
+          export: 'false',
+          searchKey: searchTerm,
+          deptList: '',
+          divisionList: '',
+          districtList: '',
+          categoryList: '',
+          statusList: '',
+        })
+
+        const response = await fetch(`/api/place?${params.toString()}`, {
           method: 'GET',
           headers: {
             Accept: 'application/json',
@@ -232,8 +306,17 @@ export default function PlacesManagementView() {
           throw new Error(`API request failed with status ${response.status}.`)
         }
 
-        const payload = await response.json() as HomeDetailsResponse
-        setReport(payload.result)
+        const payload = await response.json()
+        const list = extractPlaces(payload)
+        
+        // Extract total records if available
+        const total = payload?.result?.totalRecords ?? payload?.totalRecords ?? payload?.total ?? list.length
+        setTotalRecords(total)
+
+        const nextPlaces = list
+          .map(mapPlaceItem)
+          .filter((item): item is PlaceSummary => Boolean(item))
+        setPlaces(nextPlaces)
       } catch (loadError) {
         if (loadError instanceof Error && loadError.name === 'AbortError') {
           return
@@ -248,13 +331,9 @@ export default function PlacesManagementView() {
     loadPlaces()
 
     return () => controller.abort()
-  }, [reloadKey])
+  }, [reloadKey, page, pageSize, searchTerm])
 
-  const places = report?.placeWiseReports ?? []
-  const filteredPlaces = useMemo(
-    () => getFilteredPlaces(places, searchTerm),
-    [places, searchTerm]
-  )
+  const filteredPlaces = places // We are now filtering on the server side via searchKey
 
   const totals = useMemo(() => {
     return filteredPlaces.reduce(
@@ -267,7 +346,7 @@ export default function PlacesManagementView() {
     )
   }, [filteredPlaces])
 
-  if (!error && isLoading && !report) {
+  if (!error && isLoading && places.length === 0) {
     return <LoadingState />
   }
 
@@ -301,7 +380,10 @@ export default function PlacesManagementView() {
           <Search size={14} style={{ color: 'var(--text-muted)' }} />
           <input
             value={searchTerm}
-            onChange={event => setSearchTerm(event.target.value)}
+            onChange={event => {
+              setSearchTerm(event.target.value)
+              setPage(1)
+            }}
             placeholder="Search by place name or code..."
             className="flex-1 bg-transparent outline-none"
             style={{ fontSize: 12, color: 'var(--text-dark)' }}
@@ -352,22 +434,94 @@ export default function PlacesManagementView() {
 
       {error && <ErrorState message={error} onRetry={() => setReloadKey(key => key + 1)} />}
 
-      {!error && report && (
+      {!error && places.length > 0 && (
         <div>
           <SectionHeader
             title="Dept. of Archaeology - Live Sites"
             right={
               <span className="font-serif font-semibold" style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                Showing {formatNumber(filteredPlaces.length)} of {formatNumber(places.length)}
+                Showing {formatNumber(Math.min((page - 1) * pageSize + 1, totalRecords))} - {formatNumber(Math.min(page * pageSize, totalRecords))} of {formatNumber(totalRecords)}
               </span>
             }
           />
 
           {filteredPlaces.length > 0 ? (
-            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
-              {filteredPlaces.map(place => (
-                <PlaceCard key={getPlaceKey(place)} place={place} />
-              ))}
+            <div className="space-y-6">
+              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+                {filteredPlaces.map(place => (
+                  <PlaceCard key={getPlaceKey(place)} place={place} />
+                ))}
+              </div>
+
+              {/* Pagination controls */}
+              <div className="flex items-center justify-between border-t border-[var(--sand)] pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value))
+                        setPage(1)
+                      }}
+                      className="appearance-none rounded-xl pl-4 pr-10 py-2 outline-none font-medium transition-all hover:border-[var(--maroon)]"
+                      style={{ fontSize: 12, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)', minWidth: 120 }}
+                    >
+                      {[10, 20, 50, 100].map(size => (
+                        <option key={size} value={size}>{size} per page</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]" />
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    Total {formatNumber(totalRecords)} places
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={page === 1 || isLoading}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    className="flex items-center justify-center rounded-xl w-9 h-9 transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--cream)]"
+                    style={{ border: '1px solid var(--sand)', color: 'var(--text-dark)' }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, Math.ceil(totalRecords / pageSize)) }, (_, i) => {
+                      const pageNum = i + 1;
+                      const isCurrent = page === pageNum;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setPage(pageNum)}
+                          className="flex items-center justify-center rounded-xl w-9 h-9 font-medium transition-all"
+                          style={{ 
+                            fontSize: 12,
+                            background: isCurrent ? 'var(--maroon)' : 'transparent',
+                            color: isCurrent ? '#fff' : 'var(--text-dark)',
+                            border: isCurrent ? '1px solid var(--maroon)' : '1px solid transparent'
+                          }}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {Math.ceil(totalRecords / pageSize) > 5 && (
+                      <span className="px-1 text-[var(--text-muted)]">...</span>
+                    )}
+                  </div>
+
+                  <button
+                    disabled={page >= Math.ceil(totalRecords / pageSize) || isLoading}
+                    onClick={() => setPage(p => p + 1)}
+                    className="flex items-center justify-center rounded-xl w-9 h-9 transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--cream)]"
+                    style={{ border: '1px solid var(--sand)', color: 'var(--text-dark)' }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="rounded-xl3 px-5 py-8 text-center" style={{ background: '#fff', border: '1px solid var(--sand)' }}>
