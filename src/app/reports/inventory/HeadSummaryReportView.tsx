@@ -552,12 +552,14 @@ function FilterSelect({
   options,
   onChange,
   icon,
+  disabled,
 }: {
   label: string
   value: string
   options: { v: string; l: string }[]
   onChange: (v: string) => void
   icon?: ReactNode
+  disabled?: boolean
 }) {
   return (
     <div className="space-y-2">
@@ -569,8 +571,9 @@ function FilterSelect({
         <select
           value={value}
           onChange={e => onChange(e.target.value)}
+          disabled={disabled}
           className="w-full appearance-none rounded-xl py-3 pl-4 pr-10 outline-none"
-          style={{ fontSize: 12, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)' }}
+          style={{ fontSize: 12, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)', opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
         >
           {options.map(option => <option key={`${label}-${option.v}-${option.l}`} value={option.v}>{option.l}</option>)}
         </select>
@@ -618,6 +621,9 @@ interface HeadSummaryReportViewProps {
   data?: HeadSummaryRow[]
   title?: string
   totalResults?: number
+  lockedPlaceId?: string
+  lockedPlaceName?: string
+  lockedDepartmentId?: string
 }
 
 export default function HeadSummaryReportView({
@@ -625,16 +631,21 @@ export default function HeadSummaryReportView({
   data = DEFAULT_ROWS,
   title = 'Head Summary Report',
   totalResults,
+  lockedPlaceId = '',
+  lockedPlaceName,
+  lockedDepartmentId = '',
 }: HeadSummaryReportViewProps) {
   const today = useMemo(() => getTodayDateInput(), [])
   const defaultFilters = useMemo<FilterState>(() => ({
     dateType: 'visit',
     startDate: today,
     endDate: today,
-    departmentId: '',
-    placeId: 'ALL',
+    departmentId: lockedDepartmentId,
+    placeId: lockedPlaceId || 'ALL',
     transactionStatus: 'ALL',
-  }), [today])
+  }), [lockedDepartmentId, lockedPlaceId, today])
+  const placeLocked = Boolean(lockedPlaceId)
+  const departmentLocked = Boolean(lockedDepartmentId)
 
   const [rows, setRows] = useState<HeadSummaryRow[]>(data)
   const [summaryStats, setSummaryStats] = useState<HeadSummaryStats>(stats)
@@ -658,7 +669,7 @@ export default function HeadSummaryReportView({
   const activeDepartment = departments.find(item => getDepartmentId(item) === appliedFilters.departmentId)
   const activePlace = places.find(item => getPlaceId(item) === appliedFilters.placeId)
   const activeDepartmentName = activeDepartment ? getDepartmentName(activeDepartment) : ''
-  const activePlaceName = activePlace ? getPlaceName(activePlace) : ''
+  const activePlaceName = placeLocked ? (lockedPlaceName || activePlace?.placeName || '') : activePlace ? getPlaceName(activePlace) : ''
 
   useEffect(() => {
     setDraftFilters(defaultFilters)
@@ -718,20 +729,20 @@ export default function HeadSummaryReportView({
 
         if (filterOpen) {
           setDraftFilters(current => {
-            if (!current.placeId && firstPlaceId) {
+            if (!current.placeId && firstPlaceId && !placeLocked) {
               return { ...current, placeId: firstPlaceId }
             }
-            if (current.placeId && !nextPlaces.some(place => getPlaceId(place) === current.placeId)) {
+            if (!placeLocked && current.placeId && !nextPlaces.some(place => getPlaceId(place) === current.placeId)) {
               return { ...current, placeId: firstPlaceId }
             }
             return current
           })
         } else {
           setAppliedFilters(current => {
-            if (!current.placeId && firstPlaceId) {
+            if (!current.placeId && firstPlaceId && !placeLocked) {
               return { ...current, placeId: firstPlaceId }
             }
-            if (current.placeId && !nextPlaces.some(place => getPlaceId(place) === current.placeId)) {
+            if (!placeLocked && current.placeId && !nextPlaces.some(place => getPlaceId(place) === current.placeId)) {
               return { ...current, placeId: firstPlaceId }
             }
             return current
@@ -751,7 +762,7 @@ export default function HeadSummaryReportView({
     return () => {
       active = false
     }
-  }, [filterOpen, placeDeptId])
+  }, [filterOpen, placeDeptId, placeLocked])
 
   useEffect(() => {
     let active = true
@@ -1026,6 +1037,7 @@ export default function HeadSummaryReportView({
                 icon={<Building2 size={12} style={{ color: 'var(--maroon)' }} />}
                 options={[{ v: '', l: departmentsLoading ? 'Loading departments...' : 'All Departments' }, ...departments.map(item => ({ v: getDepartmentId(item), l: getDepartmentName(item) }))]}
                 onChange={value => setDraftFilters(current => ({ ...current, departmentId: value, placeId: '' }))}
+                disabled={departmentLocked}
               />
 
               <FilterSelect
@@ -1034,6 +1046,7 @@ export default function HeadSummaryReportView({
                 icon={<MapPin size={12} style={{ color: 'var(--maroon)' }} />}
                 options={[{ v: '', l: placesLoading ? 'Loading places...' : 'All Places' }, ...places.map(item => ({ v: getPlaceId(item), l: getPlaceName(item) }))]}
                 onChange={value => setDraftFilters(current => ({ ...current, placeId: value }))}
+                disabled={placeLocked}
               />
 
               <div className="space-y-2">

@@ -803,7 +803,13 @@ function InvoiceModal({
   )
 }
 
-export default function BoardingPassReport() {
+export default function BoardingPassReport({
+  lockedPlaceId = '',
+  lockedPlaceName,
+}: {
+  lockedPlaceId?: string
+  lockedPlaceName?: string
+}) {
   const [activeTab, setActiveTab] = useState<ReportTab>('pending')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [searchInput, setSearchInput] = useState('')
@@ -834,8 +840,10 @@ export default function BoardingPassReport() {
   const [invoiceOpen, setInvoiceOpen] = useState<string | null>(null)
   const [vehicleDetailsRow, setVehicleDetailsRow] = useState<GeneratedRow | PendingRow | null>(null)
 
-  const effectivePlaceId = (isSiteAdmin ? siteAdminPlaceId : appliedFilters.placeId).trim()
-  const effectiveDraftPlaceId = (isSiteAdmin ? siteAdminPlaceId : draftFilters.placeId).trim()
+  const lockedPlace = lockedPlaceId.trim()
+  const treatAsLockedPlace = Boolean(lockedPlace)
+  const effectivePlaceId = (treatAsLockedPlace ? lockedPlace : isSiteAdmin ? siteAdminPlaceId : appliedFilters.placeId).trim()
+  const effectiveDraftPlaceId = (treatAsLockedPlace ? lockedPlace : isSiteAdmin ? siteAdminPlaceId : draftFilters.placeId).trim()
 
   const currentRows = activeTab === 'pending' ? pendingRows : generatedRows
   const visiblePendingRows = useMemo(() => {
@@ -847,8 +855,8 @@ export default function BoardingPassReport() {
   const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE))
 
   const selectedPlaceLabel = useMemo(
-    () => places.find(place => place.id === effectivePlaceId)?.label ?? 'All Places',
-    [effectivePlaceId, places],
+    () => lockedPlaceName || (places.find(place => place.id === effectivePlaceId)?.label ?? 'All Places'),
+    [effectivePlaceId, lockedPlaceName, places],
   )
   const selectedSeasonLabel = useMemo(
     () => seasons.find(item => item.id === appliedFilters.seasonId)?.label ?? 'All Seasons',
@@ -883,13 +891,18 @@ export default function BoardingPassReport() {
     setIsSiteAdmin(isCurrentSiteAdmin)
     setSiteAdminPlaceId(placeId)
 
-    if (isCurrentSiteAdmin && placeId) {
+    if (treatAsLockedPlace) {
+      const next = emptyFilters()
+      next.placeId = lockedPlace
+      setDraftFilters(next)
+      setAppliedFilters(next)
+    } else if (isCurrentSiteAdmin && placeId) {
       const next = emptyFilters()
       next.placeId = placeId
       setDraftFilters(next)
       setAppliedFilters(next)
     }
-  }, [])
+  }, [lockedPlace, treatAsLockedPlace])
 
   useEffect(() => {
     let cancelled = false
@@ -934,7 +947,7 @@ export default function BoardingPassReport() {
     async function loadContextOptions() {
       try {
         const [seasonResponse, detailResponse] = await Promise.all([
-          fetch(`/api/season?placeId=${encodeURIComponent(placeId)}`, { cache: 'no-store' }),
+          fetch(`/season?placeId=${encodeURIComponent(placeId)}`, { cache: 'no-store' }),
           fetch(`/api/booking/placeDetails/v2?placeId=${encodeURIComponent(placeId)}${draftFilters.seasonId ? `&seasonId=${encodeURIComponent(draftFilters.seasonId)}` : ''}`, { cache: 'no-store' }),
         ])
 
@@ -1058,7 +1071,7 @@ export default function BoardingPassReport() {
   const applyFilters = () => {
     setAppliedFilters({
       ...draftFilters,
-      placeId: isSiteAdmin ? siteAdminPlaceId : draftFilters.placeId,
+      placeId: treatAsLockedPlace ? lockedPlace : isSiteAdmin ? siteAdminPlaceId : draftFilters.placeId,
     })
     setCurrentPage(1)
     setFiltersOpen(false)
@@ -1066,7 +1079,9 @@ export default function BoardingPassReport() {
 
   const resetFilters = () => {
     const next = emptyFilters()
-    if (isSiteAdmin && siteAdminPlaceId) {
+    if (treatAsLockedPlace && lockedPlace) {
+      next.placeId = lockedPlace
+    } else if (isSiteAdmin && siteAdminPlaceId) {
       next.placeId = siteAdminPlaceId
     }
     setDraftFilters(next)
@@ -1397,7 +1412,7 @@ export default function BoardingPassReport() {
                 <>
                   <DateInput label="Start Date" value={draftFilters.startDate} min={todayInput()} onChange={value => setDraftFilters(current => ({ ...current, startDate: value }))} />
                   <DateInput label="End Date" value={draftFilters.endDate} min={draftFilters.startDate || todayInput()} onChange={value => setDraftFilters(current => ({ ...current, endDate: value }))} />
-                  <FilterSelect label="Place" value={isSiteAdmin ? siteAdminPlaceId : draftFilters.placeId} options={places} onChange={handleDraftPlaceChange} disabled={isSiteAdmin} />
+                  <FilterSelect label="Place" value={treatAsLockedPlace ? lockedPlace : isSiteAdmin ? siteAdminPlaceId : draftFilters.placeId} options={places} onChange={handleDraftPlaceChange} disabled={isSiteAdmin || treatAsLockedPlace} />
                   <FilterSelect label="Season" value={draftFilters.seasonId} options={seasons} onChange={value => setDraftFilters(current => ({ ...current, seasonId: value }))} />
                   <FilterSelect label="Quota" value={draftFilters.quotaId} options={quotas} onChange={value => setDraftFilters(current => ({ ...current, quotaId: value }))} />
                   <FilterSelect label="Shift" value={draftFilters.shiftId} options={shifts} onChange={value => setDraftFilters(current => ({ ...current, shiftId: value }))} />
@@ -1407,7 +1422,7 @@ export default function BoardingPassReport() {
               ) : (
                 <>
                   <DateInput label="Date" value={draftFilters.date} max={todayInput()} onChange={value => setDraftFilters(current => ({ ...current, date: value }))} />
-                  <FilterSelect label="Place" value={isSiteAdmin ? siteAdminPlaceId : draftFilters.placeId} options={places} onChange={handleDraftPlaceChange} disabled={isSiteAdmin} />
+                  <FilterSelect label="Place" value={treatAsLockedPlace ? lockedPlace : isSiteAdmin ? siteAdminPlaceId : draftFilters.placeId} options={places} onChange={handleDraftPlaceChange} disabled={isSiteAdmin || treatAsLockedPlace} />
                   <FilterSelect label="Zone" value={draftFilters.zoneId} options={zones} onChange={value => setDraftFilters(current => ({ ...current, zoneId: value }))} />
                   <FilterSelect label="Shift" value={draftFilters.shiftId} options={shifts} onChange={value => setDraftFilters(current => ({ ...current, shiftId: value }))} />
                   <FilterSelect label="Vehicle Type" value={draftFilters.inventoryId} options={inventoryTypes} onChange={value => setDraftFilters(current => ({ ...current, inventoryId: value }))} />

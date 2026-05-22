@@ -254,12 +254,14 @@ function FilterSelect({
   options,
   onChange,
   icon,
+  disabled,
 }: {
   label: string
   value: string
   options: { v: string; l: string }[]
   onChange: (value: string) => void
   icon?: ReactNode
+  disabled?: boolean
 }) {
   return (
     <div className="space-y-2">
@@ -281,8 +283,9 @@ function FilterSelect({
         <select
           value={value}
           onChange={event => onChange(event.target.value)}
+          disabled={disabled}
           className="w-full appearance-none rounded-xl py-3 pl-4 pr-10 outline-none"
-          style={{ fontSize: 12, border: '1px solid var(--sand)', background: '#fff', color: 'var(--text-dark)' }}
+          style={{ fontSize: 12, border: '1px solid var(--sand)', background: '#fff', color: 'var(--text-dark)', opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
         >
           {options.map(option => (
             <option key={`${label}-${option.v}-${option.l}`} value={option.v}>
@@ -333,22 +336,30 @@ interface HeadWiseReportViewProps {
   data?: HeadWiseRow[]
   title?: string
   totalResults?: number
+  lockedPlaceId?: string
+  lockedPlaceName?: string
+  lockedDepartmentId?: string
 }
 
 export default function HeadWiseReportView({
   data = SAMPLE_DATA,
   title = 'Head Wise Report',
   totalResults,
+  lockedPlaceId = '',
+  lockedPlaceName,
+  lockedDepartmentId = '',
 }: HeadWiseReportViewProps) {
   const today = useMemo(() => getTodayDateInput(), [])
   const defaultFilters = useMemo<FilterState>(() => ({
     dateType: 'visit',
     startDate: today,
     endDate: today,
-    departmentId: '',
-    placeId: '',
+    departmentId: lockedDepartmentId,
+    placeId: lockedPlaceId,
     transactionStatus: 'ALL',
-  }), [today])
+  }), [lockedDepartmentId, lockedPlaceId, today])
+  const placeLocked = Boolean(lockedPlaceId)
+  const departmentLocked = Boolean(lockedDepartmentId)
 
   const [rows, setRows] = useState<HeadWiseRow[]>(data)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -371,7 +382,7 @@ export default function HeadWiseReportView({
   const activeDepartment = departments.find(item => getDepartmentId(item) === appliedFilters.departmentId)
   const activePlace = places.find(item => getPlaceId(item) === appliedFilters.placeId)
   const activeDepartmentName = activeDepartment ? getDepartmentName(activeDepartment) : ''
-  const activePlaceName = activePlace ? getPlaceName(activePlace) : ''
+  const activePlaceName = placeLocked ? (lockedPlaceName || activePlace?.placeName || '') : activePlace ? getPlaceName(activePlace) : ''
 
   useEffect(() => {
     setDraftFilters(defaultFilters)
@@ -429,13 +440,13 @@ export default function HeadWiseReportView({
 
         if (filtersOpen) {
           setDraftFilters(current => (
-            current.placeId && !nextPlaces.some(place => getPlaceId(place) === current.placeId)
+            !placeLocked && current.placeId && !nextPlaces.some(place => getPlaceId(place) === current.placeId)
               ? { ...current, placeId: '' }
               : current
           ))
         } else {
           setAppliedFilters(current => (
-            current.placeId && !nextPlaces.some(place => getPlaceId(place) === current.placeId)
+            !placeLocked && current.placeId && !nextPlaces.some(place => getPlaceId(place) === current.placeId)
               ? { ...current, placeId: '' }
               : current
           ))
@@ -454,7 +465,7 @@ export default function HeadWiseReportView({
     return () => {
       active = false
     }
-  }, [filtersOpen, placeDeptId])
+  }, [filtersOpen, placeDeptId, placeLocked])
 
   useEffect(() => {
     let active = true
@@ -735,6 +746,7 @@ export default function HeadWiseReportView({
                   ...departments.map(item => ({ v: getDepartmentId(item), l: getDepartmentName(item) })),
                 ]}
                 onChange={value => setDraftFilters(current => ({ ...current, departmentId: value, placeId: '' }))}
+                disabled={departmentLocked}
               />
 
               <FilterSelect
@@ -746,6 +758,7 @@ export default function HeadWiseReportView({
                   ...places.map(item => ({ v: getPlaceId(item), l: getPlaceName(item) })),
                 ]}
                 onChange={value => setDraftFilters(current => ({ ...current, placeId: value }))}
+                disabled={placeLocked}
               />
 
               <div className="space-y-2">

@@ -43,3 +43,18 @@ export async function proxyOperatorBookingRequest(url: string, init?: RequestIni
     },
   })
 }
+
+export async function proxyOperatorBookingNextRequest(
+  request: Request,
+  url: string,
+  method = request.method,
+) {
+  const body = method === 'GET' || method === 'HEAD' ? undefined : await request.text()
+  const contentType = request.headers.get('content-type')
+
+  return proxyOperatorBookingRequest(url, {
+    method,
+    body,
+    headers: contentType ? { 'Content-Type': contentType } : undefined,
+  })
+}

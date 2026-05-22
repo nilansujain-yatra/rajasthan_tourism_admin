@@ -165,7 +165,7 @@ function SummaryCard({
 }
 
 function PlaceCard({ place }: { place: PlaceSummary }) {
-  const detailHref = `/places/${encodeURIComponent(getPlaceKey(place))}`
+  const detailHref = `/places/${encodeURIComponent(place.placeId || getPlaceKey(place))}`
   const hasOnlineBookings = place.totalBookingsOnline > 0
   const hasOfflineBookings = place.totalBookingsOffline > 0
   const setSelectedPlace = usePlaceStore((state) => state.setSelectedPlace)
@@ -256,6 +256,9 @@ function PlaceCard({ place }: { place: PlaceSummary }) {
           }}
           onMouseEnter={event => (event.currentTarget.style.background = 'var(--maroon-light)')}
           onMouseLeave={event => (event.currentTarget.style.background = 'var(--maroon)')}
+          onClick={() => {
+            setSelectedPlace(place)
+          }}
         >
           View Details
         </Link>

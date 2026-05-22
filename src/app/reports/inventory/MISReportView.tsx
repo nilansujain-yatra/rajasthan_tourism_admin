@@ -603,14 +603,14 @@ function PageBtn({ onClick, disabled, active, icon, label }: { onClick: ()=>void
   )
 }
 
-function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: { v: string; l: string }[]; onChange: (v: string) => void }) {
+function FilterSelect({ label, value, options, onChange, disabled = false }: { label: string; value: string; options: { v: string; l: string }[]; onChange: (v: string) => void; disabled?: boolean }) {
   return (
     <div className="flex flex-col gap-1">
       <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' as const }}>{label}</label>
       <div className="relative">
-        <select value={value} onChange={e => onChange(e.target.value)}
+        <select value={value} onChange={e => onChange(e.target.value)} disabled={disabled}
           className="appearance-none rounded-xl pr-7 pl-3 py-2 outline-none"
-          style={{ fontSize: 12, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)', minWidth: 130 }}
+          style={{ fontSize: 12, background: '#fff', border: '1px solid var(--sand)', color: 'var(--text-dark)', minWidth: 130, opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
         >
           {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
         </select>
@@ -728,12 +728,18 @@ interface MISReportViewProps {
   data?:          MISRow[]
   title?:         string
   totalResults?:  number
+  lockedPlaceId?: string
+  lockedPlaceName?: string
+  lockedDepartmentId?: string
 }
 
 export default function MISReportView({
   data          = SAMPLE_DATA,
   title         = 'MIS Report',
   totalResults  = 1803,
+  lockedPlaceId = '',
+  lockedPlaceName,
+  lockedDepartmentId = '',
 }: MISReportViewProps) {
   void data
   void totalResults
@@ -746,9 +752,11 @@ export default function MISReportView({
     endDate: todayMaxDate,
     bookingType: 'ALL',
     transactionStatus: 'ALL',
-    departmentId: '',
-    placeId: '',
-  }), [todayMaxDate, todayStartDate])
+    departmentId: lockedDepartmentId,
+    placeId: lockedPlaceId,
+  }), [lockedDepartmentId, lockedPlaceId, todayMaxDate, todayStartDate])
+  const placeLocked = Boolean(lockedPlaceId)
+  const departmentLocked = Boolean(lockedDepartmentId)
 
   const [rows, setRows] = useState<MISRow[]>([])
   const [searchBookingId, setSearchBookingId] = useState('')
@@ -784,7 +792,7 @@ export default function MISReportView({
   const activeDepartment = departments.find(department => getDepartmentId(department) === appliedFilters.departmentId)
   const activePlace = places.find(place => getPlaceId(place) === appliedFilters.placeId)
   const activeDepartmentName = activeDepartment ? getDepartmentName(activeDepartment) : ''
-  const activePlaceName = activePlace ? getPlaceName(activePlace) : ''
+  const activePlaceName = placeLocked ? (lockedPlaceName || activePlace?.placeName || '') : activePlace ? getPlaceName(activePlace) : ''
 
   useEffect(() => {
     setDraftFilters(defaultFilters)
@@ -853,7 +861,7 @@ export default function MISReportView({
         const nextPlaces = extractPlaces(payload)
         setPlaces(nextPlaces)
 
-        if (appliedFilters.placeId && !nextPlaces.some(place => getPlaceId(place) === appliedFilters.placeId)) {
+        if (!placeLocked && appliedFilters.placeId && !nextPlaces.some(place => getPlaceId(place) === appliedFilters.placeId)) {
           setDraftFilters(current => ({ ...current, placeId: '' }))
           setAppliedFilters(current => ({ ...current, placeId: '' }))
           setPage(1)
@@ -874,7 +882,7 @@ export default function MISReportView({
     return () => {
       active = false
     }
-  }, [appliedFilters.departmentId, appliedFilters.placeId])
+  }, [appliedFilters.departmentId, appliedFilters.placeId, placeLocked])
 
   useEffect(() => {
     let active = true
@@ -1179,6 +1187,7 @@ export default function MISReportView({
                 value={draftFilters.departmentId}
                 options={[{ v: '', l: departmentsLoading ? 'Loading departments...' : 'All Departments' }, ...departments.map(department => ({ v: getDepartmentId(department), l: getDepartmentName(department) }))]}
                 onChange={value => setDraftFilters(current => ({ ...current, departmentId: value, placeId: '' }))}
+                disabled={departmentLocked}
               />
 
               <FilterSelect
@@ -1186,6 +1195,7 @@ export default function MISReportView({
                 value={draftFilters.placeId}
                 options={[{ v: '', l: placesLoading ? 'Loading places...' : 'All Places' }, ...places.map(place => ({ v: getPlaceId(place), l: getPlaceName(place) }))]}
                 onChange={value => setDraftFilters(current => ({ ...current, placeId: value }))}
+                disabled={placeLocked}
               />
             </div>
 
@@ -1440,4 +1450,3 @@ export default function MISReportView({
     </div>
   )
 }
-
