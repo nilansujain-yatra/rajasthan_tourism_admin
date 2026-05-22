@@ -659,7 +659,6 @@ export default function PlaceDetailsView({ placeId }: { placeId: string }) {
         <PlaceReportsView
           placeId={place.id || place.placeId || placeId}
           placeName={place.placeName}
-          departmentId={toText((place as Record<string, unknown>).deptId) || toText((place as Record<string, unknown>).departmentId)}
         />
       )}
 

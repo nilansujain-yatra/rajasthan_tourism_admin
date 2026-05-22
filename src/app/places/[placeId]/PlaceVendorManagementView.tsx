@@ -313,6 +313,7 @@ export default function PlaceVendorManagementView({
         <div className="grid gap-5 px-6 py-6 lg:grid-cols-[1.5fr_auto] lg:px-8 lg:py-8">
           <div>
             <h2 className="font-serif" style={{ fontSize: 32, lineHeight: 1.05, color: '#fff', fontWeight: 700 }}>Place Vendors</h2>
+            <h2 className="font-serif" style={{ fontSize: 32, lineHeight: 1.05, color: '#fff', fontWeight: 700 }}>Place Vendors</h2>
             {/* <p className="mt-2 max-w-2xl" style={{ fontSize: 13, lineHeight: 1.7, color: 'rgba(255,255,255,0.78)' }}>
               Assign vendors to this place and control their current activation status.
             </p> */}
