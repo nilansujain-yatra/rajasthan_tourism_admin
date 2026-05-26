@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, LogOut, Printer, SlidersHorizontal } from 'lucide-react'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
@@ -77,12 +77,28 @@ function getInitials(user: AuthUser | null) {
     .join('') || 'AU'
 }
 
+function shouldForceLogout(status: number, payload: unknown) {
+  if (status === 401 || status === 403) return true
+  if (!payload || typeof payload !== 'object') return false
+
+  const message = (payload as { message?: unknown }).message
+  if (typeof message !== 'string') return false
+
+  const normalized = message.trim().toLowerCase()
+  return normalized.includes('missing auth token environment variable')
+    || normalized.includes('missing auth token')
+    || normalized.includes('unauthorized')
+    || normalized.includes('auth expire')
+    || normalized.includes('authentication failed')
+}
+
 export default function Topbar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const dateStr = getNowString()
 const [user, setUser] = useState<AuthUser | null>(null)
 const [mounted, setMounted] = useState(false)
+const logoutTriggeredRef = useRef(false)
 
  useEffect(() => {
   setMounted(true)
@@ -187,9 +203,50 @@ const [mounted, setMounted] = useState(false)
   }, [])
 
   const handleLogout = async () => {
+    if (logoutTriggeredRef.current) return
+    logoutTriggeredRef.current = true
     clearCachedAuthUser()
     window.location.assign('/sso/logout')
   }
+
+  useEffect(() => {
+    if (!mounted) return
+    if (pathname.startsWith('/sso')) return
+
+    const originalFetch = window.fetch.bind(window)
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await originalFetch(input, init)
+
+      try {
+        const requestUrl = typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url
+
+        const isApiRequest = requestUrl.startsWith('/api/')
+          || requestUrl.startsWith(window.location.origin + '/api/')
+
+        if (!isApiRequest || logoutTriggeredRef.current) {
+          return response
+        }
+
+        const payload = await response.clone().json().catch(() => null)
+        if (shouldForceLogout(response.status, payload)) {
+          void handleLogout()
+        }
+      } catch {
+        // Ignore response parsing issues and allow normal page flow.
+      }
+
+      return response
+    }
+
+    return () => {
+      window.fetch = originalFetch
+    }
+  }, [mounted, pathname])
 
   if (!mounted) {
   return null
