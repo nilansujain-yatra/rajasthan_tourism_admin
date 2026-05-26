@@ -39,6 +39,7 @@ const pageTitles: Record<string, string> = {
   '/system/server':          'Server Logs',
   '/system/payment':         'Payment Reverify',
   '/system/status':          'Place Active Status',
+  '/system/helpdesk-issue-type': 'Helpdesk Issue Type',
 }
 
 function getNowString() {
@@ -279,7 +280,7 @@ const logoutTriggeredRef = useRef(false)
       {/* Right: actions + user */}
       <div className="flex items-center gap-3">
         {/* Print */}
-        <button
+        {/* <button
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
           style={{
             background: 'var(--cream-dark)',
@@ -290,10 +291,10 @@ const logoutTriggeredRef = useRef(false)
         >
           <Printer size={13} />
           Print
-        </button>
+        </button> */}
 
         {/* Filter */}
-        <button
+        {/* <button
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors text-white"
           style={{
             background: 'var(--maroon)',
@@ -303,7 +304,7 @@ const logoutTriggeredRef = useRef(false)
         >
           <SlidersHorizontal size={13} />
           Filter
-        </button>
+        </button> */}
 
         {/* Notification bell */}
         <div className="relative cursor-pointer p-1.5">

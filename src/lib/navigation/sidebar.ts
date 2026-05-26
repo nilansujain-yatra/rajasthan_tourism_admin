@@ -63,6 +63,7 @@ const SUPER_ADMIN_NAV_SECTIONS: NavSection[] = [
       { href: '/system/server', icon: '🖥️', label: 'Server Logs' },
       { href: '/system/payment', icon: '💳', label: 'Payment Reverify' },
       { href: '/system/status', icon: '🟢', label: 'Place Active Status' },
+      { href: '/system/helpdesk-issue-type', icon: '🛟', label: 'Helpdesk Issue Type' },
     ],
   },
 ]
