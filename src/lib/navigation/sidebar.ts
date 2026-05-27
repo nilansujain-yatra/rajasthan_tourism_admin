@@ -59,6 +59,7 @@ const SUPER_ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     label: 'System',
     items: [
+      { href: '/system/settings', icon: '⚙️', label: 'Settings' },
       { href: '/system/logs', icon: '📂', label: 'User Logs' },
       { href: '/system/server', icon: '🖥️', label: 'Server Logs' },
       { href: '/system/payment', icon: '💳', label: 'Payment Reverify' },

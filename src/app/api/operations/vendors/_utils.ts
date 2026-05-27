@@ -64,3 +64,18 @@ export async function proxyJsonRequest(url: string, init: RequestInit = {}) {
     },
   })
 }
+
+export async function proxyJsonNextRequest(
+  request: Request,
+  url: string,
+  method = request.method,
+) {
+  const body = method === 'GET' || method === 'HEAD' ? undefined : await request.text()
+  const contentType = request.headers.get('content-type')
+
+  return proxyJsonRequest(url, {
+    method,
+    body,
+    headers: contentType ? { 'Content-Type': contentType } : undefined,
+  })
+}
