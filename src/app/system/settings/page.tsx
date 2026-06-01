@@ -1132,6 +1132,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           ...(divisionDialog.mode === 'edit' && divisionDialog.row ? { id: divisionDialog.row.id } : {}),
           name: divisionDialog.name.trim(),
+          division: divisionDialog.name.trim(),
           divisionMangal: divisionDialog.nameMangal.trim(),
           code: divisionDialog.code.trim(),
           active: divisionDialog.active,
@@ -1168,6 +1169,7 @@ export default function SettingsPage() {
           ...(districtDialog.mode === 'edit' && districtDialog.row ? { id: districtDialog.row.id } : {}),
           divisionId: districtDialog.divisionId,
           name: districtDialog.name.trim(),
+          district: districtDialog.name.trim(),
           districtMangal: districtDialog.nameMangal.trim(),
           code: districtDialog.code.trim(),
         }),
@@ -1707,15 +1709,15 @@ export default function SettingsPage() {
                   {divisionRows.length === 0 ? (
                     <EmptyState title="Divisions" note="No division added yet." />
                   ) : (
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="space-y-4">
                       {divisionRows.map(row => {
                         const selected = row.id === selectedDivisionId
 
                         return (
                           <div
                             key={row.id}
-                            className="rounded-[24px] border p-5 transition-all"
-                            onClick={() => setSelectedDivisionId(row.id)}
+                            className="rounded-[24px] border p-4 transition-all"
+                            onClick={() => setSelectedDivisionId(current => (current === row.id ? '' : row.id))}
                             style={{
                               borderColor: selected ? 'rgba(200,146,42,0.6)' : 'var(--sand)',
                               background: selected ? 'linear-gradient(135deg, rgba(200,146,42,0.10) 0%, rgba(255,255,255,1) 100%)' : '#fff',
@@ -1723,79 +1725,78 @@ export default function SettingsPage() {
                               boxShadow: selected ? '0 12px 30px rgba(140,100,33,0.10)' : 'none',
                             }}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <div className="font-semibold" style={{ fontSize: 17, color: 'var(--text-dark)' }}>{row.name}</div>
-                                <div className="mt-1 flex items-center gap-2" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                  <span>{selected ? 'Districts open below' : 'Click to view districts'}</span>
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-semibold" style={{ fontSize: 16, color: 'var(--text-dark)' }}>{row.name}</div>
+                                <div className="mt-1 flex flex-wrap items-center gap-2" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                  <span>{selected ? 'Click again to hide districts' : 'Click to view districts'}</span>
                                   <ChevronRight size={14} />
+                                  {row.code ? <span>Code: {row.code}</span> : null}
                                 </div>
-                                {row.nameMangal || row.code ? (
-                                  <div className="mt-2 flex flex-wrap gap-3" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                    {row.nameMangal ? <span>{row.nameMangal}</span> : null}
-                                    {row.code ? <span>Code: {row.code}</span> : null}
-                                  </div>
+                                {row.nameMangal ? (
+                                  <div className="mt-1" style={{ fontSize: 12, color: 'var(--text-muted)' }}>{row.nameMangal}</div>
                                 ) : null}
                               </div>
-                              <span className="rounded-full px-3 py-1 font-medium" style={{ fontSize: 11, ...statusStyle(row.active) }}>{row.active ? 'Active' : 'Inactive'}</span>
+                              <div className="flex shrink-0 flex-col items-end gap-2">
+                                <span className="rounded-full px-3 py-1 font-medium" style={{ fontSize: 11, ...statusStyle(row.active) }}>{row.active ? 'Active' : 'Inactive'}</span>
+                                <div className="flex flex-wrap justify-end gap-2">
+                                  <ActionButton onClick={() => openDivisionDialog(row)}>Edit</ActionButton>
+                                  <ActionButton tone="danger" onClick={() => setConfirmState({ kind: 'division', action: 'delete', row })}>Delete</ActionButton>
+                                  <ActionButton onClick={() => setConfirmState({ kind: 'division', action: 'toggle', row })}>{row.active ? 'Inactivate' : 'Activate'}</ActionButton>
+                                </div>
+                              </div>
                             </div>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              <ActionButton onClick={() => openDivisionDialog(row)}>Edit</ActionButton>
-                              <ActionButton tone="danger" onClick={() => setConfirmState({ kind: 'division', action: 'delete', row })}>Delete</ActionButton>
-                              <ActionButton onClick={() => setConfirmState({ kind: 'division', action: 'toggle', row })}>{row.active ? 'Inactivate' : 'Activate'}</ActionButton>
-                            </div>
+                            {selected ? (
+                              <div className="mt-4 rounded-[22px] border bg-white/80 p-4" style={{ borderColor: 'rgba(200,146,42,0.35)' }}>
+                                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                                  <div>
+                                    <div className="font-serif" style={{ fontSize: 20, color: 'var(--text-dark)', fontWeight: 700 }}>
+                                      {divisionOptions.find(option => option.id === selectedDivisionId)?.name || divisionRows.find(item => item.id === selectedDivisionId)?.name || 'Selected Division'}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Districts associated with this division.</div>
+                                  </div>
+                                  <button onClick={event => { event.stopPropagation(); openDistrictDialog() }} className="flex items-center gap-2 rounded-2xl px-3 py-2 font-semibold text-white" style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)', fontSize: 12 }}>
+                                    <Plus size={16} />
+                                    Add District
+                                  </button>
+                                </div>
+
+                                {districtRows.length === 0 ? (
+                                  <EmptyState title="Districts" note="No district added yet for this division." />
+                                ) : (
+                                  <div className="space-y-2">
+                                    {districtRows.map(district => (
+                                      <div key={district.id} className="rounded-[20px] border p-3" style={{ borderColor: 'var(--sand)' }}>
+                                        <div className="flex items-center justify-between gap-3">
+                                          <div className="min-w-0 flex-1">
+                                            <div className="font-semibold" style={{ fontSize: 15, color: 'var(--text-dark)' }}>{district.name}</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{district.divisionName || divisionOptions.find(option => option.id === district.divisionId)?.name || 'Division'}</div>
+                                            {district.nameMangal || district.code ? (
+                                              <div className="mt-1 flex flex-wrap gap-3" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                                {district.nameMangal ? <span>{district.nameMangal}</span> : null}
+                                                {district.code ? <span>Code: {district.code}</span> : null}
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                          <span className="rounded-full px-3 py-1 font-medium" style={{ fontSize: 11, ...statusStyle(district.active) }}>{district.active ? 'Active' : 'Inactive'}</span>
+                                        </div>
+                                        <div className="mt-3 flex flex-wrap justify-end gap-2">
+                                          <ActionButton onClick={() => openDistrictDialog(district)}>Edit</ActionButton>
+                                          <ActionButton tone="danger" onClick={() => setConfirmState({ kind: 'district', action: 'delete', row: district })}>Delete</ActionButton>
+                                          <ActionButton onClick={() => setConfirmState({ kind: 'district', action: 'toggle', row: district })}>{district.active ? 'Inactivate' : 'Activate'}</ActionButton>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         )
                       })}
                     </div>
                   )}
                 </div>
-
-                {selectedDivisionId ? (
-                  <div className="rounded-[28px] border bg-white p-6" style={{ borderColor: 'var(--sand)' }}>
-                      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="font-serif" style={{ fontSize: 24, color: 'var(--text-dark)', fontWeight: 700 }}>
-                            {divisionOptions.find(option => option.id === selectedDivisionId)?.name || divisionRows.find(row => row.id === selectedDivisionId)?.name || 'Selected Division'}
-                          </div>
-                          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Districts associated with the selected division.</div>
-                        </div>
-                        <button onClick={() => openDistrictDialog()} className="flex items-center gap-2 rounded-2xl px-4 py-3 font-semibold text-white" style={{ background: 'linear-gradient(135deg, var(--maroon) 0%, #C8922A 100%)', fontSize: 13 }}>
-                          <Plus size={16} />
-                          Add District
-                        </button>
-                      </div>
-
-                      {districtRows.length === 0 ? (
-                        <EmptyState title="Districts" note="No district added yet for this division." />
-                      ) : (
-                        <div className="space-y-3">
-                          {districtRows.map(row => (
-                            <div key={row.id} className="rounded-[22px] border p-4" style={{ borderColor: 'var(--sand)' }}>
-                              <div className="flex items-center justify-between gap-3">
-                                <div>
-                                  <div className="font-semibold" style={{ fontSize: 16, color: 'var(--text-dark)' }}>{row.name}</div>
-                                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{row.divisionName || divisionOptions.find(option => option.id === row.divisionId)?.name || 'Division'}</div>
-                                  {row.nameMangal || row.code ? (
-                                    <div className="mt-1 flex flex-wrap gap-3" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                                      {row.nameMangal ? <span>{row.nameMangal}</span> : null}
-                                      {row.code ? <span>Code: {row.code}</span> : null}
-                                    </div>
-                                  ) : null}
-                                </div>
-                                <span className="rounded-full px-3 py-1 font-medium" style={{ fontSize: 11, ...statusStyle(row.active) }}>{row.active ? 'Active' : 'Inactive'}</span>
-                              </div>
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                <ActionButton onClick={() => openDistrictDialog(row)}>Edit</ActionButton>
-                                <ActionButton tone="danger" onClick={() => setConfirmState({ kind: 'district', action: 'delete', row })}>Delete</ActionButton>
-                                <ActionButton onClick={() => setConfirmState({ kind: 'district', action: 'toggle', row })}>{row.active ? 'Inactivate' : 'Activate'}</ActionButton>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                  </div>
-                ) : null}
               </div>
             )}
           </>
