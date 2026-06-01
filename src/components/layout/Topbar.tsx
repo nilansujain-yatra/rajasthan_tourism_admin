@@ -22,6 +22,7 @@ const pageTitles: Record<string, string> = {
   '/finance/risl':           'Finance — RISL Charge',
   '/finance/refunds':        'Cancellation Refunds',
   '/analytics':              'Analytics Report',
+  '/reports/failed-ticket-report': 'Failed Ticket Report',
   '/reports/jkk':            'JKK Report',
   '/reports/non-inventory':  'Non-Inventory Reports',
   '/reports/bookings':       'Total Bookings Report',
