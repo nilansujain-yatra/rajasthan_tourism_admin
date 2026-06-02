@@ -22,6 +22,7 @@ import {
   Ticket,
   X,
 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type RecordRow = Record<string, unknown>
 type ReportTab = 'general-report' | 'day-wise' | 'month-wise' | 'add-on-summary'
@@ -562,7 +563,7 @@ function BookingReportView({
           params.set('export', 'false')
         }
 
-        const response = await fetch(`/api/operator-reports/bookings?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/operator/withTicketDetail_V2?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
 
         const payload = await response.json()

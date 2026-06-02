@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Info, Minus, Phone, Plus, Printer, RefreshCw, Ticket, User, X } from 'lucide-react'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
+import { authFetch } from '@/lib/api/authFetch'
 
 type SpecificCharge = {
   id: string
@@ -624,7 +625,6 @@ export default function OperatorTicketBookingPage() {
       try {
         const response = await fetch('/api/auth/session', {
           headers: { Accept: 'application/json' },
-          cache: 'no-store',
         })
 
         if (!response.ok) {
@@ -660,7 +660,7 @@ export default function OperatorTicketBookingPage() {
 
     async function loadExtraDetails(userId: string) {
       try {
-        const response = await fetch(`/api/user/${userId}`, {
+        const response = await authFetch(`/user/${userId}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })
@@ -719,7 +719,7 @@ export default function OperatorTicketBookingPage() {
         setLoading(true)
         setError('')
 
-        const chargeResponse = await fetch('/api/operator-booking/specific-charges', {
+        const chargeResponse = await authFetch('/specific-charges', {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })
@@ -741,8 +741,8 @@ export default function OperatorTicketBookingPage() {
         }
 
         const bookingDate = startOfTodayMs()
-        const detailResponse = await fetch(
-          `/api/operator-booking/ticket-details?placeId=${encodeURIComponent(placeId)}&date=${bookingDate}&specificChargesId=${encodeURIComponent(offlineCharge.id)}&onSite=${bookingFlags.onSite}`,
+        const detailResponse = await authFetch(
+          `/booking/tickets?placeId=${encodeURIComponent(placeId)}&date=${bookingDate}&specificChargesId=${encodeURIComponent(offlineCharge.id)}&onSite=${bookingFlags.onSite}`,
           { headers: { Accept: 'application/json' }, cache: 'no-store' },
         )
         const detailPayload = await detailResponse.json().catch(() => null) as TicketAvailabilityResponse | null
@@ -820,7 +820,7 @@ export default function OperatorTicketBookingPage() {
       try {
         setLoadingAddons(true)
         const bookingDate = startOfTodayMs()
-        const response = await fetch(`/api/operator-booking/ticket-addons?ticketTypeId=${encodeURIComponent(typeId)}&date=${bookingDate}`, {
+        const response = await authFetch(`/booking/addon?ticketTypeId=${encodeURIComponent(typeId)}&date=${bookingDate}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })
@@ -920,7 +920,7 @@ export default function OperatorTicketBookingPage() {
 
     const flags = getBookingFlags(freshUser)
     try {
-      const chargeResponse = await fetch('/api/operator-booking/specific-charges', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      const chargeResponse = await authFetch('/booking/create/v2', { headers: { Accept: 'application/json' }, cache: 'no-store' })
       const chargePayload = await chargeResponse.json().catch(() => null)
       if (!chargeResponse.ok) throw new Error(toText((chargePayload as Record<string, unknown> | null)?.message, 'Unable to fetch specific charges.'))
       const charges = getSpecificChargeDtos(chargePayload)
@@ -928,7 +928,7 @@ export default function OperatorTicketBookingPage() {
       const offlineCharge = normalizedCharges.find(item => item.name.toLowerCase() === 'offline') ?? normalizedCharges[0]
       if (!offlineCharge) throw new Error('No specific charges are configured for this place.')
       const bookingDate = startOfTodayMs()
-      const detailResponse = await fetch(`/api/operator-booking/ticket-details?placeId=${encodeURIComponent(freshPlaceId)}&date=${bookingDate}&specificChargesId=${encodeURIComponent(offlineCharge.id)}&onSite=${flags.onSite}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      const detailResponse = await authFetch(`/booking/tickets?placeId=${encodeURIComponent(freshPlaceId)}&date=${bookingDate}&specificChargesId=${encodeURIComponent(offlineCharge.id)}&onSite=${flags.onSite}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
       const detailPayload = await detailResponse.json().catch(() => null) as TicketAvailabilityResponse | null
       if (!detailResponse.ok) throw new Error(toText(detailPayload?.message, 'Unable to fetch ticket availability.'))
       const ticketTypes = detailPayload?.result?.ticketTypeDtos ?? []
@@ -1011,8 +1011,8 @@ export default function OperatorTicketBookingPage() {
         })),
       }
 
-      const createResponse = await fetch(
-        `/api/operator-booking/create-ticket?isDepartmentAdmin=${bookingFlags.isDepartmentAdmin}&onSite=${bookingFlags.onSite}`,
+      const createResponse = await authFetch(
+        `/booking/create/v2?isDepartmentAdmin=${bookingFlags.isDepartmentAdmin}&onSite=${bookingFlags.onSite}`,
         {
           method: 'POST',
           headers: {
@@ -1033,7 +1033,7 @@ export default function OperatorTicketBookingPage() {
         throw new Error('Booking completed, but booking ID was not returned.')
       }
 
-      const invoiceResponse = await fetch(`/api/operator-booking/invoice?bookingId=${encodeURIComponent(bookingId)}`, {
+      const invoiceResponse = await authFetch(`/booking/get-invoice-v1?bookingId=${encodeURIComponent(bookingId)}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })

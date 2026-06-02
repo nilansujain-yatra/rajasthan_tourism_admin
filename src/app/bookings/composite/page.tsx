@@ -1039,7 +1039,7 @@ export default function CompositeBookingPage() {
     async function loadPackages() {
       setPackagesLoading(true)
       try {
-        const response = await authFetch('/composite-booking/packages?offSet=0&size=100&statusList=true', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+        const response = await authFetch('/package/getAll-packages-operator?offSet=0&size=100&statusList=true', { headers: { Accept: 'application/json' }, cache: 'no-store' })
         const payload = await response.json().catch(() => null)
         if (!response.ok) throw new Error(toText((payload as Record<string, unknown> | null)?.message, 'Unable to fetch packages.'))
         if (!active) return
@@ -1084,8 +1084,8 @@ export default function CompositeBookingPage() {
     setSuccessMessage('')
     try {
       const [detailResponse, ticketResponse] = await Promise.all([
-        fetch(`/api/operations/packages/${encodeURIComponent(packageId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' }),
-        fetch(`/api/composite-booking/ticket-details?placeId=${encodeURIComponent(packageId)}&date=${bookingDate}&specificChargesId=${encodeURIComponent(selectedSpecificChargeId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' }),
+        authFetch(`/package/getPackage/${encodeURIComponent(packageId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' }),
+        authFetch(`/package/management/tickets?placeId=${encodeURIComponent(packageId)}&date=${bookingDate}&specificChargesId=${encodeURIComponent(selectedSpecificChargeId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' }),
       ])
       const detailPayload = await detailResponse.json().catch(() => null)
       const ticketPayload = await ticketResponse.json().catch(() => null)
@@ -1181,7 +1181,7 @@ export default function CompositeBookingPage() {
     setSubmitting(true)
     setError('')
     try {
-      const createResponse = await fetch(`/api/composite-booking/create-ticket?isDepartmentAdmin=${bookingFlags.isDepartmentAdmin}&onSite=${bookingFlags.onSite}`, {
+      const createResponse = await authFetch(`/package/management/create/v2?isDepartmentAdmin=${bookingFlags.isDepartmentAdmin}&onSite=${bookingFlags.onSite}`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1204,7 +1204,7 @@ export default function CompositeBookingPage() {
       const createPayload = await createResponse.json().catch(() => null)
       if (!createResponse.ok) throw new Error(toText((createPayload as Record<string, unknown> | null)?.message, 'Unable to create composite booking.'))
       const bookingId = toText((createPayload as Record<string, any>)?.result?.bookingId)
-      const invoiceResponse = bookingId ? await fetch(`/api/composite-booking/invoice?bookingId=${encodeURIComponent(bookingId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' }) : null
+      const invoiceResponse = bookingId ? await authFetch(`/package/management/invoice?bookingId=${encodeURIComponent(bookingId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' }) : null
       const invoicePayload = invoiceResponse ? await invoiceResponse.json().catch(() => null) : null
       setInvoice(normalizeCompositeInvoice(invoicePayload, selectedPackage, mobile, email, visitorName, selectedTickets, grandTotal))
       setShowSuccess(true)
