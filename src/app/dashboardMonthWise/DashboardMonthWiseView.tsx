@@ -143,7 +143,9 @@ function getFilteredPlaces(report: HomeDetailsReport, placeFilter: string) {
 function getMetricCards(report: HomeDetailsReport, placeFilter: string): MetricCard[] {
   const filteredPlaces = getFilteredPlaces(report, placeFilter)
   const hasPlaceFilter = placeFilter.trim().length > 0
-  const ticketCounts = hasPlaceFilter ? aggregateTicketCounts(filteredPlaces) : report.totalTicketCount
+  const ticketCounts: Record<string, number> = hasPlaceFilter
+    ? aggregateTicketCounts(filteredPlaces)
+    : report.totalTicketCount ?? {}
   const totalVisitors = hasPlaceFilter
     ? filteredPlaces.reduce((sum, place) => sum + place.totalVisitors, 0)
     : report.totalVisitors
