@@ -7,7 +7,7 @@ import DonutChart, { type DonutSegment } from '@/components/charts/DonutChart'
 import BarChart, { type BarRow } from '@/components/charts/BarChart'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import type { HomeDetailsResponse, HomeDetailsReport, PlaceWiseReport } from '@/lib/api/services'
-
+import { baseUrl } from '../api/common.route'
 const ticketColors = ['#8B1A1A', '#C8922A', '#1A7A6E', '#E8B84B', '#A83030', '#C9B48A']
 
 function formatNumber(value: number) {
@@ -24,8 +24,9 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
-function sumRecordValues(record: Record<string, number>) {
-  return Object.values(record).reduce((sum, value) => sum + value, 0)
+function sumRecordValues(record?: Record<string, number> | null) {
+  return Object.values(record ?? {})
+    .reduce((sum, value) => sum + value, 0)
 }
 
 function getTotalBookings(report: HomeDetailsReport) {
@@ -43,13 +44,18 @@ function getRislAmount(report: HomeDetailsReport) {
 }
 
 function getDonutSegments(report: HomeDetailsReport): DonutSegment[] {
-  const totalTicketCount = Object.values(report.totalTicketCount).reduce((sum, count) => sum + count, 0)
+  const ticketCount = report.totalTicketCount ?? {}
 
-  return Object.entries(report.totalTicketCount)
+  const totalTicketCount = Object.values(ticketCount)
+    .reduce((sum, count) => sum + count, 0)
+
+  return Object.entries(ticketCount)
     .sort(([, a], [, b]) => b - a)
     .map(([label, count], index) => ({
       label,
-      value: totalTicketCount ? Math.round((count / totalTicketCount) * 100) : 0,
+      value: totalTicketCount
+        ? Math.round((count / totalTicketCount) * 100)
+        : 0,
       count: formatNumber(count),
       color: ticketColors[index % ticketColors.length],
     }))
@@ -128,10 +134,32 @@ export default function DashboardView() {
       try {
         setError(null)
 
-        const response = await fetch('/api/dashboard/home-details', {
+        const sessionResponse = await fetch('/api/auth/session', {
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json',
+          },
+          signal: controller.signal,
+        })
+
+        if (!sessionResponse.ok) {
+          throw new Error(`Unable to read auth session (${sessionResponse.status}).`)
+        }
+
+        const sessionPayload = await sessionResponse.json() as {
+          authenticated?: boolean
+          token?: string
+        }
+
+        if (!sessionPayload.authenticated || !sessionPayload.token) {
+          throw new Error('Missing auth token.')
+        }
+
+        const response = await fetch(`${baseUrl}/home/details?isFilter=true`, {
           method: 'GET',
           headers: {
             Accept: 'application/json',
+            Authorization: `Bearer ${sessionPayload.token}`,
           },
           signal: controller.signal,
         })
@@ -141,6 +169,7 @@ export default function DashboardView() {
         }
 
         const payload = await response.json() as HomeDetailsResponse
+        console.log('Dashboard API Response', payload.result)
         setReport(payload.result)
       } catch (loadError) {
         if (loadError instanceof Error && loadError.name === 'AbortError') {

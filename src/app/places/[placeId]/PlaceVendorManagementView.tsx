@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import SectionHeader from '@/components/ui/SectionHeader'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import { Building2, Mail, Phone, Plus, Search, ShieldCheck, Store, Trash2, UserRound } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type VendorRow = {
   id: string
@@ -194,7 +195,7 @@ export default function PlaceVendorManagementView({
   const [confirmState, setConfirmState] = useState<ConfirmState>(null)
 
   async function fetchJson(url: string, fallback: string) {
-    const response = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+    const response = await authFetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
     const payload = await response.json().catch(() => null)
     if (!response.ok) throw new Error(extractMessage(payload, fallback))
     return payload
@@ -207,8 +208,8 @@ export default function PlaceVendorManagementView({
     try {
       setError('')
       const [vendorPayload, optionsPayload] = await Promise.all([
-        fetchJson(`/api/place/vendors?placeId=${encodeURIComponent(placeId)}&searchKey=&size=200&offSet=0`, 'Unable to fetch place vendors.'),
-        fetchJson('/api/place/vendors/options?searchKey=', 'Unable to fetch vendor options.'),
+        fetchJson(`/place/vendors?placeId=${encodeURIComponent(placeId)}&searchKey=&size=200&offSet=0`, 'Unable to fetch place vendors.'),
+        fetchJson('/place/vendors/options?searchKey=', 'Unable to fetch vendor options.'),
       ])
       setVendors(extractVendors(vendorPayload))
       setVendorOptions(extractVendorOptions(optionsPayload))
@@ -250,7 +251,7 @@ export default function PlaceVendorManagementView({
     setSaving(true)
     setError('')
     try {
-      const response = await fetch('/api/place/vendors', {
+      const response = await authFetch('/place/vendors', {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -278,10 +279,10 @@ export default function PlaceVendorManagementView({
     setSaving(true)
     setError('')
     try {
-      const response = await fetch(
+      const response = await authFetch(
         confirmState.mode === 'delete'
-          ? `/api/place/vendors?vendorPlaceId=${encodeURIComponent(confirmState.row.vendorPlaceId)}`
-          : `/api/place/vendors?vendorPlaceId=${encodeURIComponent(confirmState.row.vendorPlaceId)}&activate=${encodeURIComponent(String(!confirmState.row.isActive))}`,
+          ? `/place/vendors?vendorPlaceId=${encodeURIComponent(confirmState.row.vendorPlaceId)}`
+          : `/place/vendors?vendorPlaceId=${encodeURIComponent(confirmState.row.vendorPlaceId)}&activate=${encodeURIComponent(String(!confirmState.row.isActive))}`,
         {
           method: confirmState.mode === 'delete' ? 'DELETE' : 'PUT',
           headers: { Accept: 'application/json' },

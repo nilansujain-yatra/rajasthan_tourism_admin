@@ -6,6 +6,7 @@ import { Calendar, Download, Eye, Filter, Loader2, MapPin, Printer, Search, Tick
 import { readCachedAuthUser } from '@/lib/auth/client-session'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { authFetch } from '@/lib/api/authFetch'
 
 type ReportTab = 'pending' | 'generated'
 
@@ -654,7 +655,7 @@ function InvoiceModal({
     const fetchInvoice = async () => {
       try {
         setLoading(true)
-        const res = await fetch(`/api/operator-booking/invoice?bookingId=${encodeURIComponent(bookingId)}`, { cache: 'no-store' })
+        const res = await authFetch(`/operator-booking/invoice?bookingId=${encodeURIComponent(bookingId)}`, { cache: 'no-store' })
         if (!res.ok) throw new Error('Failed to fetch invoice')
         const payload = await res.json()
         if (active) setData(payload?.result)
@@ -909,7 +910,7 @@ export default function BoardingPassReport({
 
     async function loadPlaces() {
       try {
-        const response = await fetch('/api/place?districtId=&searchKey=&deptList=&size=2000', {
+        const response = await authFetch('/place?districtId=&searchKey=&deptList=&size=2000', {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })

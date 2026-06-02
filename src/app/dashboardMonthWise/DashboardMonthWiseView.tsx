@@ -5,7 +5,8 @@ import { Calendar, ChevronDown, Filter, Minus, TrendingDown, TrendingUp, X } fro
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import SectionHeader from '@/components/ui/SectionHeader'
 import type { HomeDetailsResponse, HomeDetailsReport, PlaceWiseReport, TicketHeadSummary } from '@/lib/api/services'
-
+import { authFetch } from '@/lib/api/authFetch'
+import { baseUrl } from '../api/common.route'
 type MetricGroup = 'visitors' | 'revenue' | 'risl' | 'emitra' | 'charges' | 'fees'
 
 interface MetricCard {
@@ -297,11 +298,8 @@ export default function DashboardMonthWiseView() {
         setIsLoading(true)
         setError(null)
 
-        const response = await fetch(`/api/dashboard/home-details?isFilter=true&startDay=${startDay}&endDay=${endDay}`, {
+        const response = await authFetch(`/home/details?isFilter=true&startDay=${startDay}&endDay=${endDay}`, {
           method: 'GET',
-          headers: {
-            Accept: 'application/json',
-          },
           signal: controller.signal,
         })
 

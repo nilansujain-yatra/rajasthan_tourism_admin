@@ -16,6 +16,7 @@ import {
   Ticket,
   X,
 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 export interface HeadWiseRow {
   srNo: number
@@ -396,7 +397,7 @@ export default function HeadWiseReportView({
       setDepartmentsLoading(true)
       setDepartmentsError('')
       try {
-        const response = await fetch('/api/dept?offset=0&size=200&export=false&searchKey=', { cache: 'no-store' })
+        const response = await authFetch('/dept?offset=0&size=200&export=false&searchKey=', { cache: 'no-store' })
         if (!response.ok) throw new Error(`Department request failed with ${response.status}`)
         const payload = await response.json()
         if (!active) return
@@ -430,7 +431,7 @@ export default function HeadWiseReportView({
           deptList: placeDeptId,
           size: '2000',
         })
-        const response = await fetch(`/api/place?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/place?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Place request failed with ${response.status}`)
         const payload = await response.json()
         if (!active) return

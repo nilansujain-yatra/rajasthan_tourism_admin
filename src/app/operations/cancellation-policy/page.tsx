@@ -20,6 +20,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type Place = {
   id?: string | number
@@ -1106,7 +1107,7 @@ export default function CancellationPolicyPage() {
   async function loadPlaces() {
     setPlacesLoading(true)
     try {
-      const response = await fetch('/api/place?searchKey=&size=2000', {
+      const response = await authFetch('/place?searchKey=&size=2000', {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })

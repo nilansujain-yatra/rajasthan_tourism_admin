@@ -10,6 +10,7 @@ import {
 import React from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { authFetch } from '@/lib/api/authFetch'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -812,7 +813,7 @@ export default function MISReportView({
       setDepartmentsLoading(true)
       setDepartmentsError('')
       try {
-        const response = await fetch('/api/dept?offset=0&size=200&export=false&searchKey=', {
+        const response = await authFetch('/dept?offset=0&size=200&export=false&searchKey=', {
           cache: 'no-store',
         })
         if (!response.ok) {
@@ -852,7 +853,7 @@ export default function MISReportView({
           deptList: appliedFilters.departmentId,
           size: '2000',
         })
-        const response = await fetch(`/api/place?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/place?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) {
           throw new Error(`Place request failed with ${response.status}`)
         }

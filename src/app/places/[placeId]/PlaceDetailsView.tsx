@@ -16,6 +16,7 @@ import PlaceQuickLinksView from './PlaceQuickLinksView'
 import PlaceReportsView from './PlaceReportsView'
 import PlaceUserManagementView from './PlaceUserManagementView'
 import PlaceVendorManagementView from './PlaceVendorManagementView'
+import { authFetch } from '@/lib/api/authFetch'
 
 type ManagementView = 'informations' | 'season' | 'masters' | 'users' | 'vendors' | 'links' | 'reports' | 'category'
 
@@ -262,7 +263,7 @@ export default function PlaceDetailsView({ placeId }: { placeId: string }) {
           statusList: '',
         })
 
-        const response = await fetch(`/api/place?${params.toString()}`, {
+        const response = await authFetch(`/place?${params.toString()}`, {
           method: 'GET',
           headers: { Accept: 'application/json' },
           cache: 'no-store',

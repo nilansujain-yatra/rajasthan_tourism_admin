@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AdminShellLayout from '@/components/layout/AdminShell'
 import SectionHeader from '@/components/ui/SectionHeader'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
+import { authFetch } from '@/lib/api/authFetch'
 import {
   ArrowDown,
   ArrowUp,
@@ -456,8 +457,7 @@ export default function TermsConditionsPage() {
   async function loadPlaces() {
     setPlacesLoading(true)
     try {
-      const response = await fetch('/api/place?searchKey=&size=2000', {
-        headers: { Accept: 'application/json' },
+      const response = await authFetch('/place?searchKey=&size=2000', {
         cache: 'no-store',
       })
 
@@ -590,7 +590,7 @@ export default function TermsConditionsPage() {
     setFormError('')
 
     try {
-      const response = await fetch('/api/system/terms', {
+      const response = await authFetch('/system/terms', {
         method: form.id ? 'PUT' : 'POST',
         headers: {
           Accept: 'application/json',
@@ -640,7 +640,7 @@ export default function TermsConditionsPage() {
         placeId: item.placeId,
       }))
 
-      const response = await fetch('/api/system/terms', {
+      const response = await authFetch('/system/terms', {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -671,9 +671,9 @@ export default function TermsConditionsPage() {
 
     try {
       if (confirmState.type === 'delete') {
-        const response = await fetch(
-          `/api/system/terms?id=${encodeURIComponent(confirmState.item.id)}&placeId=${encodeURIComponent(appliedFilters.placeId)}`,
-          { method: 'DELETE', headers: { Accept: 'application/json' } },
+        const response = await authFetch(
+          `/system/terms?id=${encodeURIComponent(confirmState.item.id)}&placeId=${encodeURIComponent(appliedFilters.placeId)}`,
+          { method: 'DELETE' },
         )
         const payload = await response.json().catch(() => null)
         if (!response.ok) {
@@ -682,7 +682,7 @@ export default function TermsConditionsPage() {
 
         setSuccessMessage(extractMessage(payload, 'Term deleted successfully.'))
       } else {
-        const response = await fetch('/api/system/terms', {
+        const response = await authFetch('/system/terms', {
           method: 'PUT',
           headers: {
             Accept: 'application/json',

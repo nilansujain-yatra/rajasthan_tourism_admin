@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, CheckCircle2, CreditCard, Mail, MapPin, Minus, Package2, PersonStanding, Phone, Plus, Printer, RefreshCw, Search, Ticket, User, Wallet, X } from 'lucide-react'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
+import { authFetch } from '@/lib/api/authFetch'
 
 type SpecificCharge = { id: string, name: string }
 type AddOnState = { id: string, name: string, amount: number, qty: number, remarkable: boolean, remarkFieldValue: string, remarkValue: string[] }
@@ -972,12 +973,13 @@ export default function CompositeBookingPage() {
     date.setHours(0, 0, 0, 0)
     return date.getTime()
   }, [])
+  
 
   useEffect(() => {
     let isMounted = true
     async function loadSession() {
       try {
-        const response = await fetch('/api/auth/session', {
+        const response = await authFetch('/auth/session', {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })
@@ -1037,7 +1039,7 @@ export default function CompositeBookingPage() {
     async function loadPackages() {
       setPackagesLoading(true)
       try {
-        const response = await fetch('/api/composite-booking/packages?offSet=0&size=100&statusList=true', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+        const response = await authFetch('/composite-booking/packages?offSet=0&size=100&statusList=true', { headers: { Accept: 'application/json' }, cache: 'no-store' })
         const payload = await response.json().catch(() => null)
         if (!response.ok) throw new Error(toText((payload as Record<string, unknown> | null)?.message, 'Unable to fetch packages.'))
         if (!active) return
@@ -1052,7 +1054,7 @@ export default function CompositeBookingPage() {
     }
     async function loadSpecificCharges() {
       try {
-        const response = await fetch('/api/operator-booking/specific-charges', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+        const response = await authFetch('/specific-charges', { headers: { Accept: 'application/json' }, cache: 'no-store' })
         const payload = await response.json().catch(() => null)
         if (!response.ok) throw new Error('Unable to fetch specific charges.')
         if (!active) return
@@ -1092,7 +1094,7 @@ export default function CompositeBookingPage() {
       setSelectedPackage(getPackageDetail(detailPayload))
       const ticketTypes = Array.isArray((ticketPayload as Record<string, any>)?.result?.ticketTypeDtos) ? (ticketPayload as Record<string, any>).result.ticketTypeDtos as Array<Record<string, unknown>> : []
       const addOnResponses = await Promise.all(ticketTypes.map(ticketType =>
-        fetch(`/api/operator-booking/ticket-addons?ticketTypeId=${encodeURIComponent(toText(ticketType.id))}&date=${bookingDate}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+        authFetch(`/booking/addon?ticketTypeId=${encodeURIComponent(toText(ticketType.id))}&date=${bookingDate}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
           .then(async response => response.ok ? await response.json().catch(() => null) : null),
       ))
       setRoundOff(Boolean((ticketPayload as Record<string, any>)?.result?.roundOff))

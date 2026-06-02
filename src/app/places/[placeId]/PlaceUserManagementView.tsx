@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from 'react'
 import SectionHeader from '@/components/ui/SectionHeader'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import { Calendar, CheckCircle2, Plus, Search, ShieldCheck, UserRound, Users } from 'lucide-react'
-
+import { baseUrl } from '@/app/api/common.route'
+import { authFetch } from '@/lib/api/authFetch'
 type UserTab = 'site-admin' | 'operator' | 'superintendent'
 
 type PlaceMeta = {
@@ -264,7 +265,7 @@ export default function PlaceUserManagementView({
   const [removeState, setRemoveState] = useState<RemoveState>(null)
 
   async function fetchJson(url: string, fallback: string) {
-    const response = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+    const response = await authFetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
     const payload = await response.json().catch(() => null)
     if (!response.ok) throw new Error(extractMessage(payload, fallback))
     return payload
@@ -277,9 +278,9 @@ export default function PlaceUserManagementView({
     try {
       setError('')
       const [siteAdminPayload, operatorPayload, superintendentPayload] = await Promise.all([
-        fetchJson(`/api/place/siteAdmin?placeId=${encodeURIComponent(place.id)}&offSet=0&size=200&searchKey=`, 'Unable to fetch site admins.'),
-        fetchJson(`/api/place/operator?placeId=${encodeURIComponent(place.id)}&offSet=0&size=200&searchKey=`, 'Unable to fetch operators.'),
-        fetchJson(`/api/place/superintendent?placeId=${encodeURIComponent(place.id)}&offSet=0&size=200&searchKey=`, 'Unable to fetch superintendents.'),
+        fetchJson(`/place/siteAdmin?placeId=${encodeURIComponent(place.id)}&offSet=0&size=200&searchKey=`, 'Unable to fetch site admins.'),
+        fetchJson(`/place/operator?placeId=${encodeURIComponent(place.id)}&offSet=0&size=200&searchKey=`, 'Unable to fetch operators.'),
+        fetchJson(`/place/superintendent?placeId=${encodeURIComponent(place.id)}&offSet=0&size=200&searchKey=`, 'Unable to fetch superintendents.'),
       ])
 
       setSiteAdmins(extractUsers(siteAdminPayload))
@@ -395,7 +396,7 @@ export default function PlaceUserManagementView({
     setSaving(true)
     setError('')
     try {
-      const response = await fetch('/api/role', {
+      const response = await fetch(`${baseUrl}/role`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -442,7 +443,7 @@ export default function PlaceUserManagementView({
     setSaving(true)
     setError('')
     try {
-      const response = await fetch('/api/role', {
+      const response = await fetch(`${baseUrl}/role`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -514,7 +515,7 @@ export default function PlaceUserManagementView({
     setSaving(true)
     setError('')
     try {
-      const response = await fetch(`/api/place/superintendent?placeId=${encodeURIComponent(place.id)}&superintendentUserIds=${encodeURIComponent(userId)}`, {
+      const response = await authFetch(`/place/superintendent?placeId=${encodeURIComponent(place.id)}&superintendentUserIds=${encodeURIComponent(userId)}`, {
         method: 'PUT',
         headers: { Accept: 'application/json' },
       })
@@ -538,7 +539,7 @@ export default function PlaceUserManagementView({
     setSaving(true)
     setError('')
     try {
-      const response = await fetch(`/api/place/superintendent?placeId=${encodeURIComponent(place.id)}&superintendentUserId=${encodeURIComponent(removeState.userId)}`, {
+      const response = await authFetch(`/place/superintendent?placeId=${encodeURIComponent(place.id)}&superintendentUserId=${encodeURIComponent(removeState.userId)}`, {
         method: 'DELETE',
         headers: { Accept: 'application/json' },
       })

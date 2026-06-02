@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import { AUTHENTICATION_TOKEN } from '@/lib/auth/constants'
+import { baseUrl } from '@/app/api/common.route'
 
 export const runtime = 'nodejs'
 
 function buildUpstreamUrl(request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, '')
-    ?? 'https://api-tourist.rajasthan.gov.in/rajasthan/api/v1'
+
   const url = new URL(`${baseUrl}/inventory/reports/mis_V3`)
 
   request.nextUrl.searchParams.forEach((value, key) => {

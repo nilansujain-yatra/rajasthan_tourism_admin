@@ -23,7 +23,8 @@ import {
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import SectionHeader from '@/components/ui/SectionHeader'
 import { usePlaceStore } from '@/lib/store/use-place-store'
-
+import { baseUrl } from '../api/common.route'
+import { authFetch } from '@/lib/api/authFetch'
 type PlaceSummary = {
   id: string
   placeId: string
@@ -522,7 +523,7 @@ export default function PlacesManagementView() {
   const setSelectedPlace = usePlaceStore((state) => state.setSelectedPlace)
 
   async function fetchJson(url: string, fallback: string) {
-    const response = await fetch(url, {
+    const response = await authFetch(url, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       cache: 'no-store',
@@ -535,9 +536,9 @@ export default function PlacesManagementView() {
 
   async function loadLookupCatalogs() {
     const [deptPayload, divisionPayload, categoryPayload] = await Promise.all([
-      fetchJson('/api/dept?offset=0&size=500&export=false&searchKey=', 'Unable to fetch departments.'),
-      fetchJson('/api/division?searchKey=', 'Unable to fetch divisions.'),
-      fetchJson('/api/category?bookingType=NON_INVENTORY%2CINVENTORY&searchKey=&statusList=ACTIVE', 'Unable to fetch categories.'),
+      fetchJson('/dept?offset=0&size=500&export=false&searchKey=', 'Unable to fetch departments.'),
+      fetchJson('/division?searchKey=', 'Unable to fetch divisions.'),
+      fetchJson('/category?bookingType=NON_INVENTORY%2CINVENTORY&searchKey=&statusList=ACTIVE', 'Unable to fetch categories.'),
     ])
 
     const nextDepartments = mapLookupOptions(deptPayload, 'department')
@@ -603,7 +604,7 @@ export default function PlacesManagementView() {
           statusList: appliedFilters.status,
         })
 
-        const response = await fetch(`/api/place?${params.toString()}`, {
+        const response = await authFetch(`/place?${params.toString()}`, {
           method: 'GET',
           headers: {
             Accept: 'application/json',
@@ -769,7 +770,7 @@ export default function PlacesManagementView() {
         slot: '',
       }
 
-      const response = await fetch('/api/place', {
+      const response = await fetch(`${baseUrl}/place`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -827,7 +828,7 @@ export default function PlacesManagementView() {
 
     try {
       const [placePayload] = await Promise.all([
-        fetchJson(`/api/place/${encodeURIComponent(place.id || place.placeId)}`, 'Unable to fetch place details.'),
+        fetchJson(`/place/${encodeURIComponent(place.id || place.placeId)}`, 'Unable to fetch place details.'),
         loadLookupCatalogs(),
       ])
 
@@ -863,7 +864,7 @@ export default function PlacesManagementView() {
       setIsSaving(true)
 
       if (confirmState.mode === 'delete') {
-        const response = await fetch(`/api/place?placeId=${encodeURIComponent(confirmState.place.id || confirmState.place.placeId)}`, {
+        const response = await authFetch(`/place?placeId=${encodeURIComponent(confirmState.place.id || confirmState.place.placeId)}`, {
           method: 'DELETE',
           headers: { Accept: 'application/json' },
         })
@@ -885,7 +886,7 @@ export default function PlacesManagementView() {
         }
       } else {
         const nextActive = !confirmState.place.active
-        const response = await fetch('/api/system/placeActivate', {
+        const response = await fetch(`${baseUrl}/place/activate`, {
           method: 'PUT',
           headers: {
             Accept: 'application/json',
@@ -947,7 +948,7 @@ export default function PlacesManagementView() {
         slot: editForm.slot,
       }
 
-      const response = await fetch(`/api/place?placeId=${encodeURIComponent(editingPlace.id || editingPlace.placeId)}`, {
+      const response = await authFetch(`/place?placeId=${encodeURIComponent(editingPlace.id || editingPlace.placeId)}`, {
         method: 'PUT',
         headers: {
           Accept: 'application/json',

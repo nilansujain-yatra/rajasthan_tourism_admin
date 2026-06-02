@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import SectionHeader from '@/components/ui/SectionHeader'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
+import { baseUrl } from '@/app/api/common.route'
 import {
   BusFront,
   Clock3,
@@ -603,7 +604,7 @@ export default function PlaceMastersView({
     setError('')
 
     try {
-      const response = await fetch('/api/zone', {
+      const response = await fetch(`${baseUrl}/zone`, {
         method: zoneDraft.id ? 'PUT' : 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -647,7 +648,7 @@ export default function PlaceMastersView({
     setError('')
 
     try {
-      const response = await fetch('/api/shift', {
+      const response = await fetch(`${baseUrl}/shift`, {
         method: shiftDraft.id ? 'PUT' : 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -690,7 +691,7 @@ export default function PlaceMastersView({
     setError('')
 
     try {
-      const response = await fetch('/api/inventory', {
+      const response = await fetch(`${baseUrl}/inventory`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -728,7 +729,7 @@ export default function PlaceMastersView({
     setError('')
 
     try {
-      const response = await fetch('/api/quota', {
+      const response = await fetch(`${baseUrl}/quota`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({

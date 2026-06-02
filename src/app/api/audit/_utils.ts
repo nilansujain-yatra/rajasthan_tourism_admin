@@ -3,7 +3,8 @@ import { join } from 'path'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { AUTHENTICATION_TOKEN } from '@/lib/auth/constants'
-
+import { authFetch } from '@/lib/api/authFetch'
+import { baseUrl } from '../common.route'
 export const runtime = 'nodejs'
 
 function readTokenFromEnvFile(fileName: string) {
@@ -23,8 +24,7 @@ function readTokenFromEnvFile(fileName: string) {
 }
 
 export function getBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, '')
-    ?? 'https://api-tourist.rajasthan.gov.in/rajasthan/api/v1'
+  return baseUrl
 }
 
 export async function getAuthToken() {
@@ -45,7 +45,7 @@ export async function proxyJsonRequest(url: string, init: RequestInit = {}) {
     return NextResponse.json({ message: 'Missing auth token.' }, { status: 401 })
   }
 
-  const response = await fetch(url, {
+  const response = await authFetch(url, {
     ...init,
     headers: {
       Accept: 'application/json',

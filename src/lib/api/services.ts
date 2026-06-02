@@ -79,7 +79,7 @@ export type HomeDetailsReport = {
   offlineTotalTicketAmount: Record<string, number>
   onlineTotalTicketCount: Record<string, number>
   onlineTotalTicketAmount: Record<string, number>
-  totalTicketCount: Record<string, number>
+totalTicketCount?: Record<string, number> | null
   totalTicketAmount: Record<string, number>
   totalVisitors: number
   totalAmount: number

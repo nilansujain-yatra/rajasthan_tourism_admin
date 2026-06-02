@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import SectionHeader from '@/components/ui/SectionHeader'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import { ExternalLink, Globe, Pencil, Plus, Power, ShieldCheck, Trash2 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type QuickLinkItem = {
   id: string
@@ -187,7 +188,7 @@ export default function PlaceQuickLinksView({
 
     try {
       setError('')
-      const response = await fetch(`/api/place/quick-links/${encodeURIComponent(placeId)}`, {
+      const response = await authFetch(`/place/quick-links/${encodeURIComponent(placeId)}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -238,7 +239,7 @@ export default function PlaceQuickLinksView({
     setError('')
 
     try {
-      const response = await fetch(`/api/place/quick-links/${encodeURIComponent(placeId)}`, {
+      const response = await authFetch(`/place/quick-links/${encodeURIComponent(placeId)}`, {
         method: draft.id ? 'PUT' : 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -275,7 +276,7 @@ export default function PlaceQuickLinksView({
     setError('')
 
     try {
-      const response = await fetch(`/api/place/quick-links/${encodeURIComponent(placeId)}`, {
+      const response = await authFetch(`/place/quick-links/${encodeURIComponent(placeId)}`, {
         method: mode === 'delete' ? 'DELETE' : 'PUT',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

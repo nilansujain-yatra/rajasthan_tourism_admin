@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Building2, Calendar, ChevronLeft, ChevronRight, Download, MapPin, Search, SlidersHorizontal, Ticket, X } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type RecordRow = Record<string, unknown>
 type Department = Record<string, unknown>
@@ -328,7 +329,7 @@ function useLookups(deptId: string) {
     let active = true
     ;(async () => {
       try {
-        const response = await fetch('/api/dept?offset=0&size=200&export=false&searchKey=', { cache: 'no-store' })
+        const response = await authFetch('/dept?offset=0&size=200&export=false&searchKey=', { cache: 'no-store' })
         const payload = await response.json()
         if (active) setDepartments((findFirstArray(payload) ?? []).filter(item => item && typeof item === 'object') as Department[])
       } catch {
@@ -343,7 +344,7 @@ function useLookups(deptId: string) {
     ;(async () => {
       try {
         const params = new URLSearchParams({ districtId: '', searchKey: '', deptList: deptId, size: '2000' })
-        const response = await fetch(`/api/place?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/place?${params.toString()}`, { cache: 'no-store' })
         const payload = await response.json()
         if (active) setPlaces((findFirstArray(payload) ?? []).filter(item => item && typeof item === 'object') as Place[])
       } catch {

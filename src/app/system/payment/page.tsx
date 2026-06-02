@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
 import { BadgeCheck, Calendar, CalendarRange, ChevronDown, MapPin, Paperclip, SlidersHorizontal, Trash2, Upload, UserRound, Workflow, X } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type Place = {
   placeId?: string | number
@@ -645,7 +646,7 @@ export function PlaceActiveStatusScreen() {
       setPlacesLoading(true)
       setPlacesError('')
       try {
-        const response = await fetch('/api/place?size=2000', { cache: 'no-store' })
+        const response = await authFetch('/place?size=2000', { cache: 'no-store' })
         if (!response.ok) {
           throw new Error('Failed to fetch places.')
         }

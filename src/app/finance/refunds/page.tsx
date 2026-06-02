@@ -4,6 +4,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import AdminShellLayout from '@/components/layout/AdminShell'
 import SectionHeader from '@/components/ui/SectionHeader'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
+import { authFetch } from '@/lib/api/authFetch'
 import {
   Check,
   ChevronLeft,
@@ -686,8 +687,7 @@ export default function CancellationRefundsPage() {
   async function loadPlaces() {
     setPlacesLoading(true)
     try {
-      const response = await fetch('/api/place?searchKey=&size=2000', {
-        headers: { Accept: 'application/json' },
+      const response = await authFetch('/place?searchKey=&size=2000', {
         cache: 'no-store',
       })
 
@@ -710,8 +710,7 @@ export default function CancellationRefundsPage() {
 
     setPlaceMetaLoading(true)
     try {
-      const response = await fetch(`/api/system/placeQuota?placeId=${encodeURIComponent(placeId)}`, {
-        headers: { Accept: 'application/json' },
+      const response = await authFetch(`/system/placeQuota?placeId=${encodeURIComponent(placeId)}`, {
         cache: 'no-store',
       })
 
@@ -748,8 +747,7 @@ export default function CancellationRefundsPage() {
       if (appliedFilters.startDate) params.set('startDay', String(new Date(`${appliedFilters.startDate}T00:00:00`).getTime()))
       if (appliedFilters.endDate) params.set('endDay', String(new Date(`${appliedFilters.endDate}T23:59:59`).getTime()))
 
-      const response = await fetch(`/api/finance/cancellation-refunds?${params.toString()}`, {
-        headers: { Accept: 'application/json' },
+      const response = await authFetch(`/finance/cancellation-refunds?${params.toString()}`, {
         cache: 'no-store',
       })
 
@@ -794,7 +792,7 @@ export default function CancellationRefundsPage() {
         bookingId: actionState.row.bookingId,
       }
 
-      const response = await fetch('/api/finance/cancellation-refunds/status', {
+      const response = await authFetch('/finance/cancellation-refunds/status', {
         method: 'POST',
         headers: {
           Accept: 'application/json',

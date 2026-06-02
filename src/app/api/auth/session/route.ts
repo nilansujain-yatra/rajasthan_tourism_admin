@@ -26,6 +26,7 @@ export async function GET() {
 
   return NextResponse.json({
     authenticated: true,
+    token: authToken,
     user,
   }, {
     headers: { 'Cache-Control': 'no-store' },

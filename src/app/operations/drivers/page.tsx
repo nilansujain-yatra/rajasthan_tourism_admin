@@ -394,7 +394,7 @@ export default function DriverManagementPage() {
     async function loadPlaces() {
       try {
         setPlacesLoading(true)
-        const response = await fetch('/api/place?size=2000&searchKey=', {
+        const response = await fetch('/place?size=2000&searchKey=', {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,
