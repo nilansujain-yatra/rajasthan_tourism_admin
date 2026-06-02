@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers'
 import { AUTHENTICATION_TOKEN } from '@/lib/auth/constants'
+import { resolveBaseUrl } from '../common.route'
 
 export function getBaseApiUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, '')
-    ?? 'https://api-tourist.rajasthan.gov.in/rajasthan/api/v1'
+  return resolveBaseUrl()
 }
 
 export async function getOperatorBookingAuthToken() {
@@ -16,6 +16,7 @@ export async function getOperatorBookingAuthToken() {
 
 export async function proxyOperatorBookingRequest(url: string, init?: RequestInit) {
   const authToken = await getOperatorBookingAuthToken()
+  const baseUrl = getBaseApiUrl()
 
   if (!authToken) {
     return new Response(JSON.stringify({ message: 'Missing auth token.' }), {
@@ -35,6 +36,22 @@ export async function proxyOperatorBookingRequest(url: string, init?: RequestIni
   })
 
   const body = await response.text()
+
+  if (!response.ok) {
+    return new Response(
+      JSON.stringify({
+        message: 'Upstream booking API returned an error.',
+        status: response.status,
+        baseUrl,
+        path: url.replace(baseUrl, ''),
+        body,
+      }),
+      {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
 
   return new Response(body, {
     status: response.status,
