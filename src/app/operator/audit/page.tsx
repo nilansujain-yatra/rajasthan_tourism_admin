@@ -29,6 +29,7 @@ import {
   type AuditRequestType,
   type AuditStatus,
 } from '@/lib/audit'
+import { authFetch } from '@/lib/api/authFetch'
 
 type MyRequestView = 'active' | 'completed' | 'all'
 
@@ -199,7 +200,7 @@ function CreateAuditDialog({
     setVerified(false)
 
     try {
-      const response = await fetch(`/api/audit/verify-sso?ssoId=${encodeURIComponent(ssoId)}`, {
+      const response = await authFetch(`/role?ssoId=${encodeURIComponent(ssoId)}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -233,7 +234,7 @@ function CreateAuditDialog({
 
     try {
       const dueDateEpoch = new Date(`${form.dueDate}T00:00:00+05:30`).getTime()
-      const response = await fetch('/api/audit/create', {
+      const response = await authFetch('/audit/create-audit', {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -461,7 +462,7 @@ export default function OperatorAuditPage() {
 
         effectiveStatuses.forEach(status => query.append('status', status))
 
-        const response = await fetch(`/api/audit/list?${query.toString()}`, {
+        const response = await authFetch(`/audit/getAll-audit-list?${query.toString()}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })
@@ -504,7 +505,7 @@ export default function OperatorAuditPage() {
     setSuccessMessage('')
 
     try {
-      const response = await fetch('/api/audit/cancel', {
+      const response = await authFetch('/audit/cancel-audit', {
         method: 'PUT',
         headers: {
           Accept: 'application/json',

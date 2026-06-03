@@ -19,6 +19,7 @@ import {
   Ticket,
   Trash2,
 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type MasterTab = 'zone' | 'shift' | 'inventory' | 'quota'
 
@@ -497,7 +498,7 @@ export default function PlaceMastersView({
   const [deleteState, setDeleteState] = useState<DeleteState>(null)
 
   async function fetchJson(url: string, fallback: string) {
-    const response = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+    const response = await authFetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
     const payload = await response.json().catch(() => null)
     if (!response.ok) throw new Error(extractMessage(payload, fallback))
     return payload
@@ -510,7 +511,7 @@ export default function PlaceMastersView({
     }
 
     try {
-      const payload = await fetchJson(`/api/sub-inventory?inventoryId=${encodeURIComponent(inventoryTypeId)}&name=&offSet=0&pagination=true&size=200&status=true&subInventoryId=`, 'Unable to fetch sub inventory options.')
+      const payload = await fetchJson(`/sub-inventory?inventoryId=${encodeURIComponent(inventoryTypeId)}&name=&offSet=0&pagination=true&size=200&status=true&subInventoryId=`, 'Unable to fetch sub inventory options.')
       setSubInventoryTypes(extractOptions(payload, ['subInventoryTypeDtos', 'subInventoryTypeDto']))
     } catch {
       setSubInventoryTypes([])
@@ -526,12 +527,12 @@ export default function PlaceMastersView({
       setError('')
 
       const results = await Promise.allSettled([
-        fetchJson(`/api/zone?placeId=${encodeURIComponent(placeId)}`, 'Unable to fetch zones.'),
-        fetchJson(`/api/shift?placeId=${encodeURIComponent(placeId)}`, 'Unable to fetch shifts.'),
-        fetchJson(`/api/inventory?placeId=${encodeURIComponent(placeId)}`, 'Unable to fetch inventories.'),
-        fetchJson(`/api/quota?offSet=0&pagination=true&placeId=${encodeURIComponent(placeId)}&size=200&status=true`, 'Unable to fetch quotas.'),
-        fetchJson('/api/inventory/type?offSet=0&name=&pagination=true&size=200&status=true', 'Unable to fetch inventory types.'),
-        fetchJson('/api/master/inventory-quota?offSet=0&size=200&searchKey=&pagination=true&status=true', 'Unable to fetch quota options.'),
+        fetchJson(`/zone?placeId=${encodeURIComponent(placeId)}`, 'Unable to fetch zones.'),
+        fetchJson(`/shift?placeId=${encodeURIComponent(placeId)}`, 'Unable to fetch shifts.'),
+        fetchJson(`/inventory?placeId=${encodeURIComponent(placeId)}`, 'Unable to fetch inventories.'),
+        fetchJson(`/quota?offSet=0&pagination=true&placeId=${encodeURIComponent(placeId)}&size=200&status=true`, 'Unable to fetch quotas.'),
+        fetchJson('/inventory/type?offSet=0&name=&pagination=true&size=200&status=true', 'Unable to fetch inventory types.'),
+        fetchJson('/master/inventory-quota?offSet=0&size=200&searchKey=&pagination=true&status=true', 'Unable to fetch quota options.'),
       ])
 
       const [zoneResult, shiftResult, inventoryResult, quotaResult, inventoryTypeResult, masterQuotaResult] = results
@@ -604,7 +605,7 @@ export default function PlaceMastersView({
     setError('')
 
     try {
-      const response = await fetch(`${baseUrl}/zone`, {
+      const response = await authFetch(`/zone`, {
         method: zoneDraft.id ? 'PUT' : 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -648,7 +649,7 @@ export default function PlaceMastersView({
     setError('')
 
     try {
-      const response = await fetch(`${baseUrl}/shift`, {
+      const response = await authFetch(`/shift`, {
         method: shiftDraft.id ? 'PUT' : 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -691,7 +692,7 @@ export default function PlaceMastersView({
     setError('')
 
     try {
-      const response = await fetch(`${baseUrl}/inventory`, {
+      const response = await authFetch(`/inventory`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -729,7 +730,7 @@ export default function PlaceMastersView({
     setError('')
 
     try {
-      const response = await fetch(`${baseUrl}/quota`, {
+      const response = await authFetch(`/quota`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -760,14 +761,14 @@ export default function PlaceMastersView({
     setError('')
 
     const pathByKind: Record<MasterTab, string> = {
-      zone: `/api/zone/status?active=${encodeURIComponent(String(!actionState.active))}&zoneId=${encodeURIComponent(actionState.id)}`,
-      shift: `/api/shift/status?active=${encodeURIComponent(String(!actionState.active))}&shiftId=${encodeURIComponent(actionState.id)}`,
-      inventory: `/api/inventory/status?active=${encodeURIComponent(String(!actionState.active))}&inventoryId=${encodeURIComponent(actionState.id)}`,
-      quota: `/api/quota/status?active=${encodeURIComponent(String(!actionState.active))}&inventoryQuotaId=${encodeURIComponent(actionState.id)}`,
+      zone: `/zone/active?active=${encodeURIComponent(String(!actionState.active))}&zoneId=${encodeURIComponent(actionState.id)}`,
+      shift: `/shift/active?active=${encodeURIComponent(String(!actionState.active))}&shiftId=${encodeURIComponent(actionState.id)}`,
+      inventory: `/inventory/active?active=${encodeURIComponent(String(!actionState.active))}&inventoryId=${encodeURIComponent(actionState.id)}`,
+      quota: `/quota/active?active=${encodeURIComponent(String(!actionState.active))}&inventoryQuotaId=${encodeURIComponent(actionState.id)}`,
     }
 
     try {
-      const response = await fetch(pathByKind[actionState.kind], { method: 'PUT', headers: { Accept: 'application/json' } })
+      const response = await authFetch(pathByKind[actionState.kind], { method: 'PUT', headers: { Accept: 'application/json' } })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, `Unable to update ${actionState.kind} status.`))
 
@@ -788,15 +789,15 @@ export default function PlaceMastersView({
     setError('')
 
     const requestByKind: Record<MasterTab, { url: string; method: 'DELETE' }> = {
-      zone: { url: `/api/zone?zoneId=${encodeURIComponent(deleteState.id)}`, method: 'DELETE' },
-      shift: { url: `/api/shift?shiftId=${encodeURIComponent(deleteState.id)}`, method: 'DELETE' },
-      inventory: { url: `/api/inventory?inventoryId=${encodeURIComponent(deleteState.id)}`, method: 'DELETE' },
-      quota: { url: `/api/quota?inventoryQuotaId=${encodeURIComponent(deleteState.id)}`, method: 'DELETE' },
+      zone: { url: `/zone?zoneId=${encodeURIComponent(deleteState.id)}`, method: 'DELETE' },
+      shift: { url: `/shift?shiftId=${encodeURIComponent(deleteState.id)}`, method: 'DELETE' },
+      inventory: { url: `/inventory?inventoryId=${encodeURIComponent(deleteState.id)}`, method: 'DELETE' },
+      quota: { url: `/quota?inventoryQuotaId=${encodeURIComponent(deleteState.id)}`, method: 'DELETE' },
     }
 
     try {
       const request = requestByKind[deleteState.kind]
-      const response = await fetch(request.url, { method: request.method, headers: { Accept: 'application/json' } })
+      const response = await authFetch(request.url, { method: request.method, headers: { Accept: 'application/json' } })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, `Unable to delete ${deleteState.kind}.`))
 

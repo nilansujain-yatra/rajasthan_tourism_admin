@@ -16,6 +16,7 @@ import {
   toText,
   type RecordRow,
 } from './shared'
+import { authFetch } from '@/lib/api/authFetch'
 
 export default function JkkGstReportView() {
   const [draftFilters, setDraftFilters] = useState(defaultJkkFilters)
@@ -45,7 +46,7 @@ export default function JkkGstReportView() {
           pagination: 'true',
         })
 
-        const response = await fetch(`/api/jkk/reports/gst?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/jkk/gstReport?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const data = ((payload?.result?.jkkGstReportList ?? []) as RecordRow[]).filter(item => item && typeof item === 'object')

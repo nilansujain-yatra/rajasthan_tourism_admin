@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Copy, FileText, RefreshCw } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 function getMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== 'object') return fallback
@@ -30,7 +31,13 @@ export default function UserLogFileViewerPage() {
           throw new Error('Missing file path.')
         }
 
-        const response = await fetch(`/api/system/logs/file?filePath=${encodeURIComponent(filePath)}`, {
+        function resolveFileUrl(filePath: string) {
+          const trimmed = filePath.trim()
+          if (/^https?:\/\//i.test(trimmed)) return trimmed
+          if (trimmed.startsWith('/')) return `${trimmed}`
+          return `${trimmed.replace(/^\/+/, '')}`
+        }
+        const response = await authFetch(`${resolveFileUrl(encodeURIComponent(filePath))}?filePath=${encodeURIComponent(filePath)}`, {
           headers: { Accept: 'text/plain, text/*, application/json, */*' },
           cache: 'no-store',
         })

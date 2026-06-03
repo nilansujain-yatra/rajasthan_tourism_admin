@@ -1004,7 +1004,7 @@ export default function CompositeBookingPage() {
 
     async function loadExtraDetails(userId: string) {
       try {
-        const response = await fetch(`/api/user/${userId}`, {
+        const response = await authFetch(`/user/${userId}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })

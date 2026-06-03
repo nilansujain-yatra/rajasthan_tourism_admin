@@ -825,7 +825,7 @@ function PlaceSummaryReportView({
           bookingType: appliedFilters.bookingType === 'ALL' ? '' : appliedFilters.bookingType,
           isFilter: 'true',
         })
-        const response = await fetch(`${reportPath}?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`${reportPath}?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
 
         const payload = await response.json()
@@ -1013,7 +1013,7 @@ function AddOnSummaryReportView({
           startDay: String(startMs(appliedFilters.startDate)),
           transactionStatus: appliedFilters.transactionStatus === 'ALL' ? '' : appliedFilters.transactionStatus,
         })
-        const response = await fetch(`/api/non-inventory/reports/summary?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/reports_V2/add-on-summary-report?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
 
         const payload = await response.json()
@@ -1193,7 +1193,7 @@ export default function OperatorReportsPage() {
 
     async function loadExtraDetails(userId: string) {
       try {
-        const response = await fetch(`/api/user/${userId}`, {
+        const response = await authFetch(`/user/${userId}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })
@@ -1250,14 +1250,14 @@ export default function OperatorReportsPage() {
 
     if (ticketTab === 'general') {
       if (reportTab === 'general-report') return <BookingReportView placeName={placeName} departmentName={departmentName}/>
-      if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" start={todayInput()} />
-      if (reportTab === 'month-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" start={monthStartInput()} />
+      if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Day Wise Report" reportPath="/reports_V2/ticket-type/place-report/V2" start={todayInput()} />
+      if (reportTab === 'month-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Month Wise Report" reportPath="/reports_V2/ticket-type/place-report/V2" start={monthStartInput()} />
       return <AddOnSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName}/>
     }
 
     if (reportTab === 'general-report') return <BookingReportView placeName={placeName} composite departmentName={departmentName} />
-    if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" composite start={todayInput()} />
-    return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" composite start={monthStartInput()} />
+    if (reportTab === 'day-wise') return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Day Wise Report" reportPath="/reports_V2/ticket-type/place-report/V2" composite start={todayInput()} />
+    return <PlaceSummaryReportView placeId={placeId} placeName={placeName} departmentName={departmentName} title="Month Wise Report" reportPath="/reports_V2/ticket-type/place-report/V2" composite start={monthStartInput()} />
   }, [placeId, placeName, reportTab, ticketTab])
 
   return (

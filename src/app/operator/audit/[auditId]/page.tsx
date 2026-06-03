@@ -21,6 +21,7 @@ import {
   toText,
   type AuditItem,
 } from '@/lib/audit'
+import { authFetch } from '@/lib/api/authFetch'
 
 function SubmitAuditDialog({
   open,
@@ -184,7 +185,7 @@ export default function OperatorAuditDetailsPage() {
       setError('')
 
       try {
-        const response = await fetch(`/api/audit/detail/${encodeURIComponent(auditId)}`, {
+        const response = await authFetch(`/audit/getAudit/${encodeURIComponent(auditId)}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })
@@ -212,7 +213,7 @@ export default function OperatorAuditDetailsPage() {
     const formData = new FormData()
     formData.append('pdfFile', file)
 
-    const uploadResponse = await fetch('/api/audit/upload', {
+    const uploadResponse = await authFetch('/file/content-audit-submit', {
       method: 'POST',
       body: formData,
     })
@@ -224,7 +225,7 @@ export default function OperatorAuditDetailsPage() {
     const image = toText(uploadPayload?.result)
     if (!image) throw new Error('No attachment URL was returned after upload.')
 
-    const response = await fetch('/api/audit/submit', {
+    const response = await authFetch('/audit/submit-audit', {
       method: 'PUT',
       headers: {
         Accept: 'application/json',

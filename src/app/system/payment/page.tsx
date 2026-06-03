@@ -672,7 +672,7 @@ export function PlaceActiveStatusScreen() {
     setStatusLoading(true)
     setStatusError('')
     try {
-      const response = await fetch(`/api/system/placeStatus?placeId=${encodeURIComponent(placeId)}`, {
+      const response = await authFetch(`/place/status/get?placeId=${encodeURIComponent(placeId)}`, {
         cache: 'no-store',
       })
       const payload = await response.json()
@@ -710,7 +710,7 @@ export function PlaceActiveStatusScreen() {
       setStatusLoading(true)
       setStatusError('')
       try {
-        const response = await fetch(`/api/system/placeStatus?placeId=${encodeURIComponent(appliedFilters.placeId)}`, {
+        const response = await authFetch(`/place/status/get?placeId=${encodeURIComponent(appliedFilters.placeId)}`, {
           cache: 'no-store',
         })
         const payload = await response.json()
@@ -772,7 +772,7 @@ export function PlaceActiveStatusScreen() {
   const loadQuotaDetails = async (placeId: string) => {
     setQuotaLoading(true)
     try {
-      const response = await fetch(`/api/system/placeQuota?placeId=${encodeURIComponent(placeId)}`, {
+      const response = await authFetch(`/place/get/details?placeId=${encodeURIComponent(placeId)}`, {
         cache: 'no-store',
       })
       const payload = await response.json()
@@ -845,7 +845,7 @@ export function PlaceActiveStatusScreen() {
         zoneIds: rangeForm.zoneIds,
       }
 
-      const response = await fetch('/api/system/placeStatus', {
+      const response = await authFetch('/place/status/get', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -870,7 +870,7 @@ export function PlaceActiveStatusScreen() {
     setActionLoading(true)
     setStatusError('')
     try {
-      const response = await fetch(`/api/system/placeStatus?id=${encodeURIComponent(id)}`, {
+      const response = await authFetch(`/place/status/get?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
       })
       const result = await response.json()
@@ -891,7 +891,7 @@ export function PlaceActiveStatusScreen() {
     setStatusError('')
     try {
       const nextActive = placeActive ? false : true
-      const response = await fetch('/api/system/placeActivate', {
+      const response = await authFetch('/place/activate', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ placeId: appliedFilters.placeId, active: nextActive }),

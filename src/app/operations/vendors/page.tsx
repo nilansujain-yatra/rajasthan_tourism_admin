@@ -21,6 +21,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type MainTabKey = 'vendor-request' | 'inventory-request' | 'vendor-listing'
 type InventoryTabKey = 'sub-inventory' | 'add-inventory' | 'release-inventory'
@@ -534,15 +535,15 @@ export default function VendorManagementPage() {
           parser = extractSubInventoryRequests
         } else if (inventoryTab === 'add-inventory') {
           params.set('requestStatus', requestStatus)
-          endpoint = '/api/operations/vendors/inventory/add'
+          endpoint = '/vendor/place/requests'
           parser = extractPlaceInventoryRequests
         } else {
           params.set('requestStatus', requestStatus)
-          endpoint = '/api/operations/vendors/inventory/release'
+          endpoint = '/vendor/place/release/request'
           parser = extractPlaceInventoryRequests
         }
 
-        const response = await fetch(`${endpoint}?${params.toString()}`, {
+        const response = await authFetch(`${endpoint}?${params.toString()}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,
@@ -594,7 +595,7 @@ export default function VendorManagementPage() {
     async function loadVendorTypes() {
       try {
         setVendorTypesLoading(true)
-        const response = await fetch('/api/operations/vendors/master-types?pagination=false&size=200&searchKey=&status=', {
+        const response = await authFetch('/master/vendor/type?pagination=false&size=200&searchKey=&status=', {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,
@@ -663,7 +664,7 @@ export default function VendorManagementPage() {
       setVerificationStatus(null)
       setCreateErrors(current => ({ ...current, ssoId: undefined }))
 
-      const response = await fetch(`/api/operations/vendors/verify-sso?ssoId=${encodeURIComponent(ssoId)}`, {
+      const response = await authFetch(`/role?ssoId=${encodeURIComponent(ssoId)}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -698,7 +699,7 @@ export default function VendorManagementPage() {
     try {
       setCreateSubmitting(true)
 
-      const response = await fetch('/api/operations/vendors/listing', {
+      const response = await authFetch('/vendor/create-vendor', {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -761,14 +762,14 @@ export default function VendorManagementPage() {
       }
 
       if (actionDialog.target === 'sub-inventory') {
-        endpoint = '/api/operations/vendors/inventory/sub/decision'
+        endpoint = '/inventory/master/approve'
       } else if (actionDialog.target === 'add-inventory') {
-        endpoint = '/api/operations/vendors/inventory/add/decision'
+        endpoint = '/vendor/place/approve'
       } else if (actionDialog.target === 'release-inventory') {
-        endpoint = '/api/operations/vendors/inventory/release/decision'
+        endpoint = '/vendor/place/release/approve'
       }
 
-      const response = await fetch(endpoint, {
+      const response = await authFetch(endpoint, {
         method: actionDialog.target === 'vendor-request' ? 'POST' : 'PUT',
         headers: {
           Accept: 'application/json',
@@ -797,7 +798,7 @@ export default function VendorManagementPage() {
   async function handleToggleVendorStatus(row: VendorListingRow) {
     try {
       setLoading(true)
-      const response = await fetch('/api/operations/vendors/listing', {
+      const response = await authFetch('/vendor/create-vendor', {
         method: 'PUT',
         headers: {
           Accept: 'application/json',

@@ -18,6 +18,7 @@ import {
   useJkkLookups,
   type RecordRow,
 } from './shared'
+import { authFetch } from '@/lib/api/authFetch'
 
 export default function JkkBookingReportView() {
   const [draftFilters, setDraftFilters] = useState(defaultJkkFilters)
@@ -58,7 +59,7 @@ export default function JkkBookingReportView() {
           pagination: 'true',
         })
 
-        const response = await fetch(`/api/jkk/reports/bookings?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/jkk/reportForAll?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const data = ((payload?.result?.jkkReportList ?? []) as RecordRow[]).filter(item => item && typeof item === 'object')

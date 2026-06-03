@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, ChevronDown, ChevronLeft, ChevronRight, FileBarChart2, Filter, MapPin, X } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type ReportId = 'mis' | 'entry-exit' | 'place-wise' | 'lsp' | 'head-wise' | 'day-wise' | 'month-wise'
 
@@ -33,7 +34,7 @@ const REPORTS: ReportConfig[] = [
     id: 'mis',
     title: 'MIS Report',
     description: 'Place-wise booking report with booking mode, payment status and print count filters.',
-    endpoint: '/api/non-inventory/reports/mis_V3',
+    endpoint: '/reports_V2/non-inventory/mis_v3',
     defaultParams: {
       ticketTypes: '',
       bookingType: '',
@@ -54,7 +55,7 @@ const REPORTS: ReportConfig[] = [
     id: 'day-wise',
     title: 'Day Wise Report',
     description: 'Day-wise ticket type report for the selected place.',
-    endpoint: '/api/non-inventory/reports/daywise',
+    endpoint: '/reports_V2/ticket-type/place-report/V2',
     defaultParams: {
       divisionId: '',
       districtId: '',
@@ -72,7 +73,7 @@ const REPORTS: ReportConfig[] = [
     id: 'month-wise',
     title: 'Month Wise Report',
     description: 'Month-wise ticket type report for the selected place.',
-    endpoint: '/api/non-inventory/reports/monthwise',
+    endpoint: '/reports_V2/ticket-type/place-report/V2',
     defaultParams: {
       divisionId: '',
       districtId: '',
@@ -90,7 +91,7 @@ const REPORTS: ReportConfig[] = [
     id: 'entry-exit',
     title: 'Entry Exit Report',
     description: 'Entry and exit records for the selected place.',
-    endpoint: '/api/non-inventory/reports/entry-exit',
+    endpoint: '/reports_V2/entry-exit-v2',
     defaultParams: {
       divisionId: '',
       districtId: '',
@@ -109,7 +110,7 @@ const REPORTS: ReportConfig[] = [
     id: 'place-wise',
     title: 'Place Wise Report',
     description: 'Place-wise booking and transaction summary for the selected place.',
-    endpoint: '/api/non-inventory/reports/place-wise',
+    endpoint: '/reports/place-wise',
     defaultParams: {
       divisionId: '',
       districtId: '',
@@ -129,7 +130,7 @@ const REPORTS: ReportConfig[] = [
     id: 'lsp',
     title: 'LSP Report',
     description: 'Kiosk session and login activity for the selected place.',
-    endpoint: '/api/non-inventory/reports/lsp',
+    endpoint: '/reports/lsp',
     defaultParams: {
       districtId: '',
       offSet: '0',
@@ -147,7 +148,7 @@ const REPORTS: ReportConfig[] = [
     id: 'head-wise',
     title: 'Head Wise Report',
     description: 'Head-level amount breakdown for the selected place.',
-    endpoint: '/api/non-inventory/reports/head',
+    endpoint: '/reports_V2/head_V2',
     defaultParams: {
       divisionId: '',
       districtId: '',
@@ -592,7 +593,7 @@ function SingleReportView({
           params.set('ticketType', appliedFilters.ticketType)
         }
 
-        const response = await fetch(`${report.endpoint}?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`${report.endpoint}?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) {
           throw new Error(`${report.title} request failed with ${response.status}`)
         }

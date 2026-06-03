@@ -6,6 +6,7 @@ import Topbar from '@/components/layout/Topbar'
 import { BellRing, Mail, MapPin, ShieldCheck, UserRound } from 'lucide-react'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
+import { authFetch } from '@/lib/api/authFetch'
 
 function getUserText(user: AuthUser | null, fields: string[], fallback = 'N/A') {
   for (const field of fields) {
@@ -69,7 +70,7 @@ export default function OperatorInformationPage() {
 
     async function loadExtraDetails(userId: string) {
       try {
-        const response = await fetch(`/api/user/${userId}`, {
+        const response = await authFetch(`/user/${userId}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         })

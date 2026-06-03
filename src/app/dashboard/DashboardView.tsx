@@ -8,6 +8,7 @@ import BarChart, { type BarRow } from '@/components/charts/BarChart'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import type { HomeDetailsResponse, HomeDetailsReport, PlaceWiseReport } from '@/lib/api/services'
 import { baseUrl } from '../api/common.route'
+import { authFetch } from '@/lib/api/authFetch'
 const ticketColors = ['#8B1A1A', '#C8922A', '#1A7A6E', '#E8B84B', '#A83030', '#C9B48A']
 
 function formatNumber(value: number) {
@@ -155,7 +156,7 @@ export default function DashboardView() {
           throw new Error('Missing auth token.')
         }
 
-        const response = await fetch(`${baseUrl}/home/details?isFilter=true`, {
+        const response = await authFetch(`/home/details?isFilter=true`, {
           method: 'GET',
           headers: {
             Accept: 'application/json',

@@ -485,7 +485,7 @@ export default function TermsConditionsPage() {
     setPageError('')
 
     try {
-      const response = await fetch(`/api/system/terms?placeId=${encodeURIComponent(placeId)}`, {
+      const response = await authFetch(`/t&c/all?placeId=${encodeURIComponent(placeId)}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })

@@ -788,7 +788,7 @@ export default function HeadSummaryReportView({
           dateFilter: appliedFilters.dateType === 'visit' ? 'Visit' : 'Current',
         })
 
-        const response = await fetch(`/api/inventory/reports/summary/headReport/v2?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/inventory/reports/summary/headReport/v2?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Head summary report request failed with ${response.status}`)
 
         const payload = await response.json()

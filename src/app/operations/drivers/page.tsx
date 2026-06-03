@@ -19,6 +19,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type DriverRow = {
   id: string
@@ -394,7 +395,7 @@ export default function DriverManagementPage() {
     async function loadPlaces() {
       try {
         setPlacesLoading(true)
-        const response = await fetch('/place?size=2000&searchKey=', {
+        const response = await authFetch('/place?size=2000&searchKey=', {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,
@@ -436,7 +437,7 @@ export default function DriverManagementPage() {
           params.set('placeId', filters.placeId)
         }
 
-        const response = await fetch(`/api/operations/drivers?${params.toString()}`, {
+        const response = await authFetch(`/driver/getDriverList?${params.toString()}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,
@@ -578,7 +579,7 @@ export default function DriverManagementPage() {
         licenceNumber: form.licenceNumber.trim(),
       }
 
-      const response = await fetch('/api/operations/drivers', {
+      const response = await authFetch('/driver/createDriver', {
         method: editingDriver ? 'PUT' : 'POST',
         headers: {
           Accept: 'application/json',
@@ -610,7 +611,7 @@ export default function DriverManagementPage() {
   async function handleStatusToggle(driver: DriverRow) {
     try {
       setError('')
-      const response = await fetch('/api/operations/drivers/status', {
+      const response = await authFetch('/driver/activate', {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -651,7 +652,7 @@ export default function DriverManagementPage() {
       const formData = new FormData()
       formData.append('pdfFile', file)
 
-      const response = await fetch('/api/operations/drivers/upload', {
+      const response = await authFetch('/file/driverGuideDoc', {
         method: 'POST',
         body: formData,
       })

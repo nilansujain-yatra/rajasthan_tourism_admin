@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
+import { authFetch } from '@/lib/api/authFetch'
 
 type SeasonSection = 'draft' | 'ongoing' | 'archive'
 type SetupStep = 'season' | 'shift' | 'inventory' | 'ticket'
@@ -528,8 +529,8 @@ export default function SeasonManagement({
       setError('')
 
       const [seasonRes, zoneRes] = await Promise.all([
-        fetch(`/api/season?placeId=${encodeURIComponent(placeId)}`, { cache: 'no-store' }),
-        fetch(`/api/zone?placeId=${encodeURIComponent(placeId)}`, { cache: 'no-store' }),
+        authFetch(`/season?placeId=${encodeURIComponent(placeId)}`, { cache: 'no-store' }),
+        authFetch(`/zone?placeId=${encodeURIComponent(placeId)}`, { cache: 'no-store' }),
       ])
 
       const seasonPayload = await seasonRes.json().catch(() => null)
@@ -584,7 +585,7 @@ export default function SeasonManagement({
   async function loadShiftStep(seasonId: string) {
     setStepLoading(true)
     try {
-      const response = await fetch(`/api/season/shift?seasonId=${encodeURIComponent(seasonId)}`, { cache: 'no-store' })
+      const response = await authFetch(`/season/shift?seasonId=${encodeURIComponent(seasonId)}`, { cache: 'no-store' })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to fetch season shifts.'))
       setShiftGroups(extractShiftGroups(payload))
@@ -597,7 +598,7 @@ export default function SeasonManagement({
   async function loadInventoryStep(seasonId: string) {
     setStepLoading(true)
     try {
-      const response = await fetch(`/api/season/inventory?seasonId=${encodeURIComponent(seasonId)}`, { cache: 'no-store' })
+      const response = await authFetch(`/season/inventory?seasonId=${encodeURIComponent(seasonId)}`, { cache: 'no-store' })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to fetch season inventory mapping.'))
       setInventoryGroups(extractInventoryGroups(payload))
@@ -610,7 +611,7 @@ export default function SeasonManagement({
   async function loadTicketStep(seasonId: string) {
     setStepLoading(true)
     try {
-      const response = await fetch(`/api/ticket/config?seasonId=${encodeURIComponent(seasonId)}&ticketConfig=${encodeURIComponent('TICKET_TYPE')}`, { cache: 'no-store' })
+      const response = await authFetch(`/ticket/config?seasonId=${encodeURIComponent(seasonId)}&ticketConfig=${encodeURIComponent('TICKET_TYPE')}`, { cache: 'no-store' })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to fetch season ticket configuration.'))
       setTicketRows(extractTicketList(payload))
@@ -675,7 +676,7 @@ export default function SeasonManagement({
       setError('')
       setDialogError('')
 
-      const response = await fetch(form.id ? `/api/season?seasonId=${encodeURIComponent(form.id)}` : '/api/season', {
+      const response = await authFetch(form.id ? `/season?seasonId=${encodeURIComponent(form.id)}` : '/season', {
         method: form.id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -727,7 +728,7 @@ export default function SeasonManagement({
       setSubmitting(true)
       setError('')
       setDialogError('')
-      const response = await fetch('/api/season/shift', {
+      const response = await authFetch('/season/shift', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -774,7 +775,7 @@ export default function SeasonManagement({
       setSubmitting(true)
       setError('')
       setDialogError('')
-      const response = await fetch('/api/season/inventory', {
+      const response = await authFetch('/season/inventory', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -800,7 +801,7 @@ export default function SeasonManagement({
       setSubmitting(true)
       setError('')
       setDialogError('')
-      const response = await fetch(`/api/season/save?seasonId=${encodeURIComponent(setupSeasonId)}`, { method: 'PUT' })
+      const response = await authFetch(`/season/save?seasonId=${encodeURIComponent(setupSeasonId)}`, { method: 'PUT' })
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(result, 'Unable to complete season setup.'))
 
@@ -864,7 +865,7 @@ export default function SeasonManagement({
       setSubmitting(true)
       setError('')
       setCopyDialogError('')
-      const response = await fetch('/api/season/copy', {
+      const response = await authFetch('/season/copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -890,8 +891,8 @@ export default function SeasonManagement({
       setError('')
 
       const response = confirmState.type === 'delete'
-        ? await fetch(`/api/season?seasonId=${encodeURIComponent(confirmState.season.id)}`, { method: 'DELETE' })
-        : await fetch(`/api/season/active?seasonId=${encodeURIComponent(confirmState.season.id)}&active=${encodeURIComponent(String(!confirmState.season.active))}`, { method: 'PUT' })
+        ? await authFetch(`/season?seasonId=${encodeURIComponent(confirmState.season.id)}`, { method: 'DELETE' })
+        : await authFetch(`/season/active?seasonId=${encodeURIComponent(confirmState.season.id)}&active=${encodeURIComponent(String(!confirmState.season.active))}`, { method: 'PUT' })
 
       const result = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(result, 'Unable to update season.'))

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, ChevronLeft, ChevronRight, Download, Search, SlidersHorizontal, X } from 'lucide-react'
 import type { AuthUser } from '@/lib/auth/jwt'
+import { authFetch } from '@/lib/api/authFetch'
 
 export type RecordRow = Record<string, unknown>
 
@@ -279,7 +280,7 @@ export function useJkkLookups(selectedCategoryId: string, selectedSubCategoryId:
 
     ;(async () => {
       try {
-        const response = await fetch('/api/jkk/place-details', { cache: 'no-store' })
+        const response = await authFetch('/jkk/placeDetails', { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const source = ((payload?.result?.jkkCategoryList ?? payload?.jkkCategoryList ?? []) as JkkCategory[])
@@ -323,7 +324,7 @@ export function useJkkUsers() {
 
     ;(async () => {
       try {
-        const response = await fetch('/api/jkk/master-users', { cache: 'no-store' })
+        const response = await authFetch('/jkk/getJKKUser', { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const source = (payload?.result?.jkkUserLists ?? payload?.jkkUserLists ?? []) as JkkUser[]

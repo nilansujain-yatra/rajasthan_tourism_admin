@@ -593,7 +593,7 @@ function MisView({ composite = false }: { composite?: boolean }) {
           ticketType: composite ? 'COMPOSITE' : state.appliedFilters.ticketType,
           ticketTypes: composite ? 'COMPOSITE' : state.appliedFilters.ticketType,
         })
-        const response = await fetch(`/api/non-inventory/reports/mis_V3?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/reports_V2/non-inventory/mis_v3?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const data = (findFirstArray(payload) ?? []).filter(item => item && typeof item === 'object').map((item, index) => mapMisRow(item as RecordRow, index))
@@ -760,7 +760,7 @@ function PlaceSummaryView({ title, reportPath, start }: { title: string; reportP
           bookingType: state.appliedFilters.bookingType === 'ALL' ? '' : state.appliedFilters.bookingType,
           isFilter: 'true',
         })
-        const response = await fetch(`${reportPath}?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`${reportPath}?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const data = (findFirstArray(payload) ?? []).filter(item => item && typeof item === 'object').map((item, index) => mapPlaceRow(item as RecordRow, index))
@@ -897,7 +897,7 @@ function HeadWiseView() {
           transactionStatus: state.appliedFilters.transactionStatus === 'ALL' ? '' : state.appliedFilters.transactionStatus,
           searchKey: state.search.trim(),
         })
-        const response = await fetch(`/api/non-inventory/reports/head?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/reports_V2/head_V2?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const data = (findFirstArray(payload) ?? []).filter(item => item && typeof item === 'object').map((item, index) => ({
@@ -1024,7 +1024,7 @@ function SummaryView() {
           startDay: String(startMs(state.appliedFilters.startDate)),
           transactionStatus: state.appliedFilters.transactionStatus === 'ALL' ? '' : state.appliedFilters.transactionStatus,
         })
-        const response = await fetch(`/api/non-inventory/reports/summary?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/reports_V2/add-on-summary-report?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const items = (((payload as any)?.result?.addonReportPlaceWises ?? []) as RecordRow[]).map(item => ({
@@ -1152,7 +1152,7 @@ function RefundView() {
           isFilter: 'true',
           searchKey: state.search.trim(),
         })
-        const response = await fetch(`/api/non-inventory/reports/refund?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/reports_V2/refundBooking-Details_V2?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const data = (findFirstArray(payload) ?? []).filter(item => item && typeof item === 'object').map((item, index) => ({
@@ -1290,7 +1290,7 @@ function HeadDetailView() {
           printCount: 'ALL',
           ticketType: state.appliedFilters.ticketType,
         })
-        const response = await fetch(`/api/non-inventory/reports/head-detail?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/reports_V2/non-inventory/head?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const amountKeys = ['totalDepartmentCharge', 'totalDevelopmentFee', 'totalEmitraFee', 'totalEntryFee', 'totalForestCommission', 'totalFoundationFee', 'totalGstFee', 'totalJaipurMetro', 'totalMembers', 'totalMonumentOtherThanJaipurFee', 'totalMuseumAndMonumentJaipurFee', 'totalMuseumOtherThanJaipurFee', 'totalRislFee', 'totalRtdcDepartmentFee', 'totalTdsFee', 'totalZooTrustSurcharge']
@@ -1426,7 +1426,7 @@ function LspView() {
           bookingType: state.appliedFilters.bookingType === 'ALL' ? '' : state.appliedFilters.bookingType,
           isFilter: 'true',
         })
-        const response = await fetch(`/api/non-inventory/reports/lsp?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/reports/lsp?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const source = (((payload as any)?.result?.lspReportDtos ?? findFirstArray(payload)) ?? []) as RecordRow[]
@@ -1536,11 +1536,11 @@ function LspView() {
 }
 
 export function NonInventoryDayWiseReportView() {
-  return <PlaceSummaryView title="Day Wise Report" reportPath="/api/non-inventory/reports/daywise" start={todayInput()} />
+  return <PlaceSummaryView title="Day Wise Report" reportPath="/reports_V2/ticket-type/place-report/V2" start={todayInput()} />
 }
 
 export function NonInventoryMonthWiseReportView() {
-  return <PlaceSummaryView title="Month Wise Report" reportPath="/api/non-inventory/reports/monthwise" start={monthStartInput()} />
+  return <PlaceSummaryView title="Month Wise Report" reportPath="/reports_V2/ticket-type/place-report/V2" start={monthStartInput()} />
 }
 
 export function NonInventoryMisReportView() {

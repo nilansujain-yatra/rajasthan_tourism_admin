@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, Plus, Search, X } from 'lucide-react'
 import AdminShellLayout from '@/components/layout/AdminShell'
 import SectionHeader from '@/components/ui/SectionHeader'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
+import { authFetch } from '@/lib/api/authFetch'
 
 type SettingsTab = 'inventory' | 'department' | 'category' | 'ticket' | 'quota' | 'vendor' | 'geo'
 
@@ -261,7 +262,7 @@ function extractMessage(payload: unknown, fallback: string) {
 }
 
 async function fetchJson<T = unknown>(url: string, fallback: string, init?: RequestInit) {
-  const response = await fetch(url, {
+  const response = await authFetch(url, {
     ...init,
     headers: {
       Accept: 'application/json',
@@ -518,8 +519,8 @@ export default function SettingsPage() {
   async function loadReferenceOptions() {
     try {
       const [deptPayload, divisionPayload] = await Promise.all([
-        fetchJson('/api/system/settings/departments?offset=0&size=500&export=false&searchKey=', 'Unable to fetch department options.'),
-        fetchJson('/api/system/settings/divisions?searchKey=', 'Unable to fetch division options.'),
+        fetchJson('/dept?offset=0&size=500&export=false&searchKey=', 'Unable to fetch department options.'),
+        fetchJson('/divisions?searchKey=', 'Unable to fetch division options.'),
       ])
 
       const deptSource: unknown[] = Array.isArray(extractResult(deptPayload)?.departmentDtos)
@@ -563,7 +564,7 @@ export default function SettingsPage() {
       return
     }
 
-    const payload = await fetchJson(`/api/system/settings/sub-booking-types?bookingType=${encodeURIComponent(bookingType)}`, 'Unable to fetch sub booking types.')
+    const payload = await fetchJson(`/sub-booking-type?bookingType=${encodeURIComponent(bookingType)}`, 'Unable to fetch sub booking types.')
     const optionSource: unknown[] = Array.isArray(extractResult(payload)?.result)
       ? extractResult(payload)?.result as unknown[]
       : findFirstArray(payload) ?? []
@@ -798,40 +799,40 @@ export default function SettingsPage() {
 
     try {
       if (activeTab === 'inventory') {
-        const payload = await fetchJson(`/api/system/settings/inventory-types?offSet=${page - 1}&name=${encodeURIComponent(search)}&pagination=true&size=${pageSize}&status=true`, 'Unable to fetch inventory types.')
+        const payload = await fetchJson(`/inventory/type?offSet=${page - 1}&name=${encodeURIComponent(search)}&pagination=true&size=${pageSize}&status=true`, 'Unable to fetch inventory types.')
         const mapped = mapInventoryRows(payload)
         setInventoryRows(mapped.rows)
         setTotalRecords(mapped.total)
       } else if (activeTab === 'department') {
-        const payload = await fetchJson(`/api/system/settings/departments?offset=${page - 1}&size=${pageSize}&export=false&searchKey=${encodeURIComponent(search)}`, 'Unable to fetch departments.')
+        const payload = await fetchJson(`/dept?offset=${page - 1}&size=${pageSize}&export=false&searchKey=${encodeURIComponent(search)}`, 'Unable to fetch departments.')
         const mapped = mapDepartmentRows(payload)
         setDepartmentRows(mapped.rows)
         setTotalRecords(mapped.total)
       } else if (activeTab === 'category') {
-        const payload = await fetchJson(`/api/system/settings/categories?offSet=${page - 1}&size=${pageSize}&export=false&searchKey=${encodeURIComponent(search)}&bookingType=&statusList=`, 'Unable to fetch categories.')
+        const payload = await fetchJson(`/category?offSet=${page - 1}&size=${pageSize}&export=false&searchKey=${encodeURIComponent(search)}&bookingType=&statusList=`, 'Unable to fetch categories.')
         const mapped = mapCategoryRows(payload)
         setCategoryRows(mapped.rows)
         setTotalRecords(mapped.total)
       } else if (activeTab === 'ticket') {
-        const payload = await fetchJson(`/api/system/settings/ticket-types?offSet=${page - 1}&size=${pageSize}&searchKey=${encodeURIComponent(search)}`, 'Unable to fetch ticket types.')
+        const payload = await fetchJson(`/master/ticketType?offSet=${page - 1}&size=${pageSize}&searchKey=${encodeURIComponent(search)}`, 'Unable to fetch ticket types.')
         const mapped = mapTicketRows(payload)
         setTicketRows(mapped.rows)
         setTotalRecords(mapped.total)
       } else if (activeTab === 'quota') {
-        const payload = await fetchJson(`/api/system/settings/quota-types?offSet=${page - 1}&size=${pageSize}&searchKey=${encodeURIComponent(search)}&pagination=true&status=true`, 'Unable to fetch quota types.')
+        const payload = await fetchJson(`/master/inventory-quota?offSet=${page - 1}&size=${pageSize}&searchKey=${encodeURIComponent(search)}&pagination=true&status=true`, 'Unable to fetch quota types.')
         const mapped = mapQuotaRows(payload)
         setQuotaRows(mapped.rows)
         setTotalRecords(mapped.total)
       } else if (activeTab === 'vendor') {
-        const payload = await fetchJson(`/api/system/settings/vendor-types?bookingType=&offSet=${page - 1}&pagination=true&searchKey=${encodeURIComponent(search)}&size=${pageSize}&status=`, 'Unable to fetch vendor types.')
+        const payload = await fetchJson(`/master/vendor/type?bookingType=&offSet=${page - 1}&pagination=true&searchKey=${encodeURIComponent(search)}&size=${pageSize}&status=`, 'Unable to fetch vendor types.')
         const mapped = mapVendorRows(payload)
         setVendorRows(mapped.rows)
         setTotalRecords(mapped.total)
       } else {
         const [divisionPayload, districtPayload] = await Promise.all([
-          fetchJson(`/api/system/settings/divisions?searchKey=${encodeURIComponent(search)}`, 'Unable to fetch divisions.'),
+          fetchJson(`/division?searchKey=${encodeURIComponent(search)}`, 'Unable to fetch divisions.'),
           selectedDivisionId
-            ? fetchJson(`/api/system/settings/districts?divisionId=${encodeURIComponent(selectedDivisionId)}&searchKey=${encodeURIComponent(search)}`, 'Unable to fetch districts.')
+            ? fetchJson(`/district?divisionId=${encodeURIComponent(selectedDivisionId)}&searchKey=${encodeURIComponent(search)}`, 'Unable to fetch districts.')
             : Promise.resolve({}),
         ])
 
@@ -852,7 +853,7 @@ export default function SettingsPage() {
     setLoadingSubInventoryId(inventory.id)
 
     try {
-      const payload = await fetchJson(`/api/system/settings/sub-inventory-types?inventoryId=${encodeURIComponent(inventory.id)}&name=&offSet=0&pagination=true&size=200&status=true&subInventoryId=`, 'Unable to fetch sub inventory types.')
+      const payload = await fetchJson(`/sub-inventory?inventoryId=${encodeURIComponent(inventory.id)}&name=&offSet=0&pagination=true&size=200&status=true&subInventoryId=`, 'Unable to fetch sub inventory types.')
       const rows = mapSubInventoryRows(payload, inventory.id, inventory.name)
       setSubInventoryRows(current => ({ ...current, [inventory.id]: rows }))
     } catch (loadError) {
@@ -872,7 +873,7 @@ export default function SettingsPage() {
     setError('')
 
     try {
-      await fetchJson('/api/system/settings/inventory-types', 'Unable to save inventory type.', {
+      await fetchJson('/inventory/type', 'Unable to save inventory type.', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(inventoryDialog.mode === 'edit' && inventoryDialog.row
@@ -903,7 +904,7 @@ export default function SettingsPage() {
     setError('')
 
     try {
-      await fetchJson('/api/system/settings/sub-inventory-types', 'Unable to save sub inventory type.', {
+      await fetchJson('/sub-inventory', 'Unable to save sub inventory type.', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -939,7 +940,7 @@ export default function SettingsPage() {
     setError('')
 
     try {
-      await fetchJson('/api/system/settings/departments', 'Unable to save department.', {
+      await fetchJson('/dept', 'Unable to save department.', {
         method: departmentDialog.mode === 'edit' ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -978,8 +979,8 @@ export default function SettingsPage() {
     try {
       await fetchJson(
         categoryDialog.mode === 'edit' && categoryDialog.row
-          ? `/api/system/settings/categories?categoryId=${encodeURIComponent(categoryDialog.row.id)}`
-          : '/api/system/settings/categories',
+          ? `/category?categoryId=${encodeURIComponent(categoryDialog.row.id)}`
+          : '/category',
         'Unable to save category.',
         {
           method: categoryDialog.mode === 'edit' ? 'PUT' : 'POST',
@@ -1014,8 +1015,8 @@ export default function SettingsPage() {
     try {
       await fetchJson(
         ticketDialog.mode === 'edit' && ticketDialog.row
-          ? `/api/system/settings/ticket-types?ticketTypeId=${encodeURIComponent(ticketDialog.row.id)}`
-          : '/api/system/settings/ticket-types',
+          ? `/master/ticketType?ticketTypeId=${encodeURIComponent(ticketDialog.row.id)}`
+          : '/master/ticketType',
         'Unable to save ticket type.',
         {
           method: ticketDialog.mode === 'edit' ? 'PUT' : 'POST',
@@ -1051,7 +1052,7 @@ export default function SettingsPage() {
     setError('')
 
     try {
-      await fetchJson('/api/system/settings/quota-types', 'Unable to save quota type.', {
+      await fetchJson('/master/inventory-quota', 'Unable to save quota type.', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1093,7 +1094,7 @@ export default function SettingsPage() {
     setError('')
 
     try {
-      await fetchJson('/api/system/settings/vendor-types', 'Unable to save vendor type.', {
+      await fetchJson('/master/vendor/type', 'Unable to save vendor type.', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1126,7 +1127,7 @@ export default function SettingsPage() {
     setError('')
 
     try {
-      await fetchJson('/api/system/settings/divisions', 'Unable to save division.', {
+      await fetchJson('/division', 'Unable to save division.', {
         method: divisionDialog.mode === 'edit' ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1162,7 +1163,7 @@ export default function SettingsPage() {
     setError('')
 
     try {
-      await fetchJson('/api/system/settings/districts', 'Unable to save district.', {
+      await fetchJson('/district', 'Unable to save district.', {
         method: districtDialog.mode === 'edit' ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1195,16 +1196,16 @@ export default function SettingsPage() {
       if (kind === 'inventory') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/inventory-types?inventoryId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/inventory-types/status?active=${encodeURIComponent(String(!row.active))}&inventoryId=${encodeURIComponent(row.id)}`,
+            ? `//inventory/type?inventoryId=${encodeURIComponent(row.id)}`
+            : `/inventory/type/active?active=${encodeURIComponent(String(!row.active))}&inventoryId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} inventory type.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )
       } else if (kind === 'subInventory') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/sub-inventory-types?inventoryId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/sub-inventory-types/status?active=${encodeURIComponent(String(!row.active))}&inventoryId=${encodeURIComponent(row.id)}`,
+            ? `/sub-inventory?inventoryId=${encodeURIComponent(row.id)}`
+            : `/sub-inventory/active?active=${encodeURIComponent(String(!row.active))}&inventoryId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} sub inventory type.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )
@@ -1213,8 +1214,8 @@ export default function SettingsPage() {
       } else if (kind === 'department') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/departments?deptId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/departments/status?activate=${encodeURIComponent(String(!row.active))}&deptId=${encodeURIComponent(row.id)}`,
+            ? `/dept?deptId=${encodeURIComponent(row.id)}`
+            : `/dept/activate?activate=${encodeURIComponent(String(!row.active))}&deptId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} department.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )
@@ -1222,40 +1223,40 @@ export default function SettingsPage() {
       } else if (kind === 'category') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/categories?categoryId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/categories/status?active=${encodeURIComponent(String(!row.active))}&categoryId=${encodeURIComponent(row.id)}`,
+            ? `category?categoryId=${encodeURIComponent(row.id)}`
+            : `/category/active?active=${encodeURIComponent(String(!row.active))}&categoryId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} category.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )
       } else if (kind === 'ticket') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/ticket-types?ticketTypeId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/ticket-types/status?active=${encodeURIComponent(String(!row.active))}&ticketTypeMasterId=${encodeURIComponent(row.id)}`,
+            ? `/master/ticketType?ticketTypeId=${encodeURIComponent(row.id)}`
+            : `/master/ticketType/active?active=${encodeURIComponent(String(!row.active))}&ticketTypeMasterId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} ticket type.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )
       } else if (kind === 'quota') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/quota-types?masterInventoryQuotaId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/quota-types/status?active=${encodeURIComponent(String(!row.active))}&masterInventoryQuotaId=${encodeURIComponent(row.id)}`,
+            ? `/master/inventory-quota?masterInventoryQuotaId=${encodeURIComponent(row.id)}`
+            : `/master/inventory-quota?active=${encodeURIComponent(String(!row.active))}&masterInventoryQuotaId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} quota type.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )
       } else if (kind === 'vendor') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/vendor-types?masterVendorTypeId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/vendor-types/status?active=${encodeURIComponent(String(!row.active))}&masterVendorTypeId=${encodeURIComponent(row.id)}`,
+            ? `/master/vendor/type?masterVendorTypeId=${encodeURIComponent(row.id)}`
+            : `/master/vendor/type/active?active=${encodeURIComponent(String(!row.active))}&masterVendorTypeId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} vendor type.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )
       } else if (kind === 'division') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/divisions?divisionId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/divisions/status?active=${encodeURIComponent(String(!row.active))}&divisionId=${encodeURIComponent(row.id)}`,
+            ? `/division?divisionId=${encodeURIComponent(row.id)}`
+            : `/division/active?active=${encodeURIComponent(String(!row.active))}&divisionId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} division.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )
@@ -1267,8 +1268,8 @@ export default function SettingsPage() {
       } else if (kind === 'district') {
         await fetchJson(
           action === 'delete'
-            ? `/api/system/settings/districts?districtId=${encodeURIComponent(row.id)}`
-            : `/api/system/settings/districts/status?active=${encodeURIComponent(String(!row.active))}&districtId=${encodeURIComponent(row.id)}`,
+            ? `/district?districtId=${encodeURIComponent(row.id)}`
+            : `/district/active?active=${encodeURIComponent(String(!row.active))}&districtId=${encodeURIComponent(row.id)}`,
           `Unable to ${action} district.`,
           { method: action === 'delete' ? 'DELETE' : 'PUT' },
         )

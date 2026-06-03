@@ -27,6 +27,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type HelpdeskStatusKey = 'ongoing' | 'resolved' | 'cancelled'
 
@@ -611,12 +612,12 @@ function HelpdeskDetailsDialog({
         setChatError(null)
 
         const [detailResponse, chatResponse] = await Promise.all([
-          fetch(`/api/helpdesk/detail/${encodeURIComponent(recordId)}`, {
+          authFetch(`/helpdesk/getById/${encodeURIComponent(recordId)}`, {
             headers: { Accept: 'application/json' },
             cache: 'no-store',
             signal: controller.signal,
           }),
-          fetch(`/api/helpdesk/chat/${encodeURIComponent(recordId)}`, {
+          authFetch(`/helpdesk/getChat/${encodeURIComponent(recordId)}`, {
             headers: { Accept: 'application/json' },
             cache: 'no-store',
             signal: controller.signal,
@@ -666,11 +667,11 @@ function HelpdeskDetailsDialog({
 
     try {
       const [detailResponse, chatResponse] = await Promise.all([
-        fetch(`/api/helpdesk/detail/${encodeURIComponent(recordId)}`, {
+        authFetch(`/helpdesk/getById/${encodeURIComponent(recordId)}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         }),
-        fetch(`/api/helpdesk/chat/${encodeURIComponent(recordId)}`, {
+        authFetch(`/helpdesk/getChat/${encodeURIComponent(recordId)}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
         }),
@@ -699,8 +700,14 @@ function HelpdeskDetailsDialog({
     try {
       setActionLoading(action)
       setDetailError(null)
+      var url ='';
+      if(action === 'resolve'){
+        url='/helpdesk/complete-help-ticket'
+      }else{
+        url='/helpdesk/cancel-help-ticket'
+      }
 
-      const response = await fetch(`/api/helpdesk/status/${action}`, {
+      const response = await authFetch(`${url}`, {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -739,7 +746,7 @@ function HelpdeskDetailsDialog({
       setRefundError(null)
       setDetailError(null)
 
-      const response = await fetch('/api/helpdesk/refund', {
+      const response = await authFetch('/helpdesk/refund', {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -780,7 +787,7 @@ function HelpdeskDetailsDialog({
     setBookingAttachments([])
 
     try {
-      const response = await fetch(`/api/helpdesk/booking?bookingId=${encodeURIComponent(bookingLookupId.trim())}`, {
+      const response = await authFetch(`/helpdesk/getBookingDetail?bookingId=${encodeURIComponent(bookingLookupId.trim())}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -862,7 +869,7 @@ function HelpdeskDetailsDialog({
       setMessageSending(true)
       setChatError(null)
 
-      const response = await fetch('/api/helpdesk/message', {
+      const response = await authFetch('/helpdesk/open-chat', {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -1306,7 +1313,7 @@ export default function HelpDeskPage() {
         params.set('searchKey', searchKey)
         params.set('statusList', STATUS_CONFIG[activeTab].apiValue)
 
-        const response = await fetch(`/api/helpdesk/getAll?${params.toString()}`, {
+        const response = await authFetch(`/helpdesk/getAll?${params.toString()}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,

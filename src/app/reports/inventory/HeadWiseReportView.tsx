@@ -492,7 +492,7 @@ export default function HeadWiseReportView({
           searchKey: search.trim(),
         })
 
-        const response = await fetch(`/api/inventory/reports/head_V2?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/inventory/reports/head_V2?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Head-wise report request failed with ${response.status}`)
         const payload = await response.json()
         if (!active) return

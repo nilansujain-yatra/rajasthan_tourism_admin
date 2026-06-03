@@ -520,16 +520,16 @@ useEffect(() => {
           params.set("entryVerify", "ALL");
           params.set("driverVerify", "ALL");
         } else if (activeTab === "NON_INVENTORY") {
-          apiEndpoint = "/api/non-inventory/reports/mis_V3";
+          apiEndpoint = "/reports_V2/non-inventory/mis_v3";
           params.set("ticketType", "");
           // Non-inventory API doesn't use these inventory-specific parameters
         } else if (activeTab === "COMPOSITE") {
-          apiEndpoint = "/api/non-inventory/reports/mis_V3";
+          apiEndpoint = "/reports_V2/non-inventory/mis_v3";
           params.set("ticketType", "COMPOSITE");
           // Non-inventory API doesn't use these inventory-specific parameters
         }
 
-        const response = await fetch(`${apiEndpoint}?${params.toString()}`, {
+        const response = await authFetch(`${apiEndpoint}?${params.toString()}`, {
           method: "GET",
           headers: { Accept: "application/json" },
           cache: "no-store",

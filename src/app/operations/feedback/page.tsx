@@ -646,7 +646,7 @@ export default function FeedbackPage() {
         params.set('startDay', String(toEpochRangeStart(appliedFilters.startDate)))
         params.set('endDay', String(toEpochRangeEnd(appliedFilters.endDate)))
 
-        const response = await fetch(`/api/reviewRating/getReviewRatingList?${params.toString()}`, {
+        const response = await authFetch(`/reviewRating/getReviewRatingList?${params.toString()}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,

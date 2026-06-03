@@ -329,7 +329,7 @@ export default function PackageManagementPage() {
           statusList: '',
         })
 
-        const response = await fetch(`/api/operations/packages?${params.toString()}`, {
+        const response = await authFetch(`/package/getPackageList?${params.toString()}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,
@@ -404,7 +404,7 @@ export default function PackageManagementPage() {
     setLoadingDetail(true)
 
     try {
-      const response = await fetch(`/api/operations/packages/${pkg.id}`, {
+      const response = await authFetch(`/package/getPackage/${pkg.id}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -437,7 +437,7 @@ export default function PackageManagementPage() {
         ? { id: editingPackage.id, packageName: form.packageName.trim(), placeIds: form.placeIds, duration: form.duration.trim() }
         : { packageName: form.packageName.trim(), placeIds: form.placeIds, duration: form.duration.trim() }
 
-      const response = await fetch('/api/operations/packages', {
+      const response = await authFetch('/package/getPackageList', {
         method: editingPackage ? 'PUT' : 'POST',
         headers: {
           Accept: 'application/json',
@@ -464,7 +464,7 @@ export default function PackageManagementPage() {
   async function handleStatusToggle(pkg: PackageRow) {
     try {
       setError('')
-      const response = await fetch('/api/operations/packages/status', {
+      const response = await authFetch('/package/activate-deactivate', {
         method: 'PUT',
         headers: {
           Accept: 'application/json',

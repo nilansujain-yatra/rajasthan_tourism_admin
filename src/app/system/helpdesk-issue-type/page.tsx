@@ -18,6 +18,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
 import SectionHeader from '@/components/ui/SectionHeader'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
+import { authFetch } from '@/lib/api/authFetch'
 
 type IssueSubType = {
   id: string
@@ -274,7 +275,7 @@ export default function HelpdeskIssueTypePage() {
   })
 
   async function fetchJson(url: string, fallback: string, init?: RequestInit) {
-    const response = await fetch(url, {
+    const response = await authFetch(url, {
       headers: {
         Accept: 'application/json',
         ...(init?.headers ?? {}),
@@ -292,7 +293,7 @@ export default function HelpdeskIssueTypePage() {
     try {
       if (showLoader) setLoading(true)
       setError('')
-      const payload = await fetchJson('/api/system/helpdesk-issue-type', 'Unable to fetch issue types.')
+      const payload = await fetchJson('/issue/get/types', 'Unable to fetch issue types.')
       setRows(extractIssueTypes(payload))
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to fetch issue types.')
@@ -347,7 +348,7 @@ export default function HelpdeskIssueTypePage() {
   }, [page, totalPages])
 
   async function refreshSubTypes(issueTypeId: string) {
-    const payload = await fetchJson(`/api/system/helpdesk-issue-subtype?issueTypeId=${encodeURIComponent(issueTypeId)}`, 'Unable to fetch sub issue types.')
+    const payload = await fetchJson(`/issue/get/subTypes?issueTypeId=${encodeURIComponent(issueTypeId)}`, 'Unable to fetch sub issue types.')
     const subTypes = extractSubTypes(payload)
     setRows(current => current.map(row => row.id === issueTypeId ? { ...row, subTypes } : row))
   }
@@ -378,7 +379,7 @@ export default function HelpdeskIssueTypePage() {
         ? { id: issueDialog.row.id, issueType, active: issueDialog.row.active }
         : { issueType, active: true }
 
-      const response = await fetchJson('/api/system/helpdesk-issue-type', issueDialog.mode === 'edit' ? 'Unable to update issue type.' : 'Unable to create issue type.', {
+      const response = await fetchJson('/issue/get/types', issueDialog.mode === 'edit' ? 'Unable to update issue type.' : 'Unable to create issue type.', {
         method: issueDialog.mode === 'edit' ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -406,7 +407,7 @@ export default function HelpdeskIssueTypePage() {
         ? { id: subDialog.row.id, name, active: subDialog.row.active, issueTypeId: subDialog.parentId }
         : { name, active: true, issueTypeId: subDialog.parentId }
 
-      const response = await fetchJson('/api/system/helpdesk-issue-subtype', subDialog.mode === 'edit' ? 'Unable to update sub issue type.' : 'Unable to create sub issue type.', {
+      const response = await fetchJson('/issue/get/subTypes', subDialog.mode === 'edit' ? 'Unable to update sub issue type.' : 'Unable to create sub issue type.', {
         method: subDialog.mode === 'edit' ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -439,7 +440,7 @@ export default function HelpdeskIssueTypePage() {
           active: !confirmState.row.active,
         }
 
-        const response = await fetchJson('/api/system/helpdesk-issue-type', 'Unable to update issue type status.', {
+        const response = await fetchJson('/issue/get/types', 'Unable to update issue type status.', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -455,7 +456,7 @@ export default function HelpdeskIssueTypePage() {
           issueTypeId: confirmState.parentId,
         }
 
-        const response = await fetchJson('/api/system/helpdesk-issue-subtype', 'Unable to update sub issue type status.', {
+        const response = await fetchJson('/issue/get/subTypes', 'Unable to update sub issue type status.', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

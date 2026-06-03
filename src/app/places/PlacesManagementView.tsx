@@ -770,7 +770,7 @@ export default function PlacesManagementView() {
         slot: '',
       }
 
-      const response = await fetch(`${baseUrl}/place`, {
+      const response = await authFetch(`/place`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -886,7 +886,7 @@ export default function PlacesManagementView() {
         }
       } else {
         const nextActive = !confirmState.place.active
-        const response = await fetch(`${baseUrl}/place/activate`, {
+        const response = await authFetch(`/place/activate`, {
           method: 'PUT',
           headers: {
             Accept: 'application/json',

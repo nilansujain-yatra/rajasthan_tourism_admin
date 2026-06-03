@@ -17,6 +17,7 @@ import {
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
 import SectionHeader from '@/components/ui/SectionHeader'
+import { authFetch } from '@/lib/api/authFetch'
 
 type UserOption = {
   id: string
@@ -301,7 +302,7 @@ export default function SystemUserLogsPage() {
   })
 
   async function fetchJson<T = unknown>(url: string, fallback: string, init?: RequestInit) {
-    const response = await fetch(url, {
+    const response = await authFetch(url, {
       ...init,
       headers: {
         Accept: 'application/json',
@@ -328,7 +329,7 @@ export default function SystemUserLogsPage() {
     query.set('offset', String(getPageOffset(page, pageSize)))
     query.set('isFilter', 'true')
 
-    const payload = await fetchJson(`/api/system/logs?${query.toString()}`, 'Unable to fetch user logs.')
+    const payload = await fetchJson(`/user/getUserLogsFileList?${query.toString()}`, 'Unable to fetch user logs.')
     const extracted = mapLogRows(payload)
     setRows(extracted.rows)
     setTotalRecords(extracted.totalRecords)
@@ -371,7 +372,7 @@ export default function SystemUserLogsPage() {
         params.set('pagination', 'false')
         params.set('isFilter', 'true')
 
-        const payload = await fetchJson(`/api/users/getAllUserList?${params.toString()}`, 'Unable to fetch users.', {
+        const payload = await fetchJson(`/user/getAllUserList?${params.toString()}`, 'Unable to fetch users.', {
           signal: controller.signal,
         })
 

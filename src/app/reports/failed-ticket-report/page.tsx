@@ -363,7 +363,7 @@ export default function FailedTicketReportPage() {
   const [loadingPaymentStatus, setLoadingPaymentStatus] = useState(false)
 
   async function fetchJson<T = unknown>(url: string, fallback: string, init?: RequestInit) {
-    const response = await fetch(url, {
+    const response = await authFetch(url, {
       ...init,
       headers: {
         Accept: 'application/json',
@@ -386,14 +386,14 @@ export default function FailedTicketReportPage() {
     query.set('offSet', String(Math.max(0, (page - 1) * pageSize)))
     query.set('size', String(pageSize))
     query.set('pagination', 'true')
-    const payload = await fetchJson(`/api/reports/failed-ticket-report?${query.toString()}`, 'Unable to fetch failed ticket report.')
+    const payload = await fetchJson(`/failTicket/report?${query.toString()}`, 'Unable to fetch failed ticket report.')
     const extracted = mapFailedTicketRows(payload)
     setRows(extracted.rows)
     setTotalRecords(extracted.totalRecords)
   }
 
   async function loadDepartments(searchKey = '') {
-    const payload = await fetchJson(`/api/reports/failed-ticket-report/departments?searchKey=${encodeURIComponent(searchKey)}`, 'Unable to fetch departments.')
+    const payload = await fetchJson(`/role/filter/department?searchKey=${encodeURIComponent(searchKey)}`, 'Unable to fetch departments.')
     setDepartments(mapLookupItems(payload))
   }
 
@@ -401,7 +401,7 @@ export default function FailedTicketReportPage() {
     const params = new URLSearchParams()
     params.set('searchKey', searchKey)
     params.set('departmentId', departmentIds.join(','))
-    const payload = await fetchJson(`/api/reports/failed-ticket-report/places?${params.toString()}`, 'Unable to fetch places.')
+    const payload = await fetchJson(`/place/placeFilters?${params.toString()}`, 'Unable to fetch places.')
     setPlaces(mapLookupItems(payload))
   }
 
@@ -518,7 +518,7 @@ export default function FailedTicketReportPage() {
     setPaymentDialog({ open: true, title: `Transaction Details — ${row.bookingId}`, row: row.transactionDetails })
     try {
       setLoadingPaymentStatus(true)
-      const payload = await fetchJson(`/api/reports/failed-ticket-report/ticket-payment-status?bookingId=${encodeURIComponent(row.bookingId)}`, 'Unable to fetch ticket payment status.', {
+      const payload = await fetchJson(`/booking/ticketPaymentStatus?bookingId=${encodeURIComponent(row.bookingId)}`, 'Unable to fetch ticket payment status.', {
         method: 'POST',
       })
       const payloadRecord = payload && typeof payload === 'object' ? payload as Record<string, unknown> : null
@@ -550,7 +550,7 @@ export default function FailedTicketReportPage() {
     try {
       setSaving(true)
       setError('')
-      await fetchJson('/api/reports/failed-ticket-report/remark', 'Unable to submit remark.', {
+      await fetchJson('/failTicket/addRemark', 'Unable to submit remark.', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

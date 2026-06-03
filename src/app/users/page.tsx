@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import type { GetAllUserListResponse, UserDetailDto } from '@/lib/api/services'
+import { authFetch } from '@/lib/api/authFetch'
 
 type UserStatus = 'Active' | 'Inactive'
 type UserFilterStatus = '' | UserStatus
@@ -396,7 +397,7 @@ function UserActivityDialog({ user, type, onClose }: {
         params.set('entryVerify', 'ALL')
         params.set('driverVerify', 'ALL')
 
-        const response = await fetch(`/api/inventory/reports/mis_V3?${params.toString()}`, {
+        const response = await authFetch(`/inventory/reports/mis_V3?${params.toString()}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,
@@ -749,7 +750,7 @@ export default function UsersPage() {
           params.set('active', String(appliedFilters.status === 'Active'))
         }
 
-        const response = await fetch(`/api/users/getAllUserList?${params.toString()}`, {
+        const response = await authFetch(`/user/getAllUserList?${params.toString()}`, {
           method: 'GET',
           headers: {
             Accept: 'application/json',

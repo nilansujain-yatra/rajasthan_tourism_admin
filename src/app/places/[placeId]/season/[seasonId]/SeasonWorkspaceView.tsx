@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import { usePlaceStore } from '@/lib/store/use-place-store'
+import { authFetch } from '@/lib/api/authFetch'
 
 type SeasonTab = 'dashboard' | 'configurations' | 'ticket' | 'availability' | 'refunds' | 'bookings' | 'scanned'
 
@@ -493,7 +494,7 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
   const placeName = toText((selectedPlace as Record<string, unknown> | null)?.placeName, 'Place')
 
   async function fetchJson(url: string, fallback: string) {
-    const response = await fetch(url, { cache: 'no-store' })
+    const response = await authFetch(url, { cache: 'no-store' })
     const payload = await response.json().catch(() => null)
     if (!response.ok) throw new Error(extractMessage(payload, fallback))
     return payload
@@ -506,10 +507,10 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
       setSeason(null)
 
       const [seasonPayload, zonePayload, availabilityPayload, ticketPayload] = await Promise.all([
-        fetchJson(`/api/season?placeId=${encodeURIComponent(effectiveApiPlaceId)}`, 'Unable to fetch season details.'),
-        fetchJson(`/api/zone?placeId=${encodeURIComponent(effectiveApiPlaceId)}`, 'Unable to fetch zones.'),
-        fetchJson(`/api/availability?seasonId=${encodeURIComponent(seasonId)}`, 'Unable to fetch availability.'),
-        fetchJson(`/api/ticket/config?seasonId=${encodeURIComponent(seasonId)}&ticketConfig=${encodeURIComponent('TICKET_TYPE')}`, 'Unable to fetch ticket configuration.'),
+        fetchJson(`/season?placeId=${encodeURIComponent(effectiveApiPlaceId)}`, 'Unable to fetch season details.'),
+        fetchJson(`/zone?placeId=${encodeURIComponent(effectiveApiPlaceId)}`, 'Unable to fetch zones.'),
+        fetchJson(`/availability?seasonId=${encodeURIComponent(seasonId)}`, 'Unable to fetch availability.'),
+        fetchJson(`/ticket/config?seasonId=${encodeURIComponent(seasonId)}&ticketConfig=${encodeURIComponent('TICKET_TYPE')}`, 'Unable to fetch ticket configuration.'),
       ])
 
       const seasonRecord = extractSeason(seasonPayload, seasonId)
@@ -545,7 +546,7 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
       const start = new Date(`${dashboardDate}T00:00:00`).getTime()
       const end = new Date(`${dashboardDate}T23:59:59`).getTime()
       const payload = await fetchJson(
-        `/api/season/dashboard?seasonId=${encodeURIComponent(season.id)}&startDay=${encodeURIComponent(String(start))}&endDay=${encodeURIComponent(String(end))}`,
+        `/season/dashboard?seasonId=${encodeURIComponent(season.id)}&startDay=${encodeURIComponent(String(start))}&endDay=${encodeURIComponent(String(end))}`,
         'Unable to fetch season dashboard.',
       )
       setDashboardData(payload && typeof payload === 'object' ? ((payload as { result?: Record<string, unknown> }).result ?? payload as Record<string, unknown>) : null)
@@ -559,11 +560,11 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
     try {
       const [touristPayload, operatorPayload] = await Promise.all([
         fetchJson(
-          `/api/season/bookings?seasonId=${encodeURIComponent(season.id)}&offSet=0&size=20&searchKey=${encodeURIComponent(bookingSearch)}&startDate=${encodeURIComponent(form.startDate)}&endDate=${encodeURIComponent(form.endDate)}`,
+          `/season/bookings?seasonId=${encodeURIComponent(season.id)}&offSet=0&size=20&searchKey=${encodeURIComponent(bookingSearch)}&startDate=${encodeURIComponent(form.startDate)}&endDate=${encodeURIComponent(form.endDate)}`,
           'Unable to fetch season bookings.',
         ),
         fetchJson(
-          `/api/season/operator-bookings?placeId=${encodeURIComponent(effectiveApiPlaceId)}&seasonId=${encodeURIComponent(season.id)}&offSet=0&size=20&searchKey=${encodeURIComponent(bookingSearch)}&startDate=${encodeURIComponent(form.startDate)}&endDate=${encodeURIComponent(form.endDate)}`,
+          `/season/operator/bookings?placeId=${encodeURIComponent(effectiveApiPlaceId)}&seasonId=${encodeURIComponent(season.id)}&offSet=0&size=20&searchKey=${encodeURIComponent(bookingSearch)}&startDate=${encodeURIComponent(form.startDate)}&endDate=${encodeURIComponent(form.endDate)}`,
           'Unable to fetch operator season bookings.',
         ),
       ])
@@ -579,7 +580,7 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
     if (!season) return
     try {
       const payload = await fetchJson(
-        `/api/season/refunds?seasonId=${encodeURIComponent(season.id)}&offSet=0&size=20&searchKey=${encodeURIComponent(refundSearch)}`,
+        `/booking/refund/tickets/v2?seasonId=${encodeURIComponent(season.id)}&offSet=0&size=20&searchKey=${encodeURIComponent(refundSearch)}`,
         'Unable to fetch refunds.',
       )
       setRefundRows(extractRefundRows(payload))
@@ -591,7 +592,7 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
   async function loadScans() {
     try {
       const payload = await fetchJson(
-        `/api/operator/scan-entry?placeId=${encodeURIComponent(effectiveApiPlaceId)}&offSet=0&size=20&searchKey=${encodeURIComponent(scanSearch)}`,
+        `/operator/scan-entry?placeId=${encodeURIComponent(effectiveApiPlaceId)}&offSet=0&size=20&searchKey=${encodeURIComponent(scanSearch)}`,
         'Unable to fetch scanned entries.',
       )
       setScanRows(extractScanRows(payload))
@@ -602,7 +603,7 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
 
   async function loadTicketDetail(ticketTypeId: string) {
     try {
-      const payload = await fetchJson(`/api/ticket/config/${encodeURIComponent(ticketTypeId)}`, 'Unable to fetch ticket details.')
+      const payload = await fetchJson(`/ticket/config/${encodeURIComponent(ticketTypeId)}`, 'Unable to fetch ticket details.')
       const result = payload && typeof payload === 'object' ? ((payload as { result?: Record<string, unknown> }).result ?? payload as Record<string, unknown>) : null
       setSelectedTicketId(ticketTypeId)
       setSelectedTicketDetail(result && typeof result === 'object' ? result : null)
@@ -684,7 +685,7 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
       setSaving(true)
       setError('')
 
-      const response = await fetch(`/api/season?seasonId=${encodeURIComponent(season.id)}`, {
+      const response = await authFetch(`/season?seasonId=${encodeURIComponent(season.id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -705,8 +706,8 @@ export default function SeasonWorkspaceView({ placeId, seasonId, apiPlaceId }: {
   async function updateRefundStatus(status: string, ticketBookingId: string) {
     try {
       setError('')
-      const response = await fetch(
-        `/api/season/refunds/status?refundStatus=${encodeURIComponent(status)}&ticketBookingId=${encodeURIComponent(ticketBookingId)}`,
+      const response = await authFetch(
+        `/booking/refund-status?refundStatus=${encodeURIComponent(status)}&ticketBookingId=${encodeURIComponent(ticketBookingId)}`,
         { method: 'PUT' },
       )
       const result = await response.json().catch(() => null)

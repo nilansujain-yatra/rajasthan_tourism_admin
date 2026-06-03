@@ -948,8 +948,8 @@ export default function BoardingPassReport({
     async function loadContextOptions() {
       try {
         const [seasonResponse, detailResponse] = await Promise.all([
-          fetch(`/season?placeId=${encodeURIComponent(placeId)}`, { cache: 'no-store' }),
-          fetch(`/api/booking/placeDetails/v2?placeId=${encodeURIComponent(placeId)}${draftFilters.seasonId ? `&seasonId=${encodeURIComponent(draftFilters.seasonId)}` : ''}`, { cache: 'no-store' }),
+          authFetch(`/season?placeId=${encodeURIComponent(placeId)}`, { cache: 'no-store' }),
+          authFetch(`/booking/placeDetails/v2?placeId=${encodeURIComponent(placeId)}${draftFilters.seasonId ? `&seasonId=${encodeURIComponent(draftFilters.seasonId)}` : ''}`, { cache: 'no-store' }),
         ])
 
         const seasonPayload = await seasonResponse.json().catch(() => ({}))
@@ -1009,7 +1009,7 @@ export default function BoardingPassReport({
             bookingId: searchApplied,
           })
 
-          const response = await fetch(`/api/boarding/reports/pending?${params.toString()}`, { cache: 'no-store' })
+          const response = await authFetch(`/boardingV2/bookingV2?${params.toString()}`, { cache: 'no-store' })
           const payload = await response.json().catch(() => ({}))
           if (!response.ok) throw new Error(toText((payload as ApiPayload).message, 'Unable to load pending boarding passes.'))
 
@@ -1030,7 +1030,7 @@ export default function BoardingPassReport({
             searchKey: searchApplied,
           })
 
-          const response = await fetch(`/api/boarding/reports/generated?${params.toString()}`, { cache: 'no-store' })
+          const response = await authFetch(`/boardingV2/getAllBoardingPass_V2?${params.toString()}`, { cache: 'no-store' })
           const payload = await response.json().catch(() => ({}))
           if (!response.ok) throw new Error(toText((payload as ApiPayload).message, 'Unable to load generated boarding passes.'))
 
@@ -1115,7 +1115,7 @@ export default function BoardingPassReport({
         zoneId: appliedFilters.zoneId,
         inventoryId: appliedFilters.inventoryId,
       })
-
+      var url=''
       if (activeTab === 'pending') {
         params.set('startDate', inputDateToStartMs(appliedFilters.startDate))
         params.set('endDate', inputDateToEndMs(appliedFilters.endDate))
@@ -1123,14 +1123,16 @@ export default function BoardingPassReport({
         params.set('bookingId', searchApplied)
         params.set('export', 'true')
         params.set('pagination', 'false')
+        url =''
       } else {
         params.set('date', inputDateToStartMs(appliedFilters.date))
         params.set('searchKey', searchApplied)
         params.set('export', 'true')
         params.set('pagination', 'false')
+        url ='/boardingV2/getAllBoardingPass_V2'
       }
 
-      const response = await fetch(`/api/boarding/reports/${activeTab}?${params.toString()}`, { cache: 'no-store' })
+      const response = await authFetch(`${url}?${params.toString()}`, { cache: 'no-store' })
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
         throw new Error(toText((payload as ApiPayload).message, 'Unable to export report.'))

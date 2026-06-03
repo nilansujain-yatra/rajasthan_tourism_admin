@@ -396,7 +396,7 @@ export default function PlaceUserManagementView({
     setSaving(true)
     setError('')
     try {
-      const response = await fetch(`${baseUrl}/role`, {
+      const response = await authFetch(`/role`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -443,7 +443,7 @@ export default function PlaceUserManagementView({
     setSaving(true)
     setError('')
     try {
-      const response = await fetch(`${baseUrl}/role`, {
+      const response = await authFetch(`/role`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({

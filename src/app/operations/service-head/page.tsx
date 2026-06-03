@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react'
+import { authFetch } from '@/lib/api/authFetch'
 
 type HeadItem = {
   id: string
@@ -559,7 +560,7 @@ export default function ServiceHeadManagementPage() {
         size: String(headPageSize),
         searchKey: deferredHeadSearch.trim(),
       })
-      const response = await fetch(`/api/system/head?${params.toString()}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      const response = await authFetch(`/head?${params.toString()}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to fetch heads.'))
       setHeads(extractHeads(payload))
@@ -582,7 +583,7 @@ export default function ServiceHeadManagementPage() {
         size: String(servicePageSize),
         searchKey: deferredServiceSearch.trim(),
       })
-      const response = await fetch(`/api/system/utility-service?${params.toString()}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      const response = await authFetch(`/utility/service?${params.toString()}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to fetch services.'))
       setServices(extractServices(payload))
@@ -604,7 +605,7 @@ export default function ServiceHeadManagementPage() {
         size: '50',
         searchKey: deferredHeadOptionSearch.trim(),
       })
-      const response = await fetch(`/api/system/head?${params.toString()}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      const response = await authFetch(`/head?${params.toString()}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to fetch head options.'))
       setHeadOptions(extractHeads(payload))
@@ -662,7 +663,7 @@ export default function ServiceHeadManagementPage() {
     setHeadFormError('')
 
     try {
-      const response = await fetch('/api/system/head', {
+      const response = await authFetch('/head', {
         method: headForm.id ? 'PUT' : 'POST',
         headers: {
           Accept: 'application/json',
@@ -718,7 +719,7 @@ export default function ServiceHeadManagementPage() {
     setServiceFormError('')
 
     try {
-      const response = await fetch('/api/system/utility-service', {
+      const response = await authFetch('/utility/service', {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -759,7 +760,7 @@ export default function ServiceHeadManagementPage() {
     setServiceFormError('')
 
     try {
-      const response = await fetch(`/api/system/utility-service?id=${encodeURIComponent(serviceId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      const response = await authFetch(`/utility/service?id=${encodeURIComponent(serviceId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to load service details.'))
 
@@ -790,7 +791,7 @@ export default function ServiceHeadManagementPage() {
   async function openViewService(serviceId: string) {
     setSaving(true)
     try {
-      const response = await fetch(`/api/system/utility-service?id=${encodeURIComponent(serviceId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      const response = await authFetch(`utility/service?id=${encodeURIComponent(serviceId)}`, { headers: { Accept: 'application/json' }, cache: 'no-store' })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to load service details.'))
 
@@ -812,7 +813,7 @@ export default function ServiceHeadManagementPage() {
     setSaving(true)
     try {
       const nextActive = !selectedHeadForStatus.active
-      const response = await fetch(`/api/system/head/status?headId=${encodeURIComponent(selectedHeadForStatus.id)}&isActive=${encodeURIComponent(String(nextActive))}`, { method: 'PUT', headers: { Accept: 'application/json' } })
+      const response = await authFetch(`/head/active?headId=${encodeURIComponent(selectedHeadForStatus.id)}&isActive=${encodeURIComponent(String(nextActive))}`, { method: 'PUT', headers: { Accept: 'application/json' } })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(extractMessage(payload, 'Unable to update head status.'))
 

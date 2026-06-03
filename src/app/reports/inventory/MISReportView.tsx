@@ -916,7 +916,7 @@ export default function MISReportView({
           driverVerify: 'ALL',
         })
 
-        const response = await fetch(`/api/inventory/reports/mis_V3?${params.toString()}`, {
+        const response = await authFetch(`/inventory/reports/mis_V3?${params.toString()}`, {
           cache: 'no-store',
         })
         if (!response.ok) {

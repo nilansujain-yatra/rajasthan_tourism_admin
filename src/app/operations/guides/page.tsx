@@ -427,7 +427,7 @@ export default function GuideManagementPage() {
           params.set('active', String(filters.active === 'active'))
         }
 
-        const response = await fetch(`/api/operations/guides?${params.toString()}`, {
+        const response = await authFetch(`/guide/getGuideList?${params.toString()}`, {
           headers: { Accept: 'application/json' },
           cache: 'no-store',
           signal: controller.signal,
@@ -567,7 +567,7 @@ export default function GuideManagementPage() {
         uploadDocument: form.uploadDocument.trim(),
       }
 
-      const response = await fetch('/api/operations/guides', {
+      const response = await authFetch('/guide/getGuideList', {
         method: editingGuide ? 'PUT' : 'POST',
         headers: {
           Accept: 'application/json',
@@ -595,7 +595,7 @@ export default function GuideManagementPage() {
   async function handleStatusToggle(guide: GuideRow) {
     try {
       setError('')
-      const response = await fetch('/api/operations/guides/status', {
+      const response = await authFetch('/guide/activate', {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -636,7 +636,7 @@ export default function GuideManagementPage() {
       const formData = new FormData()
       formData.append('pdfFile', file)
 
-      const response = await fetch('/api/operations/guides/upload', {
+      const response = await authFetch('/file/driverGuideDoc', {
         method: 'POST',
         body: formData,
       })

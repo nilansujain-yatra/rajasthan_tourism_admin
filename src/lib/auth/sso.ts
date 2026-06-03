@@ -1,3 +1,4 @@
+import { authFetch } from '../api/authFetch'
 import { SSO_MODES } from './constants'
 
 type SsoAuthResult = {
@@ -54,7 +55,7 @@ export function getSsoSignOutUrl() {
 export async function exchangeSsoToken(ssoToken: string) {
   const baseUrl = getRequiredEnv('NEXT_PUBLIC_API_BASE_URL').replace(/\/+$/, '')
   const url = `${baseUrl}/authentication/v1?userdetails=${encodeURIComponent(ssoToken)}`
-  const response = await fetch(url, {
+  const response = await authFetch(url, {
     method: 'POST',
     headers: {
       Accept: 'application/json',

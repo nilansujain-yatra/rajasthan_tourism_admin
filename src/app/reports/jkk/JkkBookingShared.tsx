@@ -6,6 +6,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { AuthUser } from '@/lib/auth/jwt'
 import { DetailGrid, ModalShell, canUseJkkWorkflowAction, formatDate, formatDateTime, formatMoney, getAny, getPrimaryUserRole, maskSensitiveValue, toText, type JkkUser, type RecordRow } from './shared'
+import { authFetch } from '@/lib/api/authFetch'
 
 function userLabel(user: JkkUser) {
   const fullName = [toText(user.firstName), toText(user.lastName)].filter(Boolean).join(' ')
@@ -594,15 +595,15 @@ function nextAssignmentTarget(row: RecordRow) {
   const adminStatus = toText(getAny(row, ['adminStatus', 'approvedStatus', 'status'])).toUpperCase()
 
   if (adminStatus === 'ASSIGNER') {
-    return { endpoint: '/api/jkk/actions/assign-reviewer', role: 'JKK_REVIEWER', label: 'Pass To Reviewer' }
+    return { endpoint: '/jkk/assignBooking', role: 'JKK_REVIEWER', label: 'Pass To Reviewer' }
   }
 
   if (adminStatus === 'REVIEWER') {
-    return { endpoint: '/api/jkk/actions/assign-moderator', role: 'JKK_MODERATOR', label: 'Pass To Moderator' }
+    return { endpoint: '/jkk/reviewBooking', role: 'JKK_MODERATOR', label: 'Pass To Moderator' }
   }
 
   if (adminStatus === 'MODERATOR') {
-    return { endpoint: '/api/jkk/actions/assign-approver', role: 'JKK_APPROVER', label: 'Pass To Approver' }
+    return { endpoint: '/jkk/moderatorBooking', role: 'JKK_APPROVER', label: 'Pass To Approver' }
   }
 
   return null
@@ -741,7 +742,7 @@ export function JkkActionModal({
       }
 
       if (approvalAllowed) {
-        const response = await fetch('/api/jkk/actions/approve-booking', {
+        const response = await authFetch('/jkk/approveBooking', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -766,7 +767,7 @@ export function JkkActionModal({
         throw new Error('Select a user before continuing.')
       }
 
-      const response = await fetch(target.endpoint, {
+      const response = await authFetch(target.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1138,7 +1138,7 @@ export default function CancellationPolicyPage() {
         searchKey: deferredSearch.trim(),
       })
 
-      const response = await fetch(`/api/operations/cancellation-policy?${query.toString()}`, {
+      const response = await authFetch(`/cancel-policy?${query.toString()}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -1183,7 +1183,7 @@ export default function CancellationPolicyPage() {
         searchKey,
       })
 
-      const response = await fetch(`/api/operations/cancellation-policy/places?${query.toString()}`, {
+      const response = await authFetch(`/cancel-policy/place?${query.toString()}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -1259,7 +1259,7 @@ export default function CancellationPolicyPage() {
   }
 
   async function loadPolicyDetail(policyId: string) {
-    const response = await fetch(`/api/operations/cancellation-policy?policyId=${encodeURIComponent(policyId)}`, {
+    const response = await authFetch(`/cancel-policy?policyId=${encodeURIComponent(policyId)}`, {
       headers: { Accept: 'application/json' },
       cache: 'no-store',
     })
@@ -1327,7 +1327,7 @@ export default function CancellationPolicyPage() {
       const formData = new FormData()
       formData.append('image', file)
 
-      const response = await fetch('/api/operations/cancellation-policy/upload', {
+      const response = await authFetch('file/cancel-policy', {
         method: 'POST',
         body: formData,
       })
@@ -1450,10 +1450,10 @@ export default function CancellationPolicyPage() {
         })),
       }
 
-      const response = await fetch(
+      const response = await authFetch(
         form.id
-          ? `/api/operations/cancellation-policy?policyId=${encodeURIComponent(form.id)}`
-          : '/api/operations/cancellation-policy',
+          ? `/cancel-policy?policyId=${encodeURIComponent(form.id)}`
+          : '/cancel-policy',
         {
           method: form.id ? 'PUT' : 'POST',
           headers: {
@@ -1486,7 +1486,7 @@ export default function CancellationPolicyPage() {
 
     try {
       if (confirmState.type === 'delete') {
-        const response = await fetch(`/api/operations/cancellation-policy?policyId=${encodeURIComponent(confirmState.item.id)}`, {
+        const response = await authFetch(`/cancel-policy/?policyId=${encodeURIComponent(confirmState.item.id)}`, {
           method: 'DELETE',
           headers: { Accept: 'application/json' },
         })
@@ -1495,7 +1495,7 @@ export default function CancellationPolicyPage() {
 
         setSuccessMessage(extractMessage(payload, 'Cancellation policy deleted successfully.'))
       } else {
-        const response = await fetch(`/api/operations/cancellation-policy/status?policyId=${encodeURIComponent(confirmState.item.id)}&active=${encodeURIComponent(String(!confirmState.item.active))}`, {
+        const response = await authFetch(`/cancel-policy/active?policyId=${encodeURIComponent(confirmState.item.id)}&active=${encodeURIComponent(String(!confirmState.item.active))}`, {
           method: 'PUT',
           headers: { Accept: 'application/json' },
         })

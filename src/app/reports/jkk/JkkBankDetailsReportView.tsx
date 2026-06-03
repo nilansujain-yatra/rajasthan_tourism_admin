@@ -24,6 +24,7 @@ import {
   useSessionUser,
   type RecordRow,
 } from './shared'
+import { authFetch } from '@/lib/api/authFetch'
 
 type BankRow = RecordRow & {
   jkkReportList?: RecordRow[]
@@ -67,7 +68,7 @@ function RefundUpdateModal({
     setError('')
 
     try {
-      const response = await fetch('/api/jkk/actions/update-bank-details', {
+      const response = await authFetch('/jkk/updateBankDetails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,7 +214,7 @@ export default function JkkBankDetailsReportView() {
           pagination: 'true',
         })
 
-        const response = await fetch(`/api/jkk/reports/bank-details?${params.toString()}`, { cache: 'no-store' })
+        const response = await authFetch(`/jkk/bankDetailReport?${params.toString()}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Request failed with ${response.status}`)
         const payload = await response.json()
         const data = ((payload?.result?.jkkBankDetailsReport ?? []) as BankRow[]).filter(item => item && typeof item === 'object')

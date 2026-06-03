@@ -6,6 +6,7 @@ import Topbar from '@/components/layout/Topbar'
 import { AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, QrCode, RefreshCw, Search, ShieldCheck, Ticket, X } from 'lucide-react'
 import { clearCachedAuthUser, readCachedAuthUser, writeCachedAuthUser } from '@/lib/auth/client-session'
 import type { AuthUser } from '@/lib/auth/jwt'
+import { authFetch } from '@/lib/api/authFetch'
 
 type ScanResult = {
   id: string
@@ -342,7 +343,7 @@ export default function OperatorVerificationPage() {
 
     try {
       const normalizedQr = normalizeQrDetail(qrDetail)
-      const response = await fetch(`/api/operator-verification/scan?isEntry=${selectedGate}&qrDetail=${encodeURIComponent(normalizedQr)}`, {
+      const response = await authFetch(`/booking/verify-qr-v1?isEntry=${selectedGate}&qrDetail=${encodeURIComponent(normalizedQr)}`, {
         method: 'POST',
         headers: { Accept: 'application/json' },
       })
@@ -378,7 +379,7 @@ export default function OperatorVerificationPage() {
     setSuccessMessage('')
 
     try {
-      const response = await fetch(`/api/operator-verification/generate-qr?bookingId=${encodeURIComponent(lookupBookingId.trim())}`, {
+      const response = await authFetch(`/booking/generate-qr?bookingId=${encodeURIComponent(lookupBookingId.trim())}`, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
@@ -410,7 +411,7 @@ export default function OperatorVerificationPage() {
     setError('')
 
     try {
-      const response = await fetch('/api/operator-verification/verify', {
+      const response = await authFetch('/booking/verify-qr', {
         method: 'POST',
         headers: {
           Accept: 'application/json',
