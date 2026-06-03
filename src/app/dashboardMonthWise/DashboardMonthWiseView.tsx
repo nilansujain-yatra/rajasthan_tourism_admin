@@ -6,7 +6,6 @@ import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import SectionHeader from '@/components/ui/SectionHeader'
 import type { HomeDetailsResponse, HomeDetailsReport, PlaceWiseReport, TicketHeadSummary } from '@/lib/api/services'
 import { authFetch } from '@/lib/api/authFetch'
-import { baseUrl } from '../api/common.route'
 type MetricGroup = 'visitors' | 'revenue' | 'risl' | 'emitra' | 'charges' | 'fees'
 
 interface MetricCard {
@@ -302,6 +301,9 @@ export default function DashboardMonthWiseView() {
 
         const response = await authFetch(`/home/details?isFilter=true&startDay=${startDay}&endDay=${endDay}`, {
           method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
           signal: controller.signal,
         })
 
@@ -310,6 +312,11 @@ export default function DashboardMonthWiseView() {
         }
 
         const payload = await response.json() as HomeDetailsResponse
+
+        if (!payload?.result) {
+          throw new Error(payload?.message ?? 'Dashboard data unavailable.')
+        }
+
         setReport(payload.result)
       } catch (loadError) {
         if (loadError instanceof Error && loadError.name === 'AbortError') {

@@ -7,7 +7,6 @@ import DonutChart, { type DonutSegment } from '@/components/charts/DonutChart'
 import BarChart, { type BarRow } from '@/components/charts/BarChart'
 import RajasthanLoader from '@/components/ui/RajasthanLoader'
 import type { HomeDetailsResponse, HomeDetailsReport, PlaceWiseReport } from '@/lib/api/services'
-import { baseUrl } from '../api/common.route'
 import { authFetch } from '@/lib/api/authFetch'
 const ticketColors = ['#8B1A1A', '#C8922A', '#1A7A6E', '#E8B84B', '#A83030', '#C9B48A']
 
@@ -135,32 +134,10 @@ export default function DashboardView() {
       try {
         setError(null)
 
-        const sessionResponse = await fetch('/api/auth/session', {
-          cache: 'no-store',
-          headers: {
-            Accept: 'application/json',
-          },
-          signal: controller.signal,
-        })
-
-        if (!sessionResponse.ok) {
-          throw new Error(`Unable to read auth session (${sessionResponse.status}).`)
-        }
-
-        const sessionPayload = await sessionResponse.json() as {
-          authenticated?: boolean
-          token?: string
-        }
-
-        if (!sessionPayload.authenticated || !sessionPayload.token) {
-          throw new Error('Missing auth token.')
-        }
-
-        const response = await authFetch(`/home/details?isFilter=true`, {
+        const response = await authFetch('/home/details?isFilter=true', {
           method: 'GET',
           headers: {
             Accept: 'application/json',
-            Authorization: `Bearer ${sessionPayload.token}`,
           },
           signal: controller.signal,
         })
@@ -170,7 +147,11 @@ export default function DashboardView() {
         }
 
         const payload = await response.json() as HomeDetailsResponse
-        console.log('Dashboard API Response', payload.result)
+
+        if (!payload?.result) {
+          throw new Error(payload?.message ?? 'Dashboard data unavailable.')
+        }
+
         setReport(payload.result)
       } catch (loadError) {
         if (loadError instanceof Error && loadError.name === 'AbortError') {
