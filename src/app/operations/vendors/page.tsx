@@ -518,20 +518,20 @@ export default function VendorManagementPage() {
           searchKey: deferredSearch.trim(),
         })
 
-        let endpoint = '/api/operations/vendors/requests'
+        let endpoint = '/vendor/getAllVendors'
         let parser: (payload: unknown) => unknown[] = extractVendorRequests
 
         if (mainTab === 'vendor-request') {
           params.set('status', 'PENDING')
-          endpoint = '/api/operations/vendors/requests'
+          endpoint = '/vendor/getAllVendors'
           parser = extractVendorRequests
         } else if (mainTab === 'vendor-listing') {
           params.set('status', 'APPROVE')
-          endpoint = '/api/operations/vendors/listing'
+          endpoint = '/vendor/getAllVendors'
           parser = extractVendorListing
         } else if (inventoryTab === 'sub-inventory') {
           params.set('requestStatus', requestStatus)
-          endpoint = '/api/operations/vendors/inventory/sub'
+          endpoint = '/inventory/master/all'
           parser = extractSubInventoryRequests
         } else if (inventoryTab === 'add-inventory') {
           params.set('requestStatus', requestStatus)
@@ -751,7 +751,7 @@ export default function VendorManagementPage() {
       setActionError('')
 
       const requestStatusValue = actionDialog.mode === 'approve' ? 'APPROVE' : 'REJECT'
-      let endpoint = '/api/operations/vendors/requests/decision'
+      let endpoint = '/vendor/approve'
       const payload: Record<string, unknown> = {
         id: actionDialog.row.id,
         requestStatus: requestStatusValue,

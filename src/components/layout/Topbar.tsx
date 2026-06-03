@@ -32,7 +32,7 @@ const pageTitles: Record<string, string> = {
   '/operations/vendors':     'Vendor Management',
   '/operations/feedback':    'Feedback Management',
   '/operations/helpdesk':    'Help Desk',
-  '/operations/content':     'Content Management',
+  // '/operations/content':     'Content Management',
   '/operations/menu':         'Menu Managment',
   '/operations/cancellation-policy': 'Cancellation Policy',
   '/operations/terms':       'Terms & Conditions',

@@ -17,6 +17,7 @@ import {
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
 import SectionHeader from '@/components/ui/SectionHeader'
+import { authFetch } from '@/lib/api/authFetch'
 
 type LookupItem = {
   id: string

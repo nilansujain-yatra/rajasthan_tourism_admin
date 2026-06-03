@@ -509,7 +509,7 @@ useEffect(() => {
         params.set("printCount", "ALL");
 
         // Determine API endpoint and parameters based on active tab
-        let apiEndpoint = "/api/inventory/reports/mis_V3";
+        let apiEndpoint = "/inventory/reports/mis_V3";
 
         if (activeTab === "INVENTORY") {
           params.set("ticketType", "");

@@ -51,7 +51,7 @@ const SUPER_ADMIN_NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/operations/feedback', icon: '💬', label: 'Feedback' },
       { href: '/operations/helpdesk', icon: '🛟', label: 'Help Desk' },
-      { href: '/operations/content', icon: '📝', label: 'Content Management' },
+      // { href: '/operations/content', icon: '📝', label: 'Content Management' },
       { href: '/operations/cancellation-policy', icon: '🧾', label: 'Cancellation Policy' },
       { href: '/operations/menu', icon: '📝', label: 'Menu Management' },
       { href: '/operations/terms', icon: '📜', label: 'Terms & Conditions' },
